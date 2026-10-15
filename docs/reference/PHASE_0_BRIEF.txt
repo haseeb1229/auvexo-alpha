@@ -1,0 +1,1409 @@
+AUVEXO ALPHA — PHASE 0: PRODUCT CONSTITUTION, ARCHITECTURE & ENGINEERING FREEZE
+Target implementer: Astra 6 High
+Founder / repository owner: haseeb1229
+Project status: NEW PRIVATE PERSONAL PROJECT
+
+You are the principal systems architect, quantitative-research architect, agentic-AI architect, security engineer, platform engineer, trading-systems engineer, and independent technical reviewer for a new private system named:
+
+AUVEXO ALPHA
+“Always-On Agentic Alpha Research & Autonomous Trading Desk”
+
+This is PHASE 0 only.
+
+The founder is a junior developer/trader. Do not offload ordinary engineering decisions to him. Make technically sound decisions, document them, and ask for founder action only where an external credential, authentication step, financial/religious policy decision, or other irreducible human action is genuinely required.
+
+The founder will give your Phase-0 handoff report to an independent reviewer before Phase 1. Do not begin Phase 1.
+
+======================================================================
+0. WHAT PHASE 0 MUST ACCOMPLISH
+======================================================================
+
+Phase 0 is NOT a fake demo and NOT a coding sprint.
+
+Its job is to create the authoritative blueprint and permanent engineering rules that all later AI coding agents must follow.
+
+At the end of Phase 0 we must know, in writing:
+
+- exactly what Auvexo Alpha is and is not;
+- what must be deterministic vs agentic;
+- what data is required and what is optional;
+- how alpha hypotheses are researched and validated;
+- how demo, shadow and real execution use the same production-quality path safely;
+- how risk can veto every agent;
+- how Exness/MT5 and Binance are abstracted;
+- how frontend and backend remain decoupled;
+- how agents/tools can be added later without rewriting the system;
+- how this trading system could later participate in a wider “Auvexo” ecosystem of separate agentic systems;
+- how security, testing, performance, storage, observability and recovery work;
+- what mature technologies should be used and what should be deferred;
+- what open-source projects may be reused, benchmarked or referenced;
+- the exact phased build order and proof gate for every phase;
+- the rules Claude Code, Codex and future coding agents must obey;
+- the exact repo/branch/commit state.
+
+No money must be traded in Phase 0.
+
+======================================================================
+1. PRODUCT DEFINITION
+======================================================================
+
+Auvexo is the future umbrella identity for a family of private agentic systems.
+
+Auvexo Alpha is the FIRST system only: a private trading/research system.
+
+Do NOT build generic WhatsApp/client-management/other systems now.
+
+However, design clean external boundaries so future projects such as:
+- Auvexo ClientOps,
+- Auvexo Comms,
+- Auvexo Research,
+or another unrelated agentic system could later communicate with Auvexo Alpha through explicitly versioned APIs/events without becoming coupled to its trading internals.
+
+Avoid premature creation of a giant multi-product monorepo.
+
+Recommended initial repository:
+    haseeb1229/auvexo-alpha
+
+Future Auvexo systems should preferably remain separate repos/services unless real shared-platform requirements later justify a common core.
+
+Auvexo Alpha is a private, personal, always-on agentic alpha-research and autonomous trading desk.
+
+Initial instruments:
+- BTC
+- ETH
+- XAU / Gold
+
+Primary goal:
+discover, validate, preserve and execute repeatable trading edges while protecting capital.
+
+Do NOT define success as:
+- number of agents,
+- number of indicators,
+- amount of code,
+- dashboard complexity,
+- AI “confidence”,
+- or backtest profit alone.
+
+Profitability is never assumed or guaranteed.
+
+The system must be able to conclude:
+    NO TRADE
+and treat that as a first-class valid result.
+
+======================================================================
+2. CORE DESIGN PRINCIPLE
+======================================================================
+
+Architecture rule:
+
+    AGENTIC OUTSIDE, DETERMINISTIC INSIDE.
+
+Agentic systems may:
+- investigate;
+- select research tools;
+- retrieve;
+- compare;
+- classify;
+- summarize;
+- debate;
+- generate hypotheses;
+- search historical analogues;
+- request quantitative experiments;
+- propose trade candidates;
+- explain decisions;
+- review closed/rejected trades;
+- detect potentially deteriorating edges.
+
+Agents must NOT have authority to:
+- bypass the hard risk kernel;
+- alter live risk limits;
+- fabricate balances/positions;
+- invent unrestricted leverage;
+- silently change production strategies;
+- activate blocked venues/instruments;
+- directly send arbitrary live order payloads;
+- withdraw funds;
+- edit immutable audit evidence;
+- auto-promote research code directly to real-money trading.
+
+Risk authorization and execution invariants must be deterministic, typed and independently testable.
+
+======================================================================
+3. DEMO VS REAL — IMPORTANT ARCHITECTURE DECISION
+======================================================================
+
+Build ONE production-quality trading system, not a “toy demo bot” followed by a later rewrite.
+
+Strategy logic, market-state logic, risk calculations, order intents, reconciliation, journaling and monitoring should be common across environments.
+
+Environment/account mode must be explicit and typed, e.g.:
+
+    RESEARCH
+    BACKTEST
+    PAPER
+    DEMO
+    SHADOW
+    LIVE_LIMITED
+    LIVE
+
+Exness Demo and Exness Real should use the same Exness execution adapter semantics wherever the broker/API/MT5 behavior permits.
+
+The account/profile/credentials determine WHICH Exness account is connected.
+
+However, merely replacing a demo account number with a real account number MUST NOT silently enable live trading.
+
+Real trading requires additional independent gates such as:
+- environment = LIVE or LIVE_LIMITED;
+- explicitly enabled venue/instrument policy;
+- explicit LiveTradingPermit / release artifact;
+- successful live-readiness qualification;
+- step-up owner authentication for activation;
+- hard startup refusal if gates disagree.
+
+Therefore:
+the system is REAL-CAPABLE from architecture day one,
+but REAL-MONEY execution remains technically impossible until future gates are deliberately satisfied.
+
+No Phase 0 task may connect or place orders on demo or real accounts.
+
+======================================================================
+4. VENUE POLICY
+======================================================================
+
+Initial execution policy:
+
+EXNESS / MT5:
+- research: allowed
+- market data: allowed when integration exists
+- demo execution: future allowed
+- shadow: future allowed
+- real execution: architecture-ready but LOCKED until future qualification
+
+BINANCE:
+- public market data: allowed
+- spot intelligence: allowed
+- futures/perpetual intelligence: allowed
+- OI/funding/basis/liquidation/order-flow data: allowed
+- paper execution: future allowed
+- full account/execution adapter: eventually build
+- live derivatives execution: BLOCKED_BY_POLICY initially
+
+BYBIT / OKX:
+- initially intelligence/data sources where useful
+- live execution not in initial scope
+
+Model venue/instrument policy explicitly:
+    APPROVED
+    RESEARCH_ONLY
+    PAPER_ONLY
+    REVIEW_REQUIRED
+    BLOCKED
+
+Do not hard-code religious conclusions into financial domain logic.
+Keep execution eligibility in an auditable policy boundary so reviewed future decisions can be changed without rewriting the trading engine.
+
+Never give withdrawal permission to trading credentials.
+
+======================================================================
+5. ALPHA RESEARCH IS THE HEART
+======================================================================
+
+Treat Auvexo Alpha primarily as:
+    an alpha research and validation system
+that also contains autonomous execution.
+
+The first engineering priority is NOT “build many agents”.
+
+Build a system that can quickly answer:
+    “Is there repeatable edge here?”
+
+Design for:
+- reproducible hypotheses;
+- deterministic feature generation;
+- data versioning;
+- train/validation/out-of-sample separation;
+- walk-forward testing;
+- parameter sensitivity;
+- lookahead-bias detection;
+- leakage detection;
+- realistic spread;
+- fees;
+- slippage;
+- latency;
+- partial/unknown fills where relevant;
+- regime segmentation;
+- event segmentation;
+- Monte Carlo / trade-order stress where justified;
+- performance attribution;
+- comparison to simple baselines.
+
+Metrics should include at minimum where meaningful:
+- expectancy;
+- profit factor;
+- maximum drawdown;
+- drawdown duration/recovery;
+- Sharpe;
+- Sortino;
+- Calmar;
+- average R;
+- win rate;
+- average win/loss;
+- tail losses;
+- turnover;
+- fees;
+- slippage;
+- exposure;
+- strategy correlation;
+- performance by regime;
+- performance by asset;
+- performance around major events.
+
+Never optimize around win rate alone.
+
+======================================================================
+6. CHAMPION / CHALLENGER
+======================================================================
+
+Design explicit strategy lifecycle states such as:
+
+    RESEARCH
+    CANDIDATE
+    VALIDATED
+    PAPER
+    SHADOW
+    LIVE_LIMITED
+    LIVE
+    SUSPENDED
+    RETIRED
+
+A currently authorized production strategy is the CHAMPION.
+
+New candidate strategies are CHALLENGERS.
+
+Challengers may research/paper/shadow trade against the same live market.
+
+No AI agent may autonomously promote a challenger to live capital.
+
+Promotion must require documented evidence and a release gate.
+
+======================================================================
+7. COUNTERFACTUAL / REJECTED TRADE BOOK
+======================================================================
+
+This is mandatory.
+
+Whenever an otherwise-valid candidate is rejected because of:
+- risk,
+- event blackout,
+- execution conditions,
+- market-data health,
+- regime filter,
+- news/macro filter,
+or another policy,
+
+persist enough information to simulate/observe what would have happened.
+
+The system must eventually answer:
+- Did this filter save money?
+- Did it unnecessarily reject profitable opportunities?
+- Does the news layer improve outcomes?
+- Does macro improve BTC/ETH decisions?
+- Does a fancy agent provide measurable incremental value?
+- Is the risk engine too permissive or too restrictive?
+
+Every sophisticated component must eventually be capable of proving its incremental value.
+
+======================================================================
+8. EDGE DECAY
+======================================================================
+
+Design first-class strategy degradation monitoring.
+
+Compare expected OOS/shadow/live behavior with recent behavior.
+
+Possible statuses:
+    NORMAL
+    WATCH
+    REDUCE
+    SUSPEND
+    INVESTIGATE
+
+Do not let short-term randomness trigger uncontrolled self-modification.
+
+Research Agent may propose a new hypothesis.
+It may not silently mutate live strategy code.
+
+======================================================================
+9. AGENTIC DESK
+======================================================================
+
+Design the eventual desk, but do not build agent theatre.
+
+Potential roles:
+- Supervisor / Head-of-Desk Agent
+- Market Radar
+- Technical / Market Structure specialist
+- Crypto Intelligence specialist
+- Gold specialist
+- Macro specialist
+- News / Geopolitical Event specialist
+- Bull Researcher
+- Bear / Adversarial Researcher
+- Risk Critic Agent
+- Quant Research Agent
+- Strategy Portfolio Agent
+- Post-Trade Auditor
+- Execution Agent
+
+For every role decide:
+- LLM agent;
+- deterministic service;
+- statistical model;
+- scheduled job;
+- or not justified.
+
+An “agent” exists only if autonomous reasoning/tool-selection adds value.
+
+Define:
+- identity;
+- permissions;
+- tools;
+- allowed data;
+- forbidden actions;
+- token/cost/time budget;
+- timeout;
+- retry;
+- escalation;
+- evidence requirements.
+
+Every material AI conclusion must reference evidence identifiers such as:
+- source_id;
+- event_id;
+- market_state_id;
+- dataset_version;
+- model_version;
+- strategy_version;
+- timestamp.
+
+======================================================================
+10. ALWAYS-ON LOOPS
+======================================================================
+
+Design event-driven autonomous loops rather than an infinite LLM loop.
+
+At minimum consider:
+- Fast Market Monitoring Loop
+- News/Event Loop
+- Macro Scheduled-Release Loop
+- Opportunity Evaluation Loop
+- Open-Position Loop
+- Execution/Reconciliation Loop
+- System Health Loop
+- Research Loop
+- Daily Review Loop
+- Weekly Alpha/Edge Review Loop
+
+For each define:
+- trigger;
+- work budget;
+- tools;
+- state;
+- timeout;
+- retries;
+- idempotency;
+- stop condition;
+- verifier;
+- failure behavior;
+- escalation.
+
+When reasoning is not required, LLM agents should sleep.
+
+======================================================================
+11. MARKET INTELLIGENCE
+======================================================================
+
+BTC/ETH may eventually consume:
+- multi-exchange spot prices/trades;
+- derivatives/perpetual data;
+- OI;
+- funding;
+- basis;
+- mark/index relationships;
+- liquidations;
+- taker flow;
+- order-book/depth only when justified;
+- spot-vs-derivative divergence;
+- ETF flows;
+- selected on-chain metrics;
+- exchange outages;
+- hacks/exploits;
+- stablecoin depegs;
+- regulation.
+
+Gold may eventually consume:
+- XAU price/structure;
+- DXY;
+- nominal US yields;
+- real yields;
+- Fed expectations;
+- inflation;
+- labor;
+- geopolitical risk;
+- risk-off/liquidity;
+- oil when relevant;
+- central-bank developments;
+- session structure.
+
+Macro/event scope may eventually include:
+- CPI/Core CPI
+- PCE/Core PCE
+- NFP
+- unemployment/wages
+- claims
+- JOLTS
+- GDP
+- retail sales
+- PPI
+- ISM/PMI
+- Fed rates/statements/minutes/speeches
+- Treasury/yields/liquidity
+- relevant ECB/BoE/BoJ/PBoC developments
+- tariffs
+- sanctions
+- war
+- ceasefire
+- regulation
+- banking/liquidity shocks
+
+Do not implement the full universe early.
+Prioritize only what has plausible measurable value.
+
+======================================================================
+12. NEWS TRUST / EVENT MODEL
+======================================================================
+
+Define source tiers including:
+- official governments;
+- central banks;
+- regulators;
+- official exchange/company/project sources;
+- professional financial sources;
+- verified public social accounts;
+- reputable secondary reporting;
+- low-confidence social/rumor.
+
+Event records should preserve:
+- source identity;
+- original publication time;
+- first-seen time;
+- ingestion time;
+- content hash;
+- semantic-duplicate identity;
+- novelty;
+- trust;
+- confirmation state;
+- affected entities/assets;
+- category;
+- severity;
+- confidence;
+- expiry/decay.
+
+Detect:
+- recycled headlines;
+- old posts resurfacing;
+- duplicate reporting;
+- commentary vs actual policy/action;
+- rumor vs confirmation.
+
+======================================================================
+13. BROWSER ACCESS
+======================================================================
+
+Future agents may have a sandboxed research browser.
+
+Do NOT use the founder’s ordinary personal Chrome profile.
+
+Do NOT use browser clicking as primary trading execution.
+
+Preferred hierarchy:
+    official structured API/feed
+    -> permitted provider integration
+    -> sandboxed browser research when appropriate
+
+Browser activity must be logged/auditable.
+
+Never make prohibited scraping a platform dependency.
+
+======================================================================
+14. POINT-IN-TIME TRUTH
+======================================================================
+
+Design history so we can reconstruct what was actually knowable at decision time.
+
+Where applicable preserve:
+- provider timestamp;
+- exchange event timestamp;
+- publication timestamp;
+- first-seen timestamp;
+- received timestamp;
+- processed timestamp;
+- decision timestamp;
+- order-sent timestamp;
+- acknowledgement timestamp;
+- fill timestamp.
+
+For revisable macro/on-chain data:
+preserve the originally observed value separately from later revisions when feasible.
+
+Design versioned MarketState/FeatureSnapshot records.
+
+Future query must be answerable:
+    “Exactly why did Auvexo Alpha propose/reject/execute this at this time?”
+
+======================================================================
+15. STORAGE / HARDWARE CONSTRAINT
+======================================================================
+
+Target developer machine:
+
+HP EliteBook 1040 G8
+Intel Core i5
+16 GB RAM
+1 TB SSD
+~300 GB free
+
+V1/V2 must be comfortable on this machine.
+
+Do not retain unlimited raw full-depth order books.
+
+Design hot / warm / cold retention.
+
+Use compressed columnar research archives such as Parquet when appropriate.
+
+Target initial total project/data footprint:
+preferably below ~100–150 GB.
+
+Design:
+- disk quotas;
+- retention;
+- compaction;
+- archival;
+- cleanup;
+- behavior when disk approaches pressure threshold.
+
+GPU must NOT be required for core operation.
+
+======================================================================
+16. FREE-FIRST / ZERO-MANDATORY-SPEND POLICY
+======================================================================
+
+Founder already has:
+- the laptop;
+- GitHub Student Developer Pack;
+- GitHub account haseeb1229;
+- existing domain(s);
+- Claude;
+- ChatGPT;
+- Binance account;
+- Bybit account;
+- OKX account;
+- Exness account.
+
+Initial build, research and Exness Demo qualification must not REQUIRE a paid API/data/cloud subscription.
+
+Premium data/providers are optional adapters.
+
+Do not purchase or sign up for anything during Phase 0.
+
+No code may assume:
+- CoinGlass paid API;
+- X paid API;
+- Trading Economics paid API;
+- premium financial news wire;
+- paid cloud LLM;
+or any other paid service
+is mandatory.
+
+If a paid source is later considered, require an experiment showing sufficient incremental value.
+
+======================================================================
+17. AI MODEL STRATEGY
+======================================================================
+
+Do NOT propose training a frontier foundation model.
+
+The product is a software/agent system using:
+- deterministic code;
+- statistical models;
+- pretrained language models;
+- structured memory;
+- optional smaller ML models.
+
+Define a provider abstraction so Claude/OpenAI/local/future models can be swapped.
+
+The trading/risk/execution core must continue safely when ALL LLM providers are unavailable.
+
+LLM-dependent opportunities fail closed/degrade safely.
+
+Later quantitative model training may include:
+- logistic/statistical models;
+- boosted trees;
+- regime models;
+- probability calibration;
+- anomaly models;
+and only later deeper ML if justified by evidence.
+
+No model gets live authority merely because backtest metrics look good.
+
+======================================================================
+18. MATURE STACK SELECTION
+======================================================================
+
+Select technology for THIS problem, not because the founder used it before.
+
+Bias toward:
+- mature;
+- well-supported;
+- boring;
+- observable;
+- testable;
+- Windows/WSL2 friendly;
+- resource-conscious.
+
+Current direction to evaluate, not blindly accept:
+
+Trading / Quant Core:
+- Python
+
+Typed API:
+- FastAPI
+- Pydantic or equivalent
+
+Quant/research:
+- NumPy
+- Polars and/or Pandas where justified
+- SciPy
+- statsmodels
+- scikit-learn
+- optional later XGBoost / LightGBM / PyTorch only when justified
+
+Data:
+- PostgreSQL
+- evaluate plain PostgreSQL vs TimescaleDB rather than assuming Timescale
+- Parquet research archives
+
+Ephemeral/cache:
+- Redis only where real value exists
+
+Messaging:
+- evaluate NATS JetStream vs a simpler in-process/job architecture
+- do NOT introduce message-bus complexity until justified
+
+Frontend:
+- React
+- TypeScript
+- Vite
+- mature TanStack components where appropriate
+- Tailwind
+- accessible UI primitives
+- TradingView Lightweight Charts and/or Apache ECharts
+
+Desktop later:
+- Tauri
+
+Android later:
+- React Native / Expo
+- private sideloaded APK
+
+Infra:
+- Docker
+- GitHub Actions
+- OpenTelemetry
+- Prometheus/Grafana or simpler mature monitoring based on actual scale
+
+DO NOT:
+- use Kubernetes;
+- create a microservice zoo;
+- choose bleeding-edge versions solely because they are newest.
+
+Exact versions must be researched from official current sources and pinned in Phase 1, favoring supported mature releases.
+
+======================================================================
+19. FRONTEND / BACKEND DECOUPLING
+======================================================================
+
+This is a permanent requirement.
+
+Founder must be able to redesign or replace frontend screens without breaking trading logic.
+
+Enforce:
+- frontend imports no trading engine internals;
+- frontend never holds broker/exchange secrets;
+- frontend never talks directly to broker/exchange trading APIs;
+- frontend communicates through versioned typed API/event contracts;
+- domain layer does not import UI;
+- execution layer does not import UI;
+- presentation models/adapters isolate UI requirements;
+- websocket/realtime messages have versioned schemas;
+- backend behavior has integration/contract tests independent of frontend;
+- UI E2E tests do not substitute for backend correctness tests.
+
+A frontend redesign must not require rewriting risk/execution logic.
+
+======================================================================
+20. FUTURE EXTENSIBILITY
+======================================================================
+
+Design extension points for:
+- new market data sources;
+- new execution venues;
+- new instruments;
+- new agent roles;
+- new tools;
+- new quantitative features;
+- new strategies;
+- new model providers;
+- new notification channels;
+- future separate Auvexo systems.
+
+Use typed registries/interfaces/plugins where useful.
+
+Do NOT build generic abstraction layers with no present use.
+Prefer the smallest abstraction that preserves future replaceability.
+
+Future cross-system integration should happen through:
+- explicit APIs;
+- events;
+- tool contracts;
+- identity/permission boundaries;
+not by directly importing one system’s database tables into another.
+
+======================================================================
+21. EXNESS / MT5 ARCHITECTURE STUDY
+======================================================================
+
+Evaluate:
+- MetaTrader 5 Python integration;
+- thin MQL5 Expert Advisor bridge;
+- hybrid approach.
+
+Compare:
+- reliability;
+- terminal connectivity;
+- reconnection;
+- broker truth;
+- order acknowledgement;
+- partial/unknown state;
+- idempotency;
+- duplicate prevention;
+- Windows dependency;
+- testability;
+- local deployment;
+- later remote deployment;
+- recovery/reconciliation.
+
+Do NOT choose only by implementation convenience.
+
+Broker state is authoritative for actual execution facts.
+
+Unknown execution state:
+    reconcile first.
+Never blindly resend.
+
+======================================================================
+22. HARD RISK / EXECUTION INVARIANTS
+======================================================================
+
+Define permanent invariants such as:
+
+- no execution without validated typed TradeIntent;
+- no execution without deterministic RiskAuthorization;
+- no duplicate trade intent;
+- no live order on stale data;
+- no live order while broker/account state is unknown;
+- no blocked venue/instrument execution;
+- no real account execution while environment is DEMO;
+- no “switch credentials and accidentally become live” path;
+- no secret in frontend;
+- no secret in Git history;
+- no withdrawal permission;
+- no agent bypassing position/risk limits;
+- no LLM-created arbitrary broker payload;
+- no silent reconciliation failure;
+- no unbounded retry;
+- no silent exception swallowing;
+- no ambiguous execution state treated as success;
+- fail closed for money-changing actions.
+
+Design kill-switch levels and recovery procedures.
+
+======================================================================
+23. SECURITY BASELINE
+======================================================================
+
+Private repository does NOT mean security can be weak.
+
+Single-owner system.
+
+No public signup.
+
+Plan for:
+- one owner account;
+- strong auth;
+- passkey/WebAuthn where appropriate;
+- optional MFA/TOTP;
+- step-up auth for dangerous actions;
+- secure secret store/keychain;
+- encrypted secrets at rest;
+- least-privilege venue credentials;
+- withdrawal permission disabled;
+- separate dev/demo/shadow/live credentials;
+- separate environment configurations;
+- dependency scanning;
+- secret scanning;
+- SAST where useful;
+- SBOM/dependency inventory where practical;
+- audit log;
+- break-glass process;
+- secure backup/restore;
+- zero-trust/private-network remote access later.
+
+Do not rely on an obscure subdomain for security.
+
+======================================================================
+24. PERFORMANCE / OPTIMIZATION RULES
+======================================================================
+
+Optimization is required, but premature cleverness is forbidden.
+
+Define performance budgets for:
+- market ingestion lag;
+- event ingestion lag;
+- strategy evaluation;
+- risk decision;
+- execution dispatch;
+- UI refresh;
+- DB query latency;
+- background research resource usage.
+
+Profile before optimizing.
+
+Keep LLMs off latency-critical paths where possible.
+
+Long backtests/research jobs must be resource-limited so they cannot starve live/demo execution.
+
+CPU/RAM/disk budgets must respect 16 GB RAM / ~300 GB free developer hardware.
+
+No busy loops.
+
+No uncontrolled polling.
+
+Use backpressure and bounded queues where required.
+
+======================================================================
+25. RELIABILITY / QUALITY RULES
+======================================================================
+
+Create permanent engineering rules covering at least:
+
+- strict typing;
+- explicit schemas;
+- deterministic time handling;
+- UTC internally;
+- no floating point misuse for money/size where precision matters;
+- idempotency;
+- bounded retries with backoff;
+- explicit timeout policy;
+- structured errors;
+- no broad silent catch;
+- no dead code;
+- no duplicate implementations;
+- no abandoned alternate code paths;
+- no unused dependencies;
+- no hard-coded secrets;
+- no magic risk constants outside configuration/policy;
+- no unexplained TODO/FIXME in production paths;
+- no “temporary” security bypass;
+- no test skipping without documented reason;
+- no mock data in production runtime;
+- no unversioned DB migration changes after merge;
+- backwards-compatible migrations where needed;
+- explicit rollback/recovery plans;
+- dependency pinning/lockfiles;
+- formatter/linter/type checker;
+- test coverage focused on critical behavior, not vanity percentage;
+- deterministic/reproducible research seeds where applicable.
+
+Any accepted technical debt must have:
+- ID;
+- owner;
+- reason;
+- impact;
+- expiry/review point.
+
+======================================================================
+26. TESTING STRATEGY
+======================================================================
+
+Define layered tests:
+
+- unit;
+- property-based where valuable;
+- integration;
+- DB integration;
+- broker/venue adapter contract tests;
+- replay tests;
+- backtest correctness tests;
+- lookahead/leakage tests;
+- failure injection;
+- disconnect/reconnect;
+- stale-data;
+- duplicate message/order;
+- clock/timestamp edge cases;
+- risk boundary;
+- environment boundary;
+- auth/security;
+- frontend contract;
+- E2E for important owner flows.
+
+Financially critical code requires negative/adversarial tests, not only happy-path tests.
+
+Real-environment proof gates must be specified for future phases.
+
+======================================================================
+27. OBSERVABILITY
+======================================================================
+
+Design:
+- structured logs;
+- metrics;
+- traces where valuable;
+- health/readiness checks;
+- data-feed lag;
+- queue lag;
+- broker connectivity;
+- position mismatch;
+- risk state;
+- strategy state;
+- agent-run cost/time;
+- disk/RAM/CPU;
+- model/provider failures.
+
+No sensitive credentials or unnecessary private content in logs.
+
+Every important live/demo decision must be auditable.
+
+======================================================================
+28. VOICE / CLIENT SURFACES
+======================================================================
+
+Eventually one trading backend serves:
+
+1. private web terminal;
+2. Windows desktop app;
+3. Android APK;
+4. voice interface.
+
+Desktop/mobile/web are clients, not separate brains.
+
+Voice may support:
+- briefing;
+- current market state;
+- “why did you reject/take this?”;
+- open risk;
+- pause new trades.
+
+Dangerous voice commands such as:
+- CLOSE ALL;
+- ENABLE LIVE;
+- change max risk;
+- enable a venue;
+require strong confirmation/step-up auth.
+
+Do not build clients/voice in Phase 0.
+
+Do not let UI work delay alpha/research validation.
+
+======================================================================
+29. HOSTING / PRIVATE ACCESS STRATEGY
+======================================================================
+
+Initial target:
+LOCAL-FIRST.
+
+Developer laptop may run:
+- backend;
+- DB;
+- research;
+- dashboard;
+- MT5;
+- demo execution later.
+
+Phase 0 should document future deployment stages:
+- local only;
+- private remote access;
+- cloud/demo/shadow;
+- live.
+
+Use GitHub Student Developer Pack/free resources only when suitable.
+
+Do not architect the safety of real-money trading around a fragile free tier.
+
+Domain is available, but obscurity is not authentication.
+
+Prefer private-network / identity-aware access patterns.
+
+======================================================================
+30. OPEN-SOURCE REUSE — DO NOT FORK AS BASE
+======================================================================
+
+Create a NEW private Auvexo Alpha repository.
+
+Do NOT use a third-party trading project as the root fork.
+
+Research mature projects including:
+- Hummingbot;
+- Freqtrade;
+- QuantConnect LEAN;
+- TradingAgents;
+- OpenBB where relevant;
+- other high-quality systems discovered during review.
+
+For each evaluate:
+- what problem it solves;
+- maintenance health;
+- architecture quality;
+- license;
+- security;
+- dependencies;
+- fit to Auvexo Alpha;
+- dependency vs sidecar vs reference vs benchmark;
+- what should NOT be reused.
+
+Rules:
+
+- External repos may be temporarily cloned OUTSIDE the project repository for inspection.
+- Do not commit entire third-party repos into Auvexo Alpha.
+- Prefer stable libraries/packages over copied source.
+- A mature external engine may be run as an external research/reference tool if justified.
+- Any copied/adapted source must preserve legally required license/copyright/NOTICE attribution.
+- Do not strip third-party attribution to make borrowed code look original.
+- Do not blindly copy README architecture claims.
+- Our risk policy, execution policy, market-state model and project architecture remain ours.
+
+======================================================================
+31. REPOSITORY OWNERSHIP / GIT HYGIENE
+======================================================================
+
+Repository owner:
+    haseeb1229
+
+Repository:
+    auvexo-alpha
+
+Visibility:
+    PRIVATE
+
+All project commits should use the founder’s configured Git identity.
+
+Do NOT add:
+- AI co-author trailers;
+- “Co-authored-by: Claude”;
+- “Co-authored-by: Codex”;
+- generated-by banners;
+- comments bragging that code was AI-generated.
+
+Do not rewrite or falsify third-party license/copyright attribution.
+
+If Git identity is not correctly configured, detect it and report the exact blocker rather than inventing an identity.
+
+Keep professional commit messages focused on the software change.
+
+No destructive history rewriting after a reviewed phase is pushed.
+
+======================================================================
+32. PERMANENT AI-CODING INSTRUCTION FILES
+======================================================================
+
+Create authoritative project-agent instruction files:
+
+- CLAUDE.md
+- AGENTS.md
+
+They must contain aligned project rules so Claude Code, Codex and future coding agents receive the same engineering constraints.
+
+Codex should be able to rely on repository AGENTS.md behavior.
+
+Include instructions such as:
+- read architecture/ADRs before implementation;
+- inspect existing code before changing;
+- do not duplicate functionality;
+- do not introduce dead code;
+- do not weaken tests to make CI pass;
+- do not silently change requirements;
+- do not start a future phase;
+- keep frontend/backend boundaries;
+- preserve migration history;
+- preserve venue/live gates;
+- preserve deterministic risk authority;
+- do not add dependencies without justification;
+- run required verification before commit;
+- no AI co-author trailers;
+- never expose secrets;
+- produce handoff evidence.
+
+Avoid stuffing enormous architecture documents into CLAUDE.md/AGENTS.md.
+Those files should point to canonical docs and state non-negotiable rules.
+
+Also create a canonical:
+    docs/engineering/ENGINEERING_RULES.md
+or equivalent.
+
+======================================================================
+33. PROJECT DOCUMENTATION
+======================================================================
+
+Create an authoritative Phase-0 baseline.
+
+At minimum cover:
+
+- PRODUCT_CONSTITUTION.md
+- REQUIREMENTS_REGISTER.md
+- ARCHITECTURE.md
+- AGENT_ARCHITECTURE.md
+- RESEARCH_AND_VALIDATION.md
+- RISK_AND_CAPITAL_POLICY.md
+- EXECUTION_AND_VENUE_POLICY.md
+- DATA_ARCHITECTURE.md
+- DATA_SOURCE_REGISTER.md
+- SECURITY_BASELINE.md
+- ENGINEERING_RULES.md
+- PERFORMANCE_AND_RELIABILITY.md
+- OPERATIONS_AND_RECOVERY.md
+- OPEN_SOURCE_REUSE_REVIEW.md
+- ROADMAP.md
+- OPEN_DECISIONS.md
+- ADR index + required ADRs
+- HANDOFF_TEMPLATE.md
+- PHASE_0_HANDOFF.md
+
+Consolidate only when it improves clarity; do not omit subject matter.
+
+Requirements must have stable IDs and priorities.
+
+Mark decisions:
+    FROZEN
+    PROVISIONAL
+    DEFERRED
+    EXTERNAL
+
+======================================================================
+34. FRONTEND QUALITY DIRECTION
+======================================================================
+
+No Phase 0 UI implementation.
+
+Document a future UX/design direction:
+
+Professional private trading terminal.
+
+Priorities:
+- clarity;
+- density without clutter;
+- keyboard efficiency;
+- responsive behavior;
+- accessibility;
+- realtime state;
+- understandable risk;
+- strong system-health visibility;
+- dark-first design;
+- restrained motion;
+- no casino aesthetic;
+- no fake “AI magic” metrics.
+
+Important future areas:
+- Command Center
+- BTC desk
+- ETH desk
+- Gold desk
+- Market/Chart workspace
+- News/Event intelligence
+- Macro
+- Signals/Candidates
+- Positions
+- Risk
+- Strategy Lab
+- Backtests
+- Journal
+- Research
+- System Health
+- Settings/Policies
+
+A later redesign must remain presentation-only and not destabilize backend behavior.
+
+======================================================================
+35. ROADMAP REQUIREMENT
+======================================================================
+
+Create a realistic roadmap.
+
+Do not make 30 phases merely to look professional.
+
+Every phase must specify:
+- purpose;
+- scope;
+- non-scope;
+- dependencies;
+- outputs;
+- tests;
+- real-environment proofs;
+- security checks;
+- exit gate;
+- rollback/recovery concerns.
+
+The roadmap should prioritize:
+
+product/architecture freeze
+-> engineering foundation
+-> trustworthy historical/live market data
+-> research/backtest correctness
+-> simple measurable alpha hypotheses
+-> regime/strategy framework
+-> deterministic risk
+-> Exness Demo execution/reconciliation
+-> sustained demo/shadow evidence
+-> derivatives intelligence
+-> macro/events
+-> news
+-> agentic investigation/research
+-> richer alternative data where justified
+-> professional client surfaces
+-> live certification
+-> tiny controlled real capital
+-> controlled scaling
+
+Challenge the sequence if you have a materially better evidence-based architecture.
+
+======================================================================
+36. WHAT NOT TO DO IN PHASE 0
+======================================================================
+
+Do NOT:
+- place demo trades;
+- place real trades;
+- connect live-money credentials;
+- build production trading code;
+- create fake UI screens;
+- train ML models;
+- build voice;
+- build mobile;
+- build desktop;
+- buy/sign up for paid APIs;
+- scrape against provider terms;
+- copy external repos into ours;
+- fork Hummingbot/Freqtrade/TradingAgents as project root;
+- build dozens of agents;
+- prematurely split into many microservices;
+- use Kubernetes;
+- introduce speculative infrastructure;
+- start Phase 1.
+
+======================================================================
+37. GITHUB / REPOSITORY ACTIONS
+======================================================================
+
+If GitHub CLI/network authentication is available:
+
+1. verify Git identity;
+2. create a PRIVATE repository:
+       haseeb1229/auvexo-alpha
+   if it does not exist;
+3. create a minimal stable main baseline;
+4. create branch:
+       phase-0/product-architecture-freeze
+5. perform Phase-0 documentation work only on that branch;
+6. run all applicable documentation/repository checks;
+7. commit cleanly;
+8. push the Phase-0 branch;
+9. DO NOT merge it to main.
+
+If repository creation/push is impossible solely because external authentication/permission is unavailable:
+- complete the work locally;
+- commit locally if possible;
+- do not pretend it was pushed;
+- report the exact minimal human action required.
+
+Do not ask the founder to manually do work that you can perform yourself.
+
+======================================================================
+38. PHASE 0 SELF-REVIEW
+======================================================================
+
+Before final handoff:
+
+Perform a full internal consistency review.
+
+Specifically verify:
+
+- no requirement contradicts another;
+- demo/live design is real-capable but safely gated;
+- no frontend dependency leaks into trading domain;
+- no LLM can bypass risk;
+- no paid service is mandatory;
+- laptop/storage constraints are realistic;
+- open-source licensing strategy is sound;
+- future Auvexo ecosystem does not force premature coupling;
+- repo rules are enforceable;
+- roadmap discovers edge before cosmetic expansion;
+- security remains appropriate despite private repo;
+- architecture allows additional agents/features later;
+- there is no dead-end technology choice;
+- every deferred decision has a decision point.
+
+Correct issues before handoff.
+
+======================================================================
+39. REQUIRED FINAL HANDOFF
+======================================================================
+
+Return a Phase 0 Handoff Report containing:
+
+- repository URL if created;
+- visibility;
+- exact branch;
+- exact commit SHA(s);
+- push status;
+- files created/changed;
+- concise final product definition;
+- final architecture summary;
+- final stack direction;
+- why major technologies were selected/deferred;
+- demo-vs-live architecture;
+- execution/venue policy;
+- agent/risk authority model;
+- data/storage feasibility;
+- estimated local RAM/disk envelope;
+- free-first cost posture;
+- open-source reuse findings + license notes;
+- security baseline;
+- performance/reliability baseline;
+- frontend/backend boundary;
+- extensibility/Auvexo ecosystem boundary;
+- permanent CLAUDE.md / AGENTS.md rules summary;
+- roadmap summary;
+- frozen decisions;
+- provisional/deferred decisions;
+- open external gates;
+- any founder action genuinely required;
+- confirmation that no trading occurred;
+- confirmation that no paid service was purchased;
+- confirmation that Binance live derivatives remain blocked;
+- Phase-0 verdict:
+      PASS
+      PASS-WITH-OPEN-GATES
+      FAIL
+- exact evidence required before Phase 1 may start.
+
+Do not start Phase 1.
+
+The founder will send the handoff report to an independent reviewer who will issue the next phase prompt.
