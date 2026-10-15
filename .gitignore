@@ -1,0 +1,21 @@
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials/
+
+# Runtime data and tools
+data/
+backups/
+logs/
+.venv/
+__pycache__/
+node_modules/
+dist/
+coverage/
+.DS_Store
+Thumbs.db
+.local/
