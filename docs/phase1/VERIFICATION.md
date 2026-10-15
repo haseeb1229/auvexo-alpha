@@ -4,6 +4,11 @@ Date: 2026-10-16, owner's Windows host. This is implementation evidence, not ind
 approval, live-money certification or profitability proof. Exact Git/CI and clean-clone
 receipts are added after committing the source under test; no self-referential commit hash.
 
+Sanitized machine-readable receipts: [resources](evidence/resource-evidence.json),
+[database recovery](evidence/recovery-evidence.json),
+[initial clean clone](evidence/clean-clone-evidence.json),
+[dependency advisory audit](evidence/dependency-audit.json).
+
 ## Baseline and review workflow
 
 Independent reviewed Phase 0: `745be5b0779f685f731167c0c981d74caae307cf`.
@@ -49,7 +54,7 @@ No SQLite substitute, committed DB dump, order fixture or account credential is 
 
 ## Measured environment and resources
 
-Windows reported `Windows-11-10.0.26300-SP0`, 8 logical CPUs, 15.73 GiB RAM,
+Windows reported `Windows-11-10.0.26300-SP0`, Intel Core i5-1145G7 (4 cores/8 threads), 15.73 GiB RAM,
 343.94 GiB free disk at measurement. Do not substitute old Windows marketing-version registry
 labels for the runtime-reported build. Python 3.13.16 and PostgreSQL 17.11 executed natively.
 
@@ -78,7 +83,8 @@ third-party distributions, zero known vulnerabilities, zero ignored advisories. 
 included. [Inventory](DEPENDENCIES.json) has recognized license metadata for all 67;
 [CycloneDX SBOM](SBOM.json) supplies package versions/purls. See [license review](TOOLCHAIN.md).
 
-Gitleaks 8.30.1 initial exported-source scan: zero leaks in approximately 493,841 bytes.
+Gitleaks 8.30.1 updated exported-source scan: zero leaks in approximately 554,357 bytes;
+full Git history: six commits scanned, zero leaks at the implementation checkpoint.
 High-signal scanner covers Git-tracked and untracked nonignored files, reports filenames only,
 and runs in CI. Full source/history scans and Git checks are repeated at the final revision.
 No scanner baseline, finding allowlist, code/type ignore or skipped test is used.
@@ -87,11 +93,28 @@ Initial failures were corrected: current Starlette needs httpx2; incomplete Post
 extraction prevented initdb; Windows pipe inheritance blocked a wrapper; a cross-user pytest
 cache required a separate owner cache; Windows psutil requires a string disk path; process-tree
 measurement must include the venv child. These failures are not reported as passing runs.
+The documented complete bootstrap (idempotent repeat), database stop/start, and `doctor`
+also passed under process-only RemoteSigned policy; doctor reported actual READY with execution
+disabled. The machine's persistent PowerShell execution policy was not changed.
 
-## Remaining receipt work at implementation checkpoint
+## Clean Windows clone and CI disposition
 
-The first implementation checkpoint precedes its own clean-clone and GitHub CI run. Those
-results must be appended before recommending Phase 1 completion. CI uses a standard Linux
+`python tools/verify_clean_clone.py` passed for source checkpoint
+`62d88873d9b24a7fec1b663b4fb20551f9c2433a`: fresh Git clone with `--no-local --no-hardlinks`,
+fresh virtual environment and download cache, shared verified Python executable only, new
+isolated TEST database and clone-owned migration, full checks and clean final tree. Install
+plus clone 70.646 s; whole verification 183.976 s; pytest 145 passed in 46.24 s. Lock SHA256
+`0dc9fcb8d19cdda6ce149ec748e4f5ffc01cfecec9b40c75cfe6b64e333148b1`.
+The additional invalid-UUID PostgreSQL assertion passed in the working suite (145 tests,
+25.91 s). A final-revision clean-clone receipt is also supplied in the delivery/PR.
+
+[CI run 38797754544](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38797754544),
+check/job `116638521904`, source SHA above: **FAIL before any steps, no runner assigned**.
+GitHub annotation: account payment failures or spending limit prevent starting the job.
+This is an external account blocker; no hosted formatter/test/audit result exists. No rerun
+can count as proof unless it actually executes. Do not substitute local checks for CI PASS.
+
+CI uses a standard Linux
 runner with a real digest-pinned PostgreSQL service, read-only token, pinned actions and a
 15-minute timeout. Existing repository Actions permissions are read-only and cannot approve PRs.
 The billing API returned 404/missing user scope; remaining private Actions allowance is not

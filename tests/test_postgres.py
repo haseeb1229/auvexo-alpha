@@ -50,6 +50,8 @@ def test_r025_p1_rollback_unique_and_constraints() -> None:
         conn.execute(statement, (event_id, "1.0", "TEST_FIXTURE", "0" * 64))
         with pytest.raises(psycopg.errors.UniqueViolation), conn.transaction():
             conn.execute(statement, (event_id, "1.0", "TEST_FIXTURE", "0" * 64))
+        with pytest.raises(psycopg.errors.InvalidTextRepresentation), conn.transaction():
+            conn.execute(statement, ("not-a-uuid", "1.0", "TEST_FIXTURE", "0" * 64))
         for version, kind, digest in [
             ("2.0", "TEST_FIXTURE", "0" * 64),
             ("1.0", "TRADE", "0" * 64),

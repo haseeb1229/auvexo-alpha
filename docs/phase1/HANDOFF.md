@@ -2,8 +2,11 @@
 
 Scope: Phase 1 only, after independently accepted Phase 0. Submission remains subject to
 independent review; this document does not approve or merge its own PR. Phase 2 is not started.
-At the initial implementation checkpoint, clean-clone/CI receipts are still to be recorded in
-[verification](VERIFICATION.md); completion disposition is withheld until those checks finish.
+Disposition: **FAIL for the complete Phase 1 exit gate: CI externally BLOCKED**. Local
+implementation, 145 tests, real PostgreSQL recovery, audits and clean Windows clone pass.
+GitHub did not start a runner because the account has a billing/spending-limit restriction.
+Do not call this Phase 1 PASS or begin Phase 2 until actual CI and independent review succeed.
+See the exact [verification receipts](VERIFICATION.md).
 
 ## Delivered foundation
 
@@ -17,7 +20,7 @@ See [source/test inventory and diagram](IMPLEMENTATION.md), [toolchain](TOOLCHAI
 Phase 0 [PR #1](https://github.com/haseeb1229/auvexo-alpha/pull/1) is merged at
 `eafec07ee7c7a98c9cca17b5f8665494bd650751`. Phase 1 branch is
 `phase-1/engineering-foundation`, based on that accepted main. Exact Phase 1 SHA/PR/CI will be
-recorded after checks. Main must remain unchanged; Phase 1 PR stays unmerged.
+recorded in the PR and delivery receipt after checks. Main remains unchanged; Phase 1 PR stays unmerged.
 
 ## Limits and tracked follow-up
 
@@ -34,6 +37,13 @@ No known unresolved runtime test defect is accepted. Future incomplete features 
 not permission to enable capabilities. Original R-000..R-039 are preserved; 15 stable Phase 1
 child invariants are mapped to tests. ADR-011 narrows the implemented foundation without
 changing financial authority or inventing unused queue/outbox infrastructure.
+
+Current blocking proof: [GitHub run 38797754544](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38797754544)
+failed before any steps/runner assignment. GitHub's annotation says recent account payments
+failed or the spending limit needs increasing. The smallest owner action is to inspect
+Billing & plans and restore Actions availability within the existing free allowance, then
+rerun the workflow at the final review SHA. No payment, plan/limit increase, token-scope change,
+self-hosted runner registration or protection change is authorized or performed here.
 
 ## Closed capabilities and future gates
 

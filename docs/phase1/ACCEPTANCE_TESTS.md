@@ -4,7 +4,7 @@ Authorized by the supplied Phase 1 prompt after normal Phase 0 PR #1 merge.
 These stable child IDs refine existing parents before implementation. They do not certify
 future risk, execution or live trading. Original R-000..R-039 remain unchanged.
 
-| ID | Current-phase invariant | Planned executable proof |
+| ID | Current-phase invariant | Executable proof |
 | --- | --- | --- |
 | R-003-P1-01 | Parse seven modes; none enables execution | Parameterized all-mode refusal tests; config elevation rejects |
 | R-004-P1-01 | Binance live derivatives explicitly BLOCKED_BY_POLICY | Versioned policy and direct disabled-port test |
@@ -22,5 +22,6 @@ future risk, execution or live trading. Original R-000..R-039 remain unchanged.
 | R-024-P1-01 | Actual foundation footprint is measured separately from future trading budgets | Windows process idle RAM/CPU/startup/disk evidence |
 | R-031-P1-01 | Accepted Phase 0 merged normally; Phase 1 unmerged PR with CI | GitHub PR/ref/check-run evidence, owner identity and secret scan |
 
-Implementation test names/results and any remaining proof gaps will be recorded in the
-Phase 1 handoff. Full broker risk/reservations/dispatch stay assigned to Phases 4/5.
+Implementation test files are mapped in [inventory](IMPLEMENTATION.md), with actual results
+and the CI proof blocker in [verification](VERIFICATION.md). Full broker risk/reservations/
+dispatch stay assigned to Phases 4/5.

@@ -6,6 +6,13 @@ Use PowerShell from the repository, including paths containing spaces. Keep the 
 user for setup and checks. Mixing sandbox and owner identities can make test caches unwritable;
 an explicit `pytest -o cache_dir=.local/pytest-owner` changes only the cache location.
 
+This machine's default PowerShell policy blocks local scripts. Use the reviewed scripts with
+process-only RemoteSigned policy, for example
+`powershell.exe -NoProfile -ExecutionPolicy RemoteSigned -File tools/dev.ps1 doctor`.
+Apply the same invocation to bootstrap and other dev actions below. No persistent user/machine
+execution policy is changed; if an organization enforces a stronger policy, obtain its approved
+script-signing path instead. The direct Python commands in verification are also available.
+
 ## Install
 
 Prerequisites: Windows x64, Git, Node 24.20.0 for document checks, HTTPS access to official

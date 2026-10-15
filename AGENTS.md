@@ -3,6 +3,7 @@
 Current authorized scope: Phase 1 engineering foundation, following independent acceptance
 of Phase 0 at 745be5b0779f685f731167c0c981d74caae307cf and normal PR #1 merge.
 Read docs/reviews/PHASE_0_INDEPENDENT_ACCEPTANCE.md and docs/phase1/ACCEPTANCE_TESTS.md.
+Current evidence and any remaining exit blockers: docs/phase1/HANDOFF.md.
 No Phase 2, account connection, market ingestion or demo/live orders. Execution must remain
 disabled in every mode; no broker SDK, real risk kernel or permit issuance in Phase 1.
 Phase 1 PR must remain unmerged for independent review and a new phase prompt.
