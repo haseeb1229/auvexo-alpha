@@ -1,7 +1,11 @@
 # Project agent rules
 
-Current authorized scope: Phase 0 documentation and repository checks only. Phase 1
-requires an independent review of the exact handoff commit and a new phase prompt.
+Current authorized scope: Phase 1 engineering foundation, following independent acceptance
+of Phase 0 at 745be5b0779f685f731167c0c981d74caae307cf and normal PR #1 merge.
+Read docs/reviews/PHASE_0_INDEPENDENT_ACCEPTANCE.md and docs/phase1/ACCEPTANCE_TESTS.md.
+No Phase 2, account connection, market ingestion or demo/live orders. Execution must remain
+disabled in every mode; no broker SDK, real risk kernel or permit issuance in Phase 1.
+Phase 1 PR must remain unmerged for independent review and a new phase prompt.
 
 Before changes, read [constitution](docs/PRODUCT_CONSTITUTION.md),
 [architecture](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md),

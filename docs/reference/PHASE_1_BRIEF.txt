@@ -1,0 +1,250 @@
+AUVEXO ALPHA — PHASE 1: ENGINEERING FOUNDATION
+Implementation agent: Codex Astra 6 High
+Authoritative reviewed Phase 0 SHA: 745be5b0779f685f731167c0c981d74caae307cf
+Private repository: haseeb1229/auvexo-alpha
+Founder Git identity: use EXISTING verified configured owner identity; do not forge credentials.
+
+THIS PROMPT AUTHORIZES PHASE 0 ACCEPTANCE/MERGE AND PHASE 1 ONLY.
+Do NOT start Phase 2, connect trading accounts, ingest real market feeds, or place demo/live orders.
+
+=== A. INDEPENDENT REVIEW DISPOSITION ===
+An independent reviewer has examined the user-supplied Phase 0 ZIP and the exact private GitHub review commit above.
+Disposition: PASS — Phase 1 may begin. No Phase-0-blocking defect found.
+Observed checks: private GitHub repo verified; branch 2 commits ahead of untouched main; local `node tools/check-docs.mjs` PASS (40 tracked files, 103 internal links, 40 brief-section mappings, 15 open decisions, 10 ADRs, 10 roadmap phases); AGENTS.md and CLAUDE.md byte-identical; Git author identity correct; clean tree; `git fsck` and `git diff --check` clean. The review is DOCUMENTATION-LEVEL ONLY, not executable risk/security certification.
+
+Reviewer follow-up items that apply to this phase:
+1. Real code/security/CI tests must replace documentation-only claims for implemented behavior.
+2. Expand safety-critical requirements into stable child IDs/tests when implementing them; never renumber original R-000..R-039.
+3. Measure actual Windows/Python/PostgreSQL compatibility, clean install and idle resource use; Docker/WSL is optional, not an assumed necessity.
+4. Begin with default-disabled, zero-capability money-changing boundary: no MT5/API adapter or order path can execute in Phase 1.
+5. Do not ask for broker credentials before Phase 2/5 authorization.
+6. Keep future live-money, legal/religious, recovery and numeric-risk gates explicitly CLOSED.
+7. Merge Phase 0 via normal PR only after re-verification, no force/branch-protection bypass.
+8. Verify package releases/licenses/terms at their actual adoption time.
+
+=== B. FIRST: READ REPOSITORY AUTHORITY ===
+Read the CURRENT exact GitHub repository and local status, not merely this prompt. Read at least:
+- AGENTS.md and CLAUDE.md
+- docs/PRODUCT_CONSTITUTION.md
+- docs/REQUIREMENTS_REGISTER.md
+- docs/ARCHITECTURE.md
+- docs/ROADMAP.md (Phase 1 scope/exit)
+- docs/EXECUTION_AND_VENUE_POLICY.md
+- docs/RISK_AND_CAPITAL_POLICY.md
+- docs/DATA_ARCHITECTURE.md
+- docs/RESEARCH_AND_VALIDATION.md
+- docs/SECURITY_BASELINE.md
+- docs/OPERATIONS_AND_RECOVERY.md
+- docs/PERFORMANCE_AND_RELIABILITY.md
+- docs/engineering/ENGINEERING_RULES.md
+- docs/adr/README.md and all relevant ADRs
+- docs/OPEN_DECISIONS.md
+- docs/PHASE_0_HANDOFF.md
+- docs/validation/PHASE_0_CHECKS.md
+
+GitHub remote state is authoritative if ZIP/local copies diverge. Stop on material conflicts and preserve existing work. Do not overwrite another developer's uncommitted changes.
+
+=== C. NORMAL PHASE 0 PR MERGE ===
+1. Verify the remote Phase 0 branch HEAD is STILL exactly 745be5b0779f685f731167c0c981d74caae307cf and main is the expected baseline or inspect/resolve any legitimate newer commits.
+2. Re-run applicable Phase 0 docs checks and check no secrets/accidental source changes.
+3. Record the independent review disposition as a versioned file such as `docs/reviews/PHASE_0_INDEPENDENT_ACCEPTANCE.md`, with reviewed SHA, scope limitations, and all eight observations above. IMPORTANT: do not misrepresent this as a live/security or alpha certification. This may be committed to the Phase 0 branch as a clearly identified post-review acceptance record; if branch head advances, document both reviewed SHA and follow-up acceptance-record SHA.
+4. Update `docs/OPEN_DECISIONS.md` to record OD-14 closed for the reviewed Phase 0 baseline, while retaining all future external gates. Keep source requirement IDs stable. Do not mislabel later Phase 1 as already complete.
+5. Open or use the existing normal PR from Phase 0 branch to main. Include review findings and docs-check evidence. Follow the repository's actual branch protections/review rules. If authorized and permitted, merge normally. DO NOT bypass a review requirement, falsify a review, force-push or change protection settings. If merge requires a separate human approval, leave it pending and report the exact blocker; do not start Phase 1 on an unaccepted main baseline.
+6. Verify main's new head contains all accepted docs, agent rules and review record. Then create `phase-1/engineering-foundation` FROM accepted main. Work only on that branch and keep main unchanged throughout Phase 1.
+
+=== D. PHASE 1 GOAL ===
+Create a MINIMAL, BUILDABLE, REPRODUCIBLE, SAFE engineering skeleton for Auvexo Alpha.
+It must lay the groundwork for Phase 2 data and Phase 3 research, not pretend to be a working trading bot.
+
+Success means:
+- mature supported toolchain pinned and justified;
+- strict modular Python package and typed, tested domain contract skeleton;
+- local PostgreSQL with tested schema migrations and safe seeded TEST-only data;
+- explicit seven-mode configuration but no trading capability;
+- safe loopback-only API and CLI diagnostics;
+- secure configuration/secrets foundation;
+- deterministic, durable persistence patterns where needed, without prematurely implementing full risk/execution;
+- usable developer scripts, tests, checks, CI and documentation;
+- a verified clean-clone build on the owner's Windows machine;
+- measured resource footprint and recovery of the DEV/TEST DB;
+- no hidden future dependencies on paid services.
+
+=== E. HARD NON-SCOPE ===
+DO NOT implement or connect:
+- Exness MT5 terminals, Python MT5 order APIs, live/demo account credentials or demo orders;
+- Binance authenticated trading endpoints, futures execution or exchange keys;
+- real-money execution or LiveTradingPermit issuance;
+- broker position management, actual fills, live order dispatch;
+- real market-data fetching/collectors/backfills;
+- trading strategies, indicators, alpha claims, ML training or agent swarms;
+- a public website, a professional dashboard, desktop app, APK or voice;
+- premium feed, paid AI inference or commercial cloud hosting;
+- TimescaleDB, Redis, NATS, Kafka, ClickHouse, Kubernetes or microservices by default;
+- optional Phase 2–9 features just because development is fast.
+
+Phase 1 is a foundation with no executable trading capabilities.
+
+=== F. MATURE TOOLCHAIN / COMPATIBILITY ===
+Investigate official supported/stable CURRENT releases and choose a boring, widely supported stack. Account for Windows-native Python, PostgreSQL, FastAPI, Pydantic, SQLAlchemy, Alembic, psycopg, pytest, Hypothesis, Ruff, mypy and future MT5 Python binary compatibility. Do not choose an unsupported/new Python solely because it is newest. If a future MT5 wheel restricts supported Python versions, document the evidence and select a viable shared version or clearly isolated gateway-version strategy.
+
+Use one maintainable Python dependency management method with exact lockfile/hashes where practical; avoid redundant pip/Poetry/uv/pip-tools ecosystems together. Document pinned versions, rationale, compatibility evidence, security advisories and official links. Keep heavy quant libraries OUT until needed for implemented code, rather than installing the entire planned future stack.
+
+Existing Node may run tools/check-docs.mjs; a React/Node build is NOT required for Phase 1. Avoid global machine setting changes unrelated to this repository.
+
+=== G. MODULAR DOMAIN AND CONTRACT SKELETON ===
+Implement minimal typed source layout and import boundaries appropriate to a modular monolith, e.g.:
+- domain / contracts
+- application
+- infrastructure / persistence
+- API
+- tools / scripts
+- tests
+
+Choose the exact package names and explain them. Keep direction strictly domain <- application <- adapters/API; domain must not import FastAPI, SQLAlchemy, broker SDKs or frontend code.
+
+Provide small strict versioned schema contracts (only what can be meaningfully validated now) for:
+- Mode: RESEARCH/BACKTEST/PAPER/DEMO/SHADOW/LIVE_LIMITED/LIVE;
+- InstrumentSpec with venue/product identity and Decimal-safe precision/units;
+- MarketState/FeatureSnapshot metadata with availability-time and UTC validation;
+- TradeCandidate, TradeIntent, RiskAuthorization and ExecutionReport SHAPES (without executable trade logic);
+- typed identifiers, correlation/causation, schema versions, request expiration and evidence refs;
+- explicit error taxonomy and reject-on-invalid behavior.
+
+Contracts cannot silently coerce float/NaN/Infinity/malformed currency/naive timestamps to valid financial inputs. Ensure canonical serialization/hashing has documented stable rules, but DO NOT invent a pseudo-secure permit cryptosystem in this phase.
+
+Make future typed REST/event envelopes possible. If generating JSON schema/OpenAPI, test schema drift and avoid duplicate manual contract definitions.
+
+=== H. EXECUTION DISABLED BY CONSTRUCTION ===
+Implement a safe stub/port boundary, not an order executor.
+- Every environment's execution is disabled in Phase 1, including DEMO.
+- No runtime package depends on MT5/exchange trade SDKs.
+- Any attempt to invoke a money-changing action must return a typed DENIED/NOT_AVAILABLE error; never return a fake successful fill.
+- All seven modes parsed/validated, but merely selecting LIVE, pointing to a real account, changing env vars or editing a UI cannot activate trading.
+- Binance live derivatives explicitly BLOCKED_BY_POLICY as a versioned rule.
+- Do not store actual account passwords/API keys.
+- Test wrong-mode, missing-permit, unsupported venue/instrument, malicious input, duplicate command ID and arbitrary order endpoint refusals.
+- Do not implement a shadow risk kernel or pretend real risk authorization exists yet. Phase 4 owns full risk/reservations; Phase 5 owns demo transport.
+
+=== I. PERSISTENCE AND MIGRATIONS ===
+Use PostgreSQL as real test target, with SQLAlchemy/Alembic if they pass compatibility checks.
+Create only necessary foundational schema(s) for versioned metadata/schema identity, append-only design primitives, environment/policy defaults, durable job/outbox skeleton if justified, and safe developer/health testing. Avoid creating a whole fake broker schema before its actual phase.
+
+Test on a REAL local PostgreSQL instance:
+- clean DB create and migration-up;
+- constraints/type/unique negatives;
+- transaction rollback;
+- idempotent job claim/lease or outbox if implemented;
+- applying migrations to a clean clone;
+- DB backup and isolated restore test (DEV/TEST only);
+- migration policy for forward recovery and non-destructive evolution.
+
+Do not commit PostgreSQL data, secrets or backup dumps. Prefer native Windows PostgreSQL or a lightweight local container after measuring complexity. If a local DB is unavailable, create a reproducible verification script and report that real-DB verification is BLOCKED; do not label Phase 1 PASS based on SQLite or mocks alone.
+
+=== J. CONFIGURATION / IDENTITY / SECRETS ===
+Establish strict, validated configuration with secure-by-default mode/policy flags.
+- bind API only to 127.0.0.1 by default;
+- no public bind, remote tunnel, public signup or internet-accessible execution routes;
+- no secrets in repository, test fixtures or logs;
+- document Windows OS-protected secret-store options and future service identity boundaries;
+- no homegrown encryption/signature mechanisms;
+- fail startup on incompatible env/account/mode/policy config;
+- local admin/developer commands are separate from owner live activation;
+- implement only the authentication/security foundation necessary for CURRENT Phase 1 API/CLI; defer full passkey UI/step-up UX to its authorized phase, but document library choices and authorization tests.
+
+Avoid real credentials entirely. Synthetic test values must be clearly synthetic, never mixed with real accounts.
+
+=== K. API / CLI / DIAGNOSTICS ===
+Expose a minimal authenticated/loopback-only API limited to safe capabilities, e.g.:
+- liveness;
+- readiness with actual DB/config dependency checks;
+- version/build metadata;
+- sanitized policy/mode state;
+- no broker order endpoint.
+
+Provide owner-friendly local CLI commands such as `doctor`, schema/config validation, health, and start/stop/checks using Windows PowerShell or equivalent scripts. Never claim READY merely because the server process started.
+
+Do not implement a dashboard. The final web/mobile/desktop clients remain decoupled from backend through future versioned APIs.
+
+=== L. ENGINEERING RULES / SECURITY / CI ===
+Follow AGENTS.md, CLAUDE.md and canonical ENGINEERING_RULES.md.
+
+Mandatory relevant proof:
+- formatter, linter and strict typecheck;
+- unit tests including invalid/NaN/Infinity/money/timestamp/bounds negative cases;
+- property-based tests where they materially detect edge failures;
+- PostgreSQL integration tests (not SQLite stand-ins);
+- import-boundary tests;
+- API auth and loopback/bind-policy negatives;
+- execution-disabled invariants;
+- docs checker;
+- dependency and high-signal secret scans;
+- clean environment install/reproduce test;
+- code/dependency licensing checks for adopted packages;
+- no dead code / unused deps / duplicate functionality / skipped tests;
+- CI on feature branch/PR, with minimal `permissions: contents: read`, pinned action SHAs and least privilege, within private repository free allowances.
+
+Failures must be reported, not hidden by blanket ignores or broad try/except.
+Use stable Windows paths with spaces and do not assume Bash-only workflows on the founder's laptop. Provide both local development/CI commands and expected outputs.
+
+No arbitrary Internet-downloaded code executed without trusted provenance. No changes to unrelated projects or global Git settings.
+
+=== M. PERFORMANCE / STORAGE ===
+Respect HP EliteBook 1040 G8 / i5 / 16 GB RAM / ~300 GB free.
+- measure real idle RAM, CPU, disk consumed and startup time for Phase 1 services;
+- keep footprint modest; no GPU or local large LLM;
+- optional Docker/WSL cannot be forced if it consumes unacceptable RAM;
+- implement basic metrics/logging without Prometheus/Grafana stack if unjustified;
+- ensure resource limits/testing are documented, but do not claim Phase 5 performance budgets are proven by empty Phase 1 services;
+- keep storage caps from Phase 0 intact and no unbounded logs.
+
+=== N. DOCUMENTATION / TRACEABILITY ===
+Update canonical docs only where implementation evidence justifies it, using superseding ADRs for changes to FROZEN decisions.
+
+Create a detailed `docs/phase1/` handoff and verification set including:
+- selected toolchain and pinned version compatibility table;
+- repo/package boundary diagram and justified dependencies;
+- source/test inventory;
+- exact local commands for Windows;
+- clean-clone install proof;
+- migration-up, rollback/restore results;
+- auth/security/disabled-execution negative test results;
+- CI links/run IDs/status;
+- environment/resource measurements;
+- open bugs/technical debt/risks;
+- phase-2 prerequisites, without starting Phase 2.
+
+Before implementing an important safety invariant, add stable child acceptance tests/IDs under parent R-000..R-039 without renumbering parents. Keep `docs/OPEN_DECISIONS.md` updated with OD-01 and OD-08 measured status; leave OD-02..future gates honestly open. Update CLAUDE.md and AGENTS.md IN LOCKSTEP if their phase restrictions need updating; they must remain byte-identical and point to the correct reviewed scope after Phase 1. Don't grant new authority by editing those files.
+
+=== O. GIT PROCESS ===
+- Confirm founder-configured identity. Use no Claude/Codex co-author trailers or generated-by banners; preserve third-party licenses and attribution.
+- Keep commits small, relevant, honest.
+- Create/push Phase 1 branch only after accepted Phase 0 is merged into main by approved process.
+- Run all applicable checks before commits and push.
+- Open Phase 1 PR against main, leave it UNMERGED pending independent review.
+- Never force-push or rewrite reviewed history.
+- No secret files, build caches, package artifacts, DB dumps, model weights or large data committed.
+- If a repository permission/branch protection needs founder participation, do not bypass; report the exact smallest action required, preserving completed work.
+
+=== P. FINISH WITH ONE CONSOLIDATED PHASE 1 HANDOFF ===
+Include:
+- Phase 0 merge PR/status and merge SHA;
+- Phase 1 branch and commit SHA;
+- Phase 1 PR link/state;
+- exact toolchain versions and compatibility evidence;
+- files/components implemented;
+- tests and negative cases with counts/results;
+- actual Postgres/migration/restore result;
+- clean Windows setup proof;
+- measured RAM/disk/startup/CPU;
+- CI checks and run URLs;
+- source/security scan results and justified exceptions;
+- requirements/ADRs updated;
+- any blocked proof with exact reason;
+- no broker/exchange connectivity and no orders statement;
+- no purchases/paid runtime statement;
+- Binance live derivatives still blocked and Exness real disabled;
+- unresolved future external gates;
+- explicit PASS / PASS-WITH-OPEN-GATES / FAIL recommendation;
+- exact Phase 2 gate prerequisites.
+
+Do not self-approve your Phase 1 PR, merge it, or start Phase 2. The independent reviewer will assess exact repo/CI evidence and issue the next prompt.
