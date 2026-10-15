@@ -25,9 +25,11 @@ Scope: documents/repository only; no application implementation exists.
 | Human consistency | Read all canonical policies against 40 brief sections | Findings resolved in self-review; independent reviewer still required |
 | Agent instructions | Byte equality, also part of checker | PASS |
 | Source provenance | SHA-256 compare original and archive | Matches recorded hash |
-| Git author/history | `git log --format=fuller` | Baseline uses configured founder identity; final commits checked at delivery |
+| Git author/history | `git log --format='%H %an <%ae> %s' --all -3` | Baseline and content commit use configured founder identity; no co-author trailers |
 | Repo visibility | `gh repo view ... --json visibility` | PRIVATE |
-| Remote exact refs | `git ls-remote origin refs/heads/main refs/heads/phase-0/product-architecture-freeze` | Final comparison recorded after push |
+| Remote exact refs | `git ls-remote origin refs/heads/main refs/heads/phase-0/product-architecture-freeze` | PASS: main `b70db178eacf51f856a6a8538381ae4c060d73f0`; content `79558695ad955f6fb5732a1eb363b19898f829fb` |
+| Object integrity | `git fsck --no-dangling` | PASS, no errors |
+| Clean content tree | `git status --porcelain=v1` | Empty output after content commit; final receipt rechecks after evidence commit |
 | Scope/security | File allowlist, high-signal secret patterns and manual content review | Documentation and QA script only; no account/API keys copied |
 
 No full vulnerability scanner, runtime tests, broker connections, trades, performance
