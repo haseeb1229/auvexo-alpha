@@ -2,6 +2,11 @@
 
 Status: FROZEN requirements; library and credential mechanisms qualified in Phase 1/5/8.
 
+Phase 1 implements only authenticated loopback diagnostics, redacted strict configuration,
+Windows ACL-protected local development credentials and least-privilege DB reads;
+see [current scope and limitations](phase1/SETUP.md). Passkeys, OS encrypted credential storage,
+service identity and live activation below remain unimplemented future gates.
+
 One owner, no public signup. Private repository visibility is not an application security
 control. Local-first services bind loopback with authenticated requests; broker gateway has
 its own identity, token/certificate audience and narrow command allowlist. A local hostile

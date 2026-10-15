@@ -1,7 +1,9 @@
-# Phase 0 document index
+# Project document index
 
-Read the handoff first, then constitution/requirements, architecture and policies. All
-documents are a design baseline; no runtime exists. Current phase: 0, independent review pending.
+Read the [Phase 1 handoff](phase1/HANDOFF.md), [setup](phase1/SETUP.md),
+[implementation](phase1/IMPLEMENTATION.md), [toolchain](phase1/TOOLCHAIN.md) and
+[verification](phase1/VERIFICATION.md), then constitution/requirements and policies.
+Phase 0 documents remain the accepted design baseline; Phase 1 adds a disabled foundation.
 
 | Document | Authority/purpose |
 | --- | --- |
@@ -23,7 +25,7 @@ documents are a design baseline; no runtime exists. Current phase: 0, independen
 | [Client and UX direction](CLIENT_AND_UX_DIRECTION.md) | Future terminal, mobile, desktop and voice boundaries |
 | [Roadmap](ROADMAP.md) | Phases 0-9 and explicit proof/exit gates |
 | [Open decisions](OPEN_DECISIONS.md) | Status, owner and closure point for every open gate |
-| [ADR index](adr/README.md) | Ten architecture decision records |
+| [ADR index](adr/README.md) | Original ten decisions plus Phase 1 ADR-011 |
 | [Self-review](PHASE_0_SELF_REVIEW.md) | Consistency findings and resolutions |
 | [Verification evidence](validation/PHASE_0_CHECKS.md) | Commands, results and limitations |
 | [Handoff template](HANDOFF_TEMPLATE.md) | Required future phase delivery fields |

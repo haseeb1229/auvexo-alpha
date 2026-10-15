@@ -2,11 +2,12 @@
 
 Private, personal alpha research and trading-system project owned by haseeb1229.
 
-Phase 0 is a documentation-only architecture freeze on
-`phase-0/product-architecture-freeze`. The main branch retains its minimal baseline.
-No execution is authorized by this repository, and Phase 1 has not begun.
+Phase 0 was independently accepted and merged through PR #1. This branch implements the
+Phase 1 engineering foundation: strict contracts, real PostgreSQL migrations and authenticated
+loopback diagnostics. Execution remains disabled in every mode, including DEMO.
+Phase 1 is submitted for independent review; Phase 2 is not authorized.
 
-Start with the [Phase 0 handoff](docs/PHASE_0_HANDOFF.md),
+Start with the [Phase 1 handoff](docs/phase1/HANDOFF.md), [Windows setup](docs/phase1/SETUP.md),
 [document index](docs/README.md), [constitution](docs/PRODUCT_CONSTITUTION.md)
 and [requirements](docs/REQUIREMENTS_REGISTER.md).
 
@@ -22,4 +23,4 @@ git diff --check
 ```
 
 These checks validate repository documents, not future trading safety or profitability.
-Independent review of the exact handoff commit and a new prompt are required before Phase 1.
+Independent review of the exact Phase 1 commit/CI and a new prompt are required before Phase 2.

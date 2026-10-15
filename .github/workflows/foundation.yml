@@ -1,0 +1,51 @@
+name: foundation
+on:
+  push:
+    branches: [phase-1/engineering-foundation]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: foundation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
+        env:
+          POSTGRES_USER: auvexo_admin
+          POSTGRES_PASSWORD: ci-synthetic-ephemeral-only
+          POSTGRES_DB: auvexo_test
+        ports: ['55432:5432']
+        options: >-
+          --health-cmd "pg_isready -U auvexo_admin -d auvexo_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+        with:
+          version: '0.13.1'
+          enable-cache: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24.20.0'
+      - run: uv sync --locked
+      - run: uv run --frozen python tools/ci_database.py
+      - run: uv run --frozen ruff format --check src tests tools migrations
+      - run: uv run --frozen ruff check src tests tools migrations
+      - run: uv run --frozen mypy
+      - run: uv run --frozen pytest
+        env:
+          TEST_PG_ADMIN_PASSWORD: ci-synthetic-ephemeral-only
+          TEST_PG_APP_PASSWORD: ci-synthetic-app-only-not-a-secret-123
+      - run: node tools/check-docs.mjs
+      - run: uv run --frozen python tools/secret_scan.py
+      - run: uv export --frozen --all-groups --no-emit-project --output-file requirements-audit.txt
+      - run: uv run --frozen pip-audit --disable-pip --require-hashes -r requirements-audit.txt
+      - run: git diff --exit-code

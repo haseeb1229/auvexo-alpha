@@ -2,6 +2,9 @@
 
 Status: PROVISIONAL acceptance budgets for non-HFT minute/hour strategies; not measurements.
 
+Phase 1 idle-foundation measurements are recorded separately in
+[verification](phase1/VERIFICATION.md). They do not qualify the following trading/load budgets.
+
 | Path | Initial target under qualified load | Deadline/failure |
 | --- | --- | --- |
 | Market ingest receive-to-normalized | p95 <=100 ms | Required quote age <=2 s at opening; stale denies |
