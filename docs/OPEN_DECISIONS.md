@@ -19,7 +19,7 @@ to the founder merely to avoid making a decision.
 | OD-11 | DEFERRED | Tauri/Expo/voice and final chart/UI library versions | Client maintainer | Phase 7 contract/security/accessibility and license review |
 | OD-12 | DEFERRED | Full Binance account/execution adapter; Bybit/OKX execution out of scope | Execution maintainer | Explicit later scoped phase, capability/contract tests and eligibility; cannot inherit Exness permit |
 | OD-13 | DEFERRED | External engines/libraries for reuse not adopted | Implementer | Exact revision license/NOTICE/dependency/security scan before import/copy/sidecar installation; Phase 3 or later |
-| OD-14 | EXTERNAL | Independent Phase 0 review pending | Founder supplies handoff to reviewer | Reviewer disposition on final SHA, critical findings closed and explicit Phase 1 prompt; before Phase 1 |
+| OD-14 | FROZEN | CLOSED for reviewed Phase 0 SHA `745be5b0779f685f731167c0c981d74caae307cf`; independent PASS supplied with explicit Phase 1 prompt | Founder / independent reviewer | [Acceptance record](reviews/PHASE_0_INDEPENDENT_ACCEPTANCE.md); normal PR merge remains prerequisite to Phase 1 implementation; no runtime/live certification |
 | OD-15 | PROVISIONAL | Alpha sample/threshold and edge-decay study settings | Research maintainer | Preregister before looking at held-out data in Phase 3; never relax after results |
 
 Frozen decisions are catalogued in [ADRs](adr/README.md): private standalone repository,
@@ -28,6 +28,6 @@ Parquet direction, durable jobs, source provenance, free-first, research promoti
 local-first security. A change requires a superseding ADR with requirement impact and
 proof, plus owner policy approval where financial authority changes.
 
-No credentials or financial decisions are needed to finish Phase 0. The immediate human
-action after delivery is independent review and the next-phase prompt. Future external
-gates remain deliberately closed and are not defects hidden by the verdict.
+No credentials or financial decisions are needed for the Phase 1 foundation. Independent
+Phase 0 acceptance and the Phase 1 prompt have been supplied; normal merge verification
+precedes implementation. Future external gates remain deliberately closed.
