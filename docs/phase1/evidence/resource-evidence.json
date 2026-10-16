@@ -1,0 +1,31 @@
+{
+  "status": "PASS",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "python": "3.13.16",
+  "logical_cpus": 8,
+  "machine_ram_gib": 15.73,
+  "free_disk_gib": 343.94,
+  "api_start_to_db_ready_seconds": 3.899,
+  "idle_sample_seconds": 5.0,
+  "resources": {
+    "api": {
+      "process_count": 3,
+      "rss_mib": 86.15,
+      "cpu_percent_one_core": 0.0
+    },
+    "postgres": {
+      "process_count": 8,
+      "rss_mib": 134.55,
+      "cpu_percent_one_core": 0.3
+    }
+  },
+  "disk_mib": {
+    ".venv": 145.61,
+    ".local/python": 122.91,
+    ".local/toolchains": 512.17,
+    ".local/uv-cache": 167.26,
+    ".local/postgres-data": 71.24
+  },
+  "real_http_missing_auth": 401,
+  "scope": "idle foundation only; RSS may double-count shared pages"
+}

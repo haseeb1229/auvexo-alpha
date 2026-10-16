@@ -1,5 +1,9 @@
 # Requirements register
 
+Phase 1 preserves all parent IDs below and refines implemented behavior through
+[15 stable child acceptance IDs](phase1/ACCEPTANCE_TESTS.md), defined before implementation.
+Actual code/test evidence is in [Phase 1 verification](phase1/VERIFICATION.md).
+
 Status: FROZEN Phase 0 traceability baseline. Source: [archived brief](reference/PHASE_0_BRIEF.txt),
 SHA-256 `1a3ffff5ed19d09ea48e80d4591ccaddfb09e9da64bde1ce3ce31fbd69b70fb2`.
 The user requested completion of Phase 0; the brief supplies its scope and acceptance

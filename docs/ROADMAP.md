@@ -5,6 +5,10 @@ and Phase 2 data coverage are measured. Phases are evidence gates, not calendar 
 Each requires its own authorized prompt and reviewer-accepted handoff. A later row is not
 permission to start it. Financially critical gates cannot be waived for schedule pressure.
 
+Current evidence: Phase 0 independently accepted and normally merged via PR #1 at
+`eafec07ee7c7a98c9cca17b5f8665494bd650751`. Phase 1 implementation/evidence is being submitted
+in an unmerged feature PR; see [handoff](phase1/HANDOFF.md). Phase 2 has not started.
+
 ## Phase 0 — constitution and architecture freeze
 
 - Purpose/scope: canonical requirements, design, policies, reuse research and repository baseline.
@@ -14,7 +18,8 @@ permission to start it. Financially critical gates cannot be waived for schedule
 - Tests/security: documentation/link/traceability/scope checks, manual consistency/secret review.
 - Real-environment proof: actual private repository and separate main/Phase 0 refs, push verification.
 - Exit: internal PASS or PASS-WITH-OPEN-GATES, independent reviewer disposition on exact SHA,
-  unresolved critical issues closed and explicit Phase 1 prompt. No merge in this task.
+  unresolved critical issues closed and explicit Phase 1 prompt. Satisfied by the supplied
+  independent acceptance and authorized normal PR #1 merge during Phase 1 entry.
 - Rollback/recovery: amend with new commits, preserve review history; no runtime state exists.
 
 ## Phase 1 — engineering foundation

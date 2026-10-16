@@ -2,6 +2,10 @@
 
 Status: FROZEN safe-restart method; RPO/RTO PROVISIONAL and untested until later phases.
 
+Phase 1 has real DEV/TEST migration, rollback-refusal and isolated backup/restore proof;
+see [commands and recovery](phase1/SETUP.md) and [evidence](phase1/VERIFICATION.md).
+This does not qualify broker reconciliation, live restart or off-device encrypted recovery.
+
 Deploy stages: local-only loopback -> private identity-aware access -> qualified remote
 demo/shadow -> certified live. Each is a separate release gate, never a configuration
 shortcut. The laptop is suitable for research and supervised demo; sleeping, power loss

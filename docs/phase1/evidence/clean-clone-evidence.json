@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "source_commit": "62d88873d9b24a7fec1b663b4fb20551f9c2433a",
+  "clone_path": "clean-clone-f09615648f66",
+  "clone_method": "git clone --no-local --no-hardlinks; committed source only",
+  "fresh_venv": true,
+  "fresh_download_cache": true,
+  "shared_verified_python": true,
+  "isolated_migration": true,
+  "clean_tree": true,
+  "clone_and_install_seconds": 70.646,
+  "total_seconds": 183.976,
+  "lock_sha256": "0dc9fcb8d19cdda6ce149ec748e4f5ffc01cfecec9b40c75cfe6b64e333148b1"
+}

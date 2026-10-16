@@ -45,6 +45,6 @@ Git state. [Check script](../../tools/check-docs.mjs) is repository QA tooling, 
 foundation. It does not prove architecture safety or validate future runtime behavior.
 
 Accepted technical debt requires ID, owner, reason, impact and expiry/review point. Current
-accepted implementation debt: none (there is no implementation). Provisional designs and
+accepted Phase 1 limitations are recorded in [handoff](../phase1/HANDOFF.md). Provisional designs and
 external gates are tracked separately in [open decisions](../OPEN_DECISIONS.md). Future debt
 records must include remediation and tests; security bypasses cannot be reclassified as debt.

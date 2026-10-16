@@ -1,6 +1,9 @@
 # Architecture
 
-Status: FROZEN boundaries; stack selections PROVISIONAL until Phase 1 compatibility checks.
+Status: FROZEN boundaries; Phase 1 stack pinned and exercised in
+[toolchain evidence](phase1/TOOLCHAIN.md). [Implemented subset](phase1/IMPLEMENTATION.md)
+contains contracts, disabled boundaries and diagnostics only. The worker/gateway/data/risk
+components below remain future architecture, not installed services.
 
 Use a modular monolith with a separate bounded research worker and a separate Windows
 MT5 gateway process. This is process isolation for safety and resource limits, not a

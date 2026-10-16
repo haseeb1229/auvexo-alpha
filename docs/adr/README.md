@@ -15,5 +15,6 @@ records require their named proof gate. None is evidence of an implemented contr
 | [ADR-008](008-free-first-model-and-data-ports.md) | FROZEN | free first model and data ports |
 | [ADR-009](009-security-and-local-first.md) | FROZEN | security and local first |
 | [ADR-010](010-reuse-without-root-fork.md) | FROZEN | reuse without root fork |
+| [ADR-011](011-phase1-foundation.md) | FROZEN | Phase 1 zero-capability foundation; scoped checker evolution |
 
 Exact versions, capital decisions and deferred triggers live in [open decisions](../OPEN_DECISIONS.md).
