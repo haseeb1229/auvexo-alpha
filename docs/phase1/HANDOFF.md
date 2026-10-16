@@ -2,10 +2,11 @@
 
 Scope: Phase 1 only, after independently accepted Phase 0. Submission remains subject to
 independent review; this document does not approve or merge its own PR. Phase 2 is not started.
-Disposition: **FAIL for the complete Phase 1 exit gate: CI externally BLOCKED**. Local
-implementation, 145 tests, real PostgreSQL recovery, audits and clean Windows clone pass.
-GitHub did not start a runner because the account has a billing/spending-limit restriction.
-Do not call this Phase 1 PASS or begin Phase 2 until actual CI and independent review succeed.
+Disposition: **PASS-WITH-OPEN-GATES for Phase 1 engineering delivery**. Local implementation,
+145 tests, real PostgreSQL recovery, audits, clean Windows clone and hosted CI pass.
+The earlier hosted-runner billing blocker was resolved for verification by the owner's
+explicit temporary public-visibility change. Independent acceptance remains pending; this
+implementation handoff does not grant permission to merge or begin Phase 2.
 See the exact [verification receipts](VERIFICATION.md).
 
 ## Delivered foundation
@@ -19,8 +20,15 @@ See [source/test inventory and diagram](IMPLEMENTATION.md), [toolchain](TOOLCHAI
 
 Phase 0 [PR #1](https://github.com/haseeb1229/auvexo-alpha/pull/1) is merged at
 `eafec07ee7c7a98c9cca17b5f8665494bd650751`. Phase 1 branch is
-`phase-1/engineering-foundation`, based on that accepted main. Exact Phase 1 SHA/PR/CI will be
-recorded in the PR and delivery receipt after checks. Main remains unchanged; Phase 1 PR stays unmerged.
+`phase-1/engineering-foundation`, based on that accepted main. Exact final SHA and matching
+CI/clone receipts are recorded in the PR body and delivery report. Main remains unchanged.
+
+[Phase 1 PR #2](https://github.com/haseeb1229/auvexo-alpha/pull/2) remains OPEN and unmerged,
+submitted for independent review after validation; it has not been self-approved.
+The implementation/evidence checkpoint is `feddb1b5e3f6e757be1d3e816ad97b115d84a455`;
+subsequent handoff-only commits do not change runtime behavior. The final exact HEAD and
+matching clean-clone/CI receipts are recorded in the PR body and delivery report, avoiding
+a document that purports to contain its own commit hash.
 
 ## Limits and tracked follow-up
 
@@ -38,12 +46,14 @@ not permission to enable capabilities. Original R-000..R-039 are preserved; 15 s
 child invariants are mapped to tests. ADR-011 narrows the implemented foundation without
 changing financial authority or inventing unused queue/outbox infrastructure.
 
-Current blocking proof: [GitHub run 38797754544](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38797754544)
-failed before any steps/runner assignment. GitHub's annotation says recent account payments
-failed or the spending limit needs increasing. The smallest owner action is to inspect
-Billing & plans and restore Actions availability within the existing free allowance, then
-rerun the workflow at the final review SHA. No payment, plan/limit increase, token-scope change,
-self-hosted runner registration or protection change is authorized or performed here.
+Resolved CI blocker: the original runs failed before runner assignment because of account
+billing/spending-limit status. The owner temporarily made the repository public and requested
+completion. [Run 38798883220, attempt 2](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38798883220/attempts/2)
+then executed every step and passed, including 145 tests in 4.00 seconds. No payment, plan/limit
+increase, token-scope change, self-hosted runner registration or protection change was performed.
+The private-repository design remains in force; final visibility and final-head CI receipts
+are verified in the delivery report. Private Actions allowance is still unverified for future
+changes; a successful historical public run does not promise future private-runner availability.
 
 ## Closed capabilities and future gates
 

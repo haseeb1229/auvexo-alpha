@@ -15,7 +15,9 @@ Independent reviewed Phase 0: `745be5b0779f685f731167c0c981d74caae307cf`.
 Post-review acceptance record: `fe35b365a2b297831bf0516ea1c73c76289ac7d0`.
 [PR #1](https://github.com/haseeb1229/auvexo-alpha/pull/1) merged normally;
 main baseline `eafec07ee7c7a98c9cca17b5f8665494bd650751`.
-No force-push, protection changes, review impersonation or bypass. Repository is private.
+No force-push, protection changes, review impersonation or bypass. The owner explicitly made
+the repository temporarily public to allow hosted CI after its billing block. Private visibility
+is the retained project default; the final delivery report verifies its restoration.
 Configured author: Muhammad Haseeb, abdulhaseeb1229@gmail.com; no co-author trailers.
 
 ## Local checks
@@ -111,8 +113,23 @@ The additional invalid-UUID PostgreSQL assertion passed in the working suite (14
 [CI run 38797754544](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38797754544),
 check/job `116638521904`, source SHA above: **FAIL before any steps, no runner assigned**.
 GitHub annotation: account payment failures or spending limit prevent starting the job.
-This is an external account blocker; no hosted formatter/test/audit result exists. No rerun
-can count as proof unless it actually executes. Do not substitute local checks for CI PASS.
+This was an external account blocker; the failed attempt produced no hosted test/audit result.
+It was resolved for this verification by the owner's explicit temporary public-visibility
+change, followed by the actually executed successful rerun below.
+
+At checkpoint `feddb1b5e3f6e757be1d3e816ad97b115d84a455`,
+[push run 38798872354](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38798872354)
+and [PR run 38798883220](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38798883220)
+also initially failed before steps. At the same exact SHA,
+[PR run 38798883220 attempt 2](https://github.com/haseeb1229/auvexo-alpha/actions/runs/38798883220/attempts/2)
+**PASSED** on 2026-10-16: real PostgreSQL container/migration, locked installation, formatter,
+lint, strict typing (15 files), pytest (145 passed in 4.00 s), docs, high-signal source scan,
+hash-locked dependency audit (no known vulnerabilities), and final Git diff check.
+[Machine-readable CI receipt](evidence/ci-evidence.json) records all steps and their statuses.
+[PR #2](https://github.com/haseeb1229/auvexo-alpha/pull/2) remains open, not approved or merged.
+Final-head receipts are in that PR body and the delivery report.
+Local working tree and diff checks are clean. `git fsck --full` reports no integrity errors;
+unreachable staging blobs are retained, not pruned or rewritten.
 
 CI uses a standard Linux
 runner with a real digest-pinned PostgreSQL service, read-only token, pinned actions and a

@@ -6,7 +6,7 @@ to the founder merely to avoid making a decision.
 
 | ID | Status | Decision / current safe default | Owner | Closure evidence / deadline |
 | --- | --- | --- | --- | --- |
-| OD-01 | FROZEN | Phase 1 foundation toolchain pinned and measured; quant/broker libraries not adopted | Phase 1 implementer | [Release/license matrix](phase1/TOOLCHAIN.md), hashed lock, 145-test fresh Windows clone and real PostgreSQL proof; Phase 1 exit still requires unblocked CI and independent review |
+| OD-01 | FROZEN | Phase 1 foundation toolchain pinned and measured; quant/broker libraries not adopted | Phase 1 implementer | [Release/license matrix](phase1/TOOLCHAIN.md), hashed lock, 145-test fresh Windows clone, real PostgreSQL and hosted CI proof; independent review remains pending |
 | OD-02 | PROVISIONAL | Python-first MT5 gateway, EA/hybrid deferred | Execution maintainer | Real demo disconnect/latency/recovery matrix; decide before Phase 5 exit |
 | OD-03 | EXTERNAL | Exness actual demo symbols/contracts/terms/history unverified; no account connected | Owner provides demo authentication, maintainer verifies | Read-only demo attestation/spec snapshot/source rights; Phase 2; execution permission Phase 5 |
 | OD-04 | EXTERNAL | Live capital and all live numerical limits unset; current allocation zero | Founder | Signed absolute/percentage capital/loss/leverage policy; before Phase 8 activation |
@@ -30,5 +30,7 @@ proof, plus owner policy approval where financial authority changes.
 
 No credentials or financial decisions are needed for the Phase 1 foundation. Independent
 Phase 0 acceptance, authorized normal merge and Phase 1 implementation are recorded.
-Phase 1 CI is externally blocked by GitHub account billing status; independent review is pending.
+Phase 1 hosted CI passed after the owner's temporary public-visibility change resolved runner
+availability for verification; independent review is pending. Future private Actions allowance
+is unverified and must be checked before subsequent workflow runs; no paid usage is authorized.
 Future external gates remain deliberately closed.
