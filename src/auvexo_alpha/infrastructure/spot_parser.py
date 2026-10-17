@@ -31,6 +31,7 @@ MAX_EXPANDED = 32 * 1024 * 1024
 MAX_ROWS = 50_000
 EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
 TRANSITION = date(2025, 1, 1)
+ParserVersion = Literal["spot.v1", "spot.v2"]
 
 
 def timestamp(raw: object, unit: Literal["MILLISECOND", "MICROSECOND"], now: datetime) -> datetime:
@@ -56,15 +57,23 @@ def parse_row(
     url: str,
     digest: str,
     received: datetime,
+    parser_version: ParserVersion = "spot.v2",
 ) -> Candle:
+    if parser_version not in ("spot.v1", "spot.v2"):
+        raise ValueError("UNSUPPORTED_PARSER_VERSION")
     if len(row) != 12:
         raise ValueError("SCHEMA")
     opened, closed = timestamp(row[0], unit, received), timestamp(row[6], unit, received)
     step = timedelta(seconds=interval_seconds(interval))
-    if (opened - EPOCH) % step or closed != opened + step - timedelta(
-        microseconds=1000 if unit == "MILLISECOND" else 1
-    ):
+    if (opened - EPOCH) % step:
         raise ValueError("TIMESTAMP_UNIT")
+    expected_close = opened + step - timedelta(microseconds=1000 if unit == "MILLISECOND" else 1)
+    if closed != expected_close:
+        if parser_version == "spot.v1":
+            raise ValueError("TIMESTAMP_UNIT")
+        raise ValueError(
+            "TRUNCATED_INTERVAL" if opened <= closed < expected_close else "INTERVAL_BOUNDARY"
+        )
     if opened + step > received:
         raise ValueError("PARTIAL")
     try:
@@ -120,6 +129,7 @@ def parse_rows(
     source_id: Literal["DS-01", "DS-02"],
     url: str,
     digest: str,
+    parser_version: ParserVersion = "spot.v2",
 ) -> tuple[list[Candle], CoverageReport]:
     unit: Literal["MILLISECOND", "MICROSECOND"] = (
         "MICROSECOND" if source_id == "DS-01" and start.date() >= TRANSITION else "MILLISECOND"
@@ -129,7 +139,9 @@ def parse_rows(
         raise ValueError("OVERSIZED_ROWS")
     for row in rows:
         try:
-            bar = parse_row(row, symbol, interval, unit, source_id, url, digest, received)
+            bar = parse_row(
+                row, symbol, interval, unit, source_id, url, digest, received, parser_version
+            )
             if not start <= bar.open_at < end:
                 raise ValueError("SESSION")
             bars.append(bar)
@@ -140,6 +152,8 @@ def parse_rows(
             for candidate in (
                 "PARTIAL",
                 "TIMESTAMP_UNIT",
+                "TRUNCATED_INTERVAL",
+                "INTERVAL_BOUNDARY",
                 "IMPLAUSIBLE_TIME",
                 "OHLC",
                 "VOLUME",
@@ -177,6 +191,7 @@ def parse_archive(
     end: datetime,
     received: datetime,
     url: str,
+    parser_version: ParserVersion = "spot.v2",
 ) -> tuple[list[Candle], CoverageReport]:
     if len(payload) > MAX_ARCHIVE or len(checksum) > 512:
         raise ValueError("OVERSIZED_ARCHIVE")
@@ -222,7 +237,9 @@ def parse_archive(
         zlib.error,
     ) as error:
         raise ValueError("CORRUPT_ARCHIVE") from error
-    return parse_rows(rows, symbol, interval, start, end, received, "DS-01", url, digest)
+    return parse_rows(
+        rows, symbol, interval, start, end, received, "DS-01", url, digest, parser_version
+    )
 
 
 def parse_rest(
@@ -233,6 +250,7 @@ def parse_rest(
     end: datetime,
     received: datetime,
     url: str,
+    parser_version: ParserVersion = "spot.v2",
 ) -> tuple[list[Candle], CoverageReport]:
     if len(payload) > 2 * 1024 * 1024:
         raise ValueError("OVERSIZED_RESPONSE")
@@ -253,4 +271,5 @@ def parse_rest(
         "DS-02",
         url,
         hashlib.sha256(payload).hexdigest(),
+        parser_version,
     )

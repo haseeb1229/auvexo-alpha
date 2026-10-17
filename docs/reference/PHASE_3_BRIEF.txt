@@ -1,0 +1,527 @@
+AUVEXO ALPHA — PHASE 3: BACKTEST CORRECTNESS & SIMPLE ALPHA
+Implementation / Verification Prompt for Astra 6 High
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-17
+
+PURPOSE
+Implement canonical Phase 3 only:
+deterministic backtest correctness + a reproducible, honest simple-alpha research pipeline
+for explicitly admitted BTC/ETH Binance SPOT research data.
+
+Do NOT start Phase 4.
+Do NOT connect Exness.
+Do NOT place any DEMO/REAL order.
+Do NOT implement runtime AI agents, rich UI, live risk authorization or broker transport.
+
+INDEPENDENT ENTRY DISPOSITION
+GPT-5.6 Sol independently accepted exact SHA:
+bdae1a1978ecfe26c201074fe12e81f2c654a4af
+
+Accepted Phase 2 RESEARCH-UNBLOCKING scope:
+- DS-01 Binance public spot archives: BTCUSDT / ETHUSDT SPOT.
+- DS-02 Binance public Spot REST: BTCUSDT / ETHUSDT SPOT.
+- Engineering/personal NONPRODUCTION research only.
+- Only complete, rights-valid, hash-verified, lineage-preserved data may support claims.
+- Vision/DS-01 results are NOT production/live promotion entitlement.
+- DS-03 Exness, XAU and all Exness CFD research remain BLOCKED/UNKNOWN.
+- Full Phase 2 operational status remains OPEN; scheduler and Exness qualification continue independently.
+
+EXPECTED ENTRY STATE — VERIFY, DO NOT ASSUME
+Repository: haseeb1229/auvexo-alpha
+PR #3 expected OPEN/UNMERGED at:
+bdae1a1978ecfe26c201074fe12e81f2c654a4af
+main expected:
+16e63aeb9e7e1a97082d4a004142e0af163a4571
+Current source visibility expected PUBLIC under temporary exception.
+Exact-head PR/push CI were successful with 250 tests.
+If any ref/status differs, inspect and report before changing anything.
+
+A. RECORD INDEPENDENT ACCEPTANCE + NORMAL MERGE
+This prompt is the owner's explicit authorization for the following bounded Git workflow.
+
+1. Re-read current canonical docs and this acceptance instruction.
+2. Verify PR #3 exact head, main, clean local/remote refs, founder Git identity and exact-head CI.
+3. Add a concise in-repo independent-acceptance record under docs/reviews for the bdae1a1
+   amendment, accurately recording:
+   - ADR-013 accepted;
+   - DS-01/02 BTC/ETH SPOT research-unblocking PASS;
+   - Full Phase 2 operational status OPEN;
+   - scheduled reliability still open;
+   - DS-03 Exness blocked;
+   - public exception bounded;
+   - execution/orders remain disabled.
+4. Change current status/navigation markers from "ADR-013 proposed/pending" to accepted only
+   where they are CURRENT canonical state. Do not rewrite dated historical reports/receipts.
+   ADR-013 may become ACCEPTED/FROZEN according to the repo's existing ADR conventions.
+5. This acceptance-record commit MUST be documentation/status only. No runtime/code/dependency/
+   migration/scheduler behavior changes in that commit.
+6. Run docs checks, AGENTS/CLAUDE equality, diff/secret checks. Push normally.
+7. Confirm no unexpected PR-head movement. Then NORMAL merge PR #3 into main with exact-head
+   match/lease; do not squash/rebase/force-push/rewrite reviewed history.
+8. Verify merge parents and main remote.
+9. Create a new branch from the resulting main:
+   `phase-3/backtest-simple-alpha`
+10. Do not reuse the Phase 2 branch for implementation.
+
+If the acceptance/status-only commit contains anything beyond administrative review-state
+recording, STOP for reviewer inspection instead of merging.
+
+B. PERMANENT RULES
+Read and preserve:
+PRODUCT_CONSTITUTION, REQUIREMENTS_REGISTER, ROADMAP, ARCHITECTURE,
+RESEARCH_AND_VALIDATION, DATA_ARCHITECTURE, DATA_SOURCE_REGISTER,
+RISK_AND_CAPITAL_POLICY, EXECUTION_AND_VENUE_POLICY, SECURITY_BASELINE,
+OPERATIONS_AND_RECOVERY, PERFORMANCE_AND_RELIABILITY,
+OPEN_SOURCE_REUSE_REVIEW, ENGINEERING_RULES, ADR-001..013, AGENTS.md and CLAUDE.md.
+
+Non-negotiable:
+- Agentic outside, deterministic inside.
+- No broker order transport.
+- No MetaTrader5/Exness account connection.
+- No DEMO/REAL credentials.
+- No risk authorization issuer or LiveTradingPermit.
+- `execution_enabled` stays impossible to enable; all money actions remain denied.
+- Binance live derivatives stay BLOCKED_BY_POLICY.
+- No withdrawal capability.
+- No paid service/API requirement.
+- No runtime AI/agent framework in Phase 3.
+- No frontend.
+- No speculative microservices/Kubernetes/Redis/NATS/Timescale.
+- Native Windows + current PostgreSQL/uv architecture remains primary.
+- Docker optional only if a measured isolated-test need justifies it; do not add it by default.
+- Founder Git identity only; no AI coauthor/generated banner.
+- No force push/history rewrite.
+- AGENTS.md and CLAUDE.md byte-identical.
+- Wayvro/Minhaj/other projects untouched.
+
+C. PHASE 2 GATES CONTINUE IN PARALLEL
+Do not delete, retime or weaken `AuvexoAlpha-PublicData-Daily`.
+
+Current expected schedule:
+- warm-up 22:57 Pakistan / 17:57 UTC
+- qualification 23:00–23:12 Pakistan / [18:00,18:12) UTC
+- first eligible day 2026-10-18
+
+At Phase 3 entry and handoff:
+- inspect current scheduler receipt/qualification if locally accessible;
+- record actual qualified dates honestly;
+- do NOT wait for 7 days to implement Phase 3;
+- do NOT count retrospective/pilot/fixture data;
+- if a day is missed, leave it missed;
+- Astra/ChatGPT does not need to remain open for the local Windows task.
+
+No Exness preparation/connection in this Phase 3 prompt.
+DS-03 remains BLOCKED.
+
+D. DATA-USE ELIGIBILITY — IMPLEMENT FIRST
+Implement a strict, typed research data-use contract before empirical alpha work.
+
+At minimum represent:
+- ENGINEERING_ONLY
+- PERSONAL_RESEARCH
+- PROMOTION_ELIGIBLE
+- BLOCKED
+
+Bind classification to:
+- source ID/provider;
+- product/instrument;
+- exact dataset/version/hash/range;
+- rights snapshot/version/review date/expiry;
+- intended use;
+- availability policy;
+- derived lineage;
+- reviewer/evidence refs where applicable.
+
+Rules:
+- unknown/expired/incompatible rights => BLOCKED;
+- derived data inherits the strictest input restriction;
+- mixing eligible + restricted inputs never upgrades rights;
+- DS-01 Vision research remains ENGINEERING_ONLY/PERSONAL_RESEARCH under current terms;
+- DS-02 gets no inferred production entitlement;
+- no research result becomes promotion-eligible because it is profitable;
+- spot evidence cannot become Exness CFD/XAU evidence;
+- no strategy release can claim promotion eligibility unless every material input is eligible.
+
+Add positive/negative tests for unknown, expired, restricted, mixed-lineage and cross-source transfer.
+
+E. HISTORICAL PRICE AVAILABILITY — IMPLEMENT WITHOUT WEAKENING OBSERVED TRUTH
+Keep existing strict observed-as-of unchanged.
+
+Add a separately named opt-in research policy:
+`PRICE_CLOSE_PLUS_CAUSAL_LAG` (or equivalent exact canonical name consistent with ADR-013).
+
+Requirements:
+- usable historical price time = finalized bar close + explicit POSITIVE causal lag;
+- zero/negative lag invalid;
+- actual historical receipt/processing timestamp remains retained separately;
+- no same-close execution/lookahead;
+- earliest simulated decision/fill must honor policy and simulator event ordering;
+- macro/news/on-chain vintage data can NEVER inherit this price-only assumption;
+- each Experiment manifest records policy name/version/lag and data lineage;
+- strict production/read-as-of path remains untouched.
+
+Tests:
+- decision one microsecond/second too early rejected;
+- exact candle-close with zero lag rejected;
+- future bar inaccessible;
+- same-close favorable fill impossible;
+- historical receipt is not rewritten;
+- price policy cannot wrap non-price/vintage data.
+
+F. RESEARCH DATA PLAN — PURPOSE DRIVEN, NOT "DOWNLOAD EVERYTHING"
+Before large downloads, preregister a bounded data-coverage plan for Phase 3 BTC/ETH SPOT.
+
+Use existing Phase 2 pipeline only; no second downloader/parser/store.
+
+Design for:
+- multiple meaningful market regimes (bull, bear, sideways, crash/high-vol, calmer periods);
+- enough chronological OOS for the registered hypotheses;
+- longer history at 1h where statistically useful;
+- 1m history only where required for authoritative simulation/intrabar/cost checks;
+- explicit storage/network budgets;
+- source availability/rights/checksum evidence;
+- no arbitrary 5-year/10-year cap or requirement.
+
+Existing selected PASS manifests are usable within their scope.
+Existing March 2020 degraded/incomplete ranges remain degraded; never fabricate candles.
+
+New DS-01/02 imports are provisional research inputs until they independently pass all existing
+checksum/schema/timestamp/gap/duplicate/lineage/rights checks. Include all newly used manifests
+in the final Phase 3 evidence package. No Exness/XAU/CFD data.
+
+G. BACKTEST ENGINE — CORRECTNESS BEFORE ALPHA
+Build a deterministic event-driven research simulator behind narrow domain/application ports.
+Do not make a second production execution engine and do not reuse the disabled safety boundary
+as if it were broker execution.
+
+Core requirements:
+1. Deterministic simulation clock; injected UTC time.
+2. Immutable experiment/simulator configuration and reproducible seed.
+3. Exact Decimal/fixed-point semantics at financial/accounting boundaries; reject float/NaN/Inf
+   where financial invariants require exactness.
+4. Market-state availability enforced by the historical price policy.
+5. Authoritative event chronology. Vectorized feature generation may accelerate research,
+   but reported trade/accounting truth comes from event-driven replay.
+6. Cash, holdings, realized/unrealized P&L, mark-to-market equity, fees/costs and turnover
+   must reconcile exactly under hand-calculated fixtures.
+7. For empirical Binance SPOT research, do not imply Exness/CFD short/margin mechanics.
+   Prefer long/flat spot claims. Generic short/derivative accounting may exist only as clearly
+   synthetic contract tests if needed for future extensibility; no empirical CFD conclusion.
+8. Configurable explicit transaction-cost model:
+   spread assumption, fee/commission, slippage and latency. Historical bid/ask is absent where
+   absent; label assumptions instead of inventing executable quotes.
+9. Cost stress at 1x / 1.5x / 2x or the preregistered equivalent.
+10. Next-event/next-bar execution after decision availability; no same-close favorable fill.
+11. Intrabar ambiguity:
+    if stop and target/limit both could occur in one bar, use adverse ordering or require
+    higher-resolution evidence. Never choose favorable order.
+12. Partial-fill behavior, if modeled without real depth, must be deterministic and explicitly
+    synthetic/conservative; no claim of provider realism.
+13. Missing/gapped/degraded input creates BLOCKED/UNOBSERVABLE where the study requires continuity.
+14. No leverage optimization to manufacture return.
+15. Every simulated fill is labeled SIMULATED, never a broker fact.
+
+H. INDEPENDENT CORRECTNESS REFERENCES
+The simulator must not self-certify.
+
+Require:
+- multiple hand-calculated fixtures with expected cash/position/P&L/fees/drawdown;
+- an independent small reference calculation/implementation that does not call the production
+  simulator's fill/accounting code;
+- truncation tests: rerun with future rows removed and verify earlier decisions/features unchanged;
+- selected comparison against a mature external engine only if truly useful after reference
+  calculations, and only after exact revision/license/dependency review.
+Do NOT import/root-fork Freqtrade/LEAN/Hummingbot merely to satisfy a checkbox.
+No external benchmark receives credentials.
+
+I. PREREGISTRATION + EXPERIMENT LEDGER
+Implement an append-only/versioned research ledger.
+
+Before holdout/OOS inspection, record:
+- hypothesis_id/version;
+- mechanism/rationale/falsification condition;
+- BTC/ETH instrument/product/timeframe;
+- exact data-use classification and dataset manifests;
+- feature definitions/versions;
+- entry/exit/holding/sizing rule;
+- cost model;
+- baseline(s);
+- parameter search space/budget;
+- split/walk-forward plan;
+- purge/embargo horizon;
+- metrics and decision rule;
+- random seed;
+- code/dependency hash;
+- availability policy;
+- experiment budget/resource cap.
+
+Once an OOS/holdout is inspected, further tuning consumes that holdout.
+Do not relabel it "untouched".
+A changed hypothesis/config after holdout must create a new study/version with fresh forward/OOS
+evidence where appropriate.
+
+Use PostgreSQL metadata + immutable local artifacts where appropriate.
+If a DB migration is needed, create a new forward migration; never edit merged migrations.
+Test backup/restore and append-only constraints.
+
+J. SIMPLE HYPOTHESES — LIMITED AND PRE-REGISTERED
+Do NOT search hundreds of strategies.
+
+Phase 3 initial empirical scope:
+1. BTC/ETH slow trend/breakout family with fixed, simple risk/exposure rules.
+2. BTC/ETH volatility-conditioned mean-reversion family.
+
+Defer:
+- XAU/session strategy until DS-03 qualified;
+- ML/deep learning/RL;
+- news/macro/on-chain/derivatives intelligence;
+- agent debates;
+- parameter-mining strategy zoo.
+
+Compare each study against:
+- NO TRADE;
+- appropriate passive spot exposure benchmark;
+- one simple fixed-rule baseline at comparable cost/risk.
+
+Keep parameter grids intentionally small and preregistered.
+Do not change decision thresholds after seeing OOS results.
+
+K. TIME-SERIES VALIDATION
+Mandatory:
+- chronological train/validation/OOS;
+- default 60/20/20 only if justified by actual coverage/regimes; may adjust BEFORE experiments;
+- no random shuffle;
+- purge overlapping labels around split boundaries;
+- embargo at least max label/holding horizon;
+- rolling/expanding walk-forward folds;
+- fit scalers/feature/regime transforms on training only;
+- preserve full trial ledger;
+- do not repeatedly peek at final holdout;
+- regime/session/asset segmentation without post-hoc cherry-picking.
+
+Any insufficient sample => INCONCLUSIVE, not looser criteria.
+
+L. METRICS / UNCERTAINTY
+Where meaningful, report with definitions and sample sizes:
+- net expectancy;
+- profit factor;
+- max drawdown and duration/recovery;
+- Sharpe, Sortino, Calmar;
+- average R using preregistered initial modeled risk;
+- win rate;
+- average win/loss;
+- turnover;
+- total fees/spread/slippage assumptions;
+- gross/net exposure;
+- tail losses / expected shortfall;
+- performance by asset/regime/session;
+- strategy correlation if multiple accepted candidates exist.
+
+Undefined statistics => null + reason.
+Use daily portfolio returns for comparable annualized risk metrics.
+Do not annualize irregular trade returns as independent daily observations.
+
+Use dependence-aware/block bootstrap or another justified dependence-aware interval.
+Track multiple comparisons; use a justified adjustment/reporting method.
+Monte Carlo trade-order stress is sensitivity, not proof that dependence vanishes.
+
+M. SCREENING / HONEST VERDICT
+Canonical default candidate screen remains:
+- >=100 closed trades;
+- >=6 months OOS;
+- >1 regime;
+- net positive expectancy;
+- positive lower 95% dependence-aware interval;
+- cost-stress survival;
+- stable parameter neighborhood;
+- drawdown within preregistered experiment limit.
+
+These are minimum screens, not guaranteed sufficiency.
+If a strategy cannot satisfy them with legitimate available data:
+NO EDGE / INCONCLUSIVE.
+
+Do NOT:
+- fabricate more trades;
+- loosen thresholds post hoc;
+- overfit parameters;
+- call a positive backtest "validated live alpha";
+- promote a Vision-derived result for production/live use.
+
+N. COUNTERFACTUAL / REJECTED-CANDIDATE BOOK
+Implement the Phase 3 research subset without pretending Phase 4 risk exists.
+
+For otherwise-valid research candidates rejected by:
+- missing/degraded data;
+- rights/data-use block;
+- explicit strategy filter/regime condition;
+- research eligibility rule;
+
+record:
+candidate/evidence hash, decision time, contemporaneous available features/prices,
+strategy/data versions, reason/evaluation order, intended research entry/exit/horizon,
+simulator version, and simulated forward outcome when observable.
+
+UNOBSERVABLE stays UNOBSERVABLE.
+Do not sum overlapping rejected winners as hypothetical portfolio profit.
+Do not fabricate Phase 4 risk denials that do not yet exist.
+
+O. STORAGE / PERFORMANCE BENCHMARK
+Benchmark the current audit-first Parquet representation before optimizing it.
+
+Measure on the owner's laptop:
+- scan/filter/load time;
+- memory peak;
+- CPU;
+- storage footprint;
+- event-driven replay throughput;
+- representative multi-year 1m-scale behavior.
+
+If actual multi-year 1m data is not legitimately acquired, a clearly isolated synthetic
+SCALE BENCHMARK may be used only for performance, never market/alpha evidence.
+Keep it outside the research dataset registry and label it synthetic.
+
+Only if measured evidence justifies it may Phase 3 add a derived research-optimized form:
+- tied to canonical dataset/version/hash;
+- exact fixed-point/Decimal parity tests;
+- reproducible;
+- never a second truth source.
+Do not rewrite accepted Phase 2 artifacts.
+
+Respect laptop envelope:
+- one research worker;
+- <=2 CPU threads by default;
+- <=2 GB research RAM target;
+- checkpoint long runs <=30 minutes;
+- operational collector/DB gets priority.
+
+P. DEPENDENCIES
+Start from the accepted exact lock.
+
+Do not add a library merely because it is common.
+If NumPy/SciPy or another narrow mature library is materially justified for bootstrap/statistics:
+- verify current supported version and Python 3.13 Windows wheels;
+- inspect license/maintenance/security/advisories;
+- pin exact supported version;
+- update lock/inventory/SBOM/notices/audit;
+- benchmark footprint;
+- explain why stdlib/Polars existing code is insufficient.
+
+Do not add:
+- scikit-learn unless an actual Phase 3 requirement needs it;
+- agent frameworks;
+- broker SDKs;
+- CCXT merely for backtests;
+- full external bot engines as core dependencies.
+
+Q. PUBLIC REPOSITORY BOUNDARY
+Current PUBLIC exception is bounded and not permanent.
+
+During this Phase 3:
+- only generic baseline simulator/research-framework code may enter public history;
+- no broker/session data, owner-private data or credentials;
+- do not commit raw market archives or sensitive local experiment artifacts;
+- store actual experiment outputs locally/ignored unless explicitly reviewed for public release;
+- do not commit genuinely proprietary strategy secrets while repo is PUBLIC;
+- before 2026-10-24 review boundary, obtain the owner's explicit visibility disposition if work continues;
+- before broker credentials/session integration or proprietary alpha work, PRIVATE return or
+  owner-approved independently reviewed permanent-public ADR is required.
+
+Do not change visibility automatically.
+
+R. TESTING / SECURITY / RECOVERY
+At minimum:
+- Ruff format/check;
+- strict mypy;
+- full pytest;
+- Hypothesis where it improves numeric/sequence invariants;
+- existing all-mode execution-denial tests;
+- no broker dependency/import tests;
+- source/history secret scan;
+- hash-locked dependency audit;
+- docs/link/requirements checks;
+- schema/contract compatibility;
+- real PostgreSQL migration/append-only/race tests;
+- isolated backup/restore including new research metadata;
+- exact data replay for all research-used manifests;
+- clean-clone Windows verification at final source SHA;
+- GitHub hosted CI at exact final head;
+- git diff --check.
+
+Adversarial Phase 3 tests:
+- future data truncation/lookahead;
+- same-close leakage;
+- zero/negative causal lag;
+- split overlap and embargo;
+- scaler/feature fit on OOS denied;
+- duplicate trial IDs;
+- holdout reuse/tuning after inspection;
+- data-rights expiry/block;
+- mixed-lineage rights downgrade;
+- gapped dataset;
+- NaN/Infinity/negative financial values;
+- intrabar stop/target ambiguity;
+- non-deterministic seed/replay mismatch;
+- corrupt research artifact;
+- disk/resource-pressure refusal.
+
+Do not weaken pre-existing Phase 1/2 tests.
+
+S. GIT / PR WORKFLOW
+After the normal PR #3 merge and creation of `phase-3/backtest-simple-alpha`:
+- small coherent commits;
+- founder identity only;
+- no AI coauthor;
+- no force push;
+- no rewriting merged migrations/history;
+- push branch and open ONE Phase 3 PR to main;
+- do not merge Phase 3 PR;
+- do not create Phase 4 branch.
+
+T. REQUIRED PHASE 3 HANDOFF
+Return one consolidated handoff containing:
+
+1. Exact entry PR #3 acceptance-record commit, merge SHA and parent verification.
+2. Exact Phase 3 branch/final SHA/PR, visibility, authorship and clean tree.
+3. Files/modules/migrations/dependencies changed and why.
+4. Requirement/ADR mapping.
+5. Data-use classification implementation and negative tests.
+6. Historical PRICE_CLOSE_PLUS_CAUSAL_LAG implementation and leakage proofs.
+7. Exact research datasets/ranges/source IDs/rights/hashes and quality status.
+8. Any new downloads, bytes, rows and storage impact; every degraded/unknown gap.
+9. Simulator architecture and hand-calculated fixture results.
+10. Independent reference/cross-check method and discrepancies.
+11. Research ledger/preregistration/holdout enforcement.
+12. Exact hypotheses and parameter budgets.
+13. Train/validation/OOS/walk-forward/purge/embargo plan.
+14. Cost/fill assumptions and stress settings.
+15. Full metrics with sample sizes/uncertainty and baseline comparisons.
+16. Counterfactual/rejected-candidate evidence.
+17. Honest verdict per hypothesis: NO EDGE / INCONCLUSIVE / CANDIDATE only.
+    Never call it production/live validated.
+18. Data-rights status per result; no Vision result promotion eligibility.
+19. Resource/storage benchmark and whether derived optimization was actually justified.
+20. Current Phase 2 scheduled qualified date count and any missed day; no substitution.
+21. Exness DS-03 remains BLOCKED/UNKNOWN; zero account connections/orders.
+22. Local test counts, migrations, restore, replay, secret/dependency scans.
+23. Exact clean Windows clone result and exact-head hosted CI/job evidence.
+24. Known defects/limitations/technical debt with owner/review dates.
+25. Repo PUBLIC/PRIVATE current state and public-exception disposition.
+26. Confirmation: execution remains disabled all modes; Binance live derivatives blocked.
+27. Confirmation: Phase 4 has NOT begun and Phase 3 PR remains unmerged.
+28. Request GPT-5.6 Sol independent exact-final-SHA review before merge/next phase.
+
+STOP CONDITIONS
+Stop and report rather than improvise if:
+- PR #3 head/main differs unexpectedly;
+- owner/private data would need to enter PUBLIC Git;
+- source rights are expired/unclear;
+- the only way to get a positive result is to relax preregistered/OOS criteria;
+- a broker/Exness dependency appears necessary;
+- a migration/recovery test cannot be made safe;
+- current data cannot support a hypothesis;
+- dependency/security audit has a material unresolved finding;
+- execution-disable invariant changes.
+
+The correct output can be NO EDGE, INCONCLUSIVE, or a backtest-correctness PASS with no
+tradable candidate. The goal is trustworthy research infrastructure, not a profitable-looking chart.

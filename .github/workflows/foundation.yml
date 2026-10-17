@@ -1,7 +1,7 @@
 name: foundation
 on:
   push:
-    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data]
+    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data, phase-3/backtest-simple-alpha]
   pull_request:
     branches: [main]
 permissions:

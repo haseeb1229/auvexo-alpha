@@ -1,23 +1,26 @@
 # Project agent rules
 
-Current authorized scope: Phase 2 data plus the owner-requested baseline governance amendment
-and tested 23:00 Pakistan schedule retiming; no Phase 3 implementation. Read
-docs/amendments/BASELINE_CORRECTION_HANDOFF.md and docs/adr/013-source-specific-acceptance.md.
-ADR-013 independently accepted at bdae1a1978ecfe26c201074fe12e81f2c654a4af for DS-01/02
-BTC/ETH SPOT engineering/personal nonproduction research only. See
-docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md. The new owner Phase 3 prompt authorizes normal
-exact-head PR #3 merge after administrative recording, then a new Phase 3 branch.
-This acceptance/status commit implements no Phase 3 behavior. Full Phase 2
-operational acceptance remains OPEN; seven real days and DS-03 are not waived.
-Phase 1 accepted at 295ded25afdd5a95ee0585b41da9966e45812bcf; normal PR #2 merge
-16e63aeb9e7e1a97082d4a004142e0af163a4571. Read docs/reference/PHASE_2_BRIEF.txt,
-docs/reviews/PHASE_1_INDEPENDENT_ACCEPTANCE.md and docs/phase2/ACCEPTANCE_TESTS.md.
-Dated closure evidence: docs/phase2/closure/HANDOFF.md; current schedule: docs/amendments/SCHEDULER_2300.md.
-The October 17 evidence-closure brief is docs/reference/PHASE_2_EVIDENCE_CLOSURE_BRIEF.txt.
-No Phase 3, real account, strategy, order transport, risk kernel or permit issuance.
-Execution remains disabled in every mode. Exness remains disabled until secure owner-side
-DEMO access, isolation and genuine attestation are proven. No broker SDK is adopted now.
-Phase 2 merge is now explicitly authorized only through the accepted prompt workflow; no bypass.
+Phase 3 provider-outage resume is authorized by docs/reference/PHASE_3_RESUME_BRIEF.txt.
+Preserve original docs/phase3/DATA_PLAN.md; freeze DATA_PLAN_V2.md before broad acquisition.
+Exact-source confirmed venue outages remain DEGRADED and explicitly unavailable, never candles.
+Any new unexplained gap stops again. No OOS read before the verified selection/consumption gate.
+Prior stop evidence remains in .local/PHASE_3_BLOCKED_HANDOFF.md; no Phase 3 acceptance inferred.
+
+Current authorized scope: Phase 3 deterministic backtest correctness and generic simple
+BTC/ETH Binance SPOT personal NONPRODUCTION research only. Read docs/reference/PHASE_3_BRIEF.txt,
+docs/phase3/ACCEPTANCE_TESTS.md, docs/phase3/DATA_PLAN.md and ADR-014.
+ADR-013 / DS-01/02 source-specific research accepted at bdae1a1978ecfe26c201074fe12e81f2c654a4af.
+Acceptance-only commit 7b1d23d0fb26d41e5a8cf36159c9379615f2bb50 normally merged PR #3 at
+26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3. See docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md.
+Current branch phase-3/backtest-simple-alpha; its PR must remain unmerged for independent review.
+Full Phase 2 operational acceptance remains OPEN; seven genuine dates and DS-03 are not waived.
+Do not modify/retime/delete the public-data daily task. No Phase 4, Exness/XAU/CFD research,
+order transport, risk authorizer, permit issuer, runtime AI or frontend.
+Broker SDKs, account access and credentials remain prohibited.
+Execution remains impossible to enable in all modes; all money actions denied.
+Only complete or V2 source-proven outage-aware, rights-valid, hash-verified,
+lineage-preserved inputs may support research claims. Unknown gaps remain blocked.
+Actual experiment outputs/raw data stay ignored/local while PUBLIC; generic framework code only.
 Daily warm-up 22:57 Pakistan / 17:57 UTC; evidence 23:00-23:12 / 18:00-18:12 UTC,
 first eligible date October 18, 2026. Preserve old morning receipts; no late catch-up.
 No fixed historical lookback; storage budgets do not impose a research-history cap.

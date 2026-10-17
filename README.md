@@ -4,20 +4,18 @@ Personal alpha research and trading-system project owned by haseeb1229. Private-
 baseline; source is temporarily PUBLIC under an owner-approved exception, review due
 2026-10-24. Public history cannot be revoked by later returning to PRIVATE.
 
-Phases 0 and 1 were independently accepted and normally merged. Phase 2 provides bounded
-historical/public spot data and replay. PR #3 remains OPEN/UNMERGED: seven genuine scheduled
-days and Exness DEMO source qualification remain OPEN. Execution is disabled in every mode.
+Phases 0/1 and source-specific Phase 2 research engineering are independently accepted.
+PR #3 normally merged at `26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3`; full Phase 2
+operational status stays OPEN (scheduled days and DS-03 Exness qualification).
+Current Phase 3 builds deterministic nonproduction spot research. No Phase 4 or broker orders.
+Execution remains disabled in every mode.
 
-The [baseline amendment](docs/amendments/BASELINE_CORRECTION_HANDOFF.md) and
-[ADR-013](docs/adr/013-source-specific-acceptance.md) define independently accepted source-specific engineering
-acceptance separately from full operational acceptance. The [acceptance record](docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md)
-records the supplied Phase 3 prompt; implementation begins only after normal PR #3 merge
-and creation of the authorized new branch. Phase 3 has NOT begun in this administrative commit.
-
-Start with the [current handoff](docs/amendments/BASELINE_CORRECTION_HANDOFF.md),
-[current daily schedule](docs/amendments/SCHEDULER_2300.md), [Windows setup](docs/phase2/SETUP_AND_RECOVERY.md),
-[document index](docs/README.md), [constitution](docs/PRODUCT_CONSTITUTION.md)
-and [requirements](docs/REQUIREMENTS_REGISTER.md).
+Start with [Phase 3 acceptance requirements](docs/phase3/ACCEPTANCE_TESTS.md),
+[original plan](docs/phase3/DATA_PLAN.md),
+[frozen V2 availability amendment](docs/phase3/DATA_PLAN_V2.md),
+[ADR-014](docs/adr/014-nonproduction-research.md),
+[Phase 2 independent acceptance](docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md),
+[daily schedule](docs/amendments/SCHEDULER_2300.md) and [document index](docs/README.md).
 
 The design is agentic outside and deterministic inside: agents investigate and propose;
 typed risk gates and execution adapters retain authority. Exness real execution is locked;

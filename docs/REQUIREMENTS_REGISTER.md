@@ -99,3 +99,6 @@ than falsely requiring a currently private PR. R-005/006/030 gain the first Phas
 correctness/reference/rights requirements; R-023/029 retain hard source/security/live gates.
 R-036 remains the historical Phase 0 scope, not a ban on later explicitly authorized work.
 No parent/Phase 1 child requirement or financial numerical target is removed.
+
+Phase 3 refines the same parent IDs through [stable child requirements](phase3/ACCEPTANCE_TESTS.md),
+under [ADR-014](adr/014-nonproduction-research.md). No Phase 1/2 safety proof is retired.

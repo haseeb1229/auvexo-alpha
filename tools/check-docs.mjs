@@ -31,6 +31,9 @@ const required = [
   'docs/adr/013-source-specific-acceptance.md',
   'docs/amendments/BASELINE_CORRECTION_HANDOFF.md',
   'docs/amendments/DEPENDENCY_MATURITY.md', 'docs/amendments/SCHEDULER_2300.md',
+  'docs/reference/PHASE_3_BRIEF.txt', 'docs/reference/PHASE_3_RESUME_BRIEF.txt',
+  'docs/phase3/ACCEPTANCE_TESTS.md', 'docs/phase3/DATA_PLAN.md', 'docs/phase3/DATA_PLAN_V2.md',
+  'docs/phase3/evidence/provider-outage-diagnosis.json', 'docs/adr/014-nonproduction-research.md',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -38,6 +41,8 @@ if (errors.length) {
   process.exit(1);
 }
 check(read('AGENTS.md') === read('CLAUDE.md'), 'AGENTS.md and CLAUDE.md differ');
+check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase3/DATA_PLAN.md'))).digest('hex') === '82d189d51b01457e8141455d02addafcdbd690e8a73f4f4996eefcc7fbd2b8a4', 'Historical Phase 3 V1 plan changed');
+check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase3/DATA_PLAN_V2.md'))).digest('hex') === '4e073254600d499421893c4823426980756f6f31ea745c0805de9f25b0681cce', 'Frozen Phase 3 V2 amendment changed');
 const digest = createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_0_BRIEF.txt'))).digest('hex');
 check(digest === '1a3ffff5ed19d09ea48e80d4591ccaddfb09e9da64bde1ce3ce31fbd69b70fb2', 'Archived brief hash changed');
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_1_BRIEF.txt'))).digest('hex') === 'c67380a3ead8744b85f30447b8cd00b362813abe185610221f975306d840b98b', 'Archived Phase 1 brief hash changed');
@@ -73,6 +78,10 @@ for (const path of markdown) {
   }
 }
 const register = read('docs/REQUIREMENTS_REGISTER.md');
+const phase3 = read('docs/phase3/ACCEPTANCE_TESTS.md');
+for (const id of ['R-014-P3-01', 'R-014-P3-02', 'R-005-P3-01', 'R-005-P3-02', 'R-006-P3-01', 'R-005-P3-03', 'R-007-P3-01', 'R-015-P3-01', 'R-025-P3-01', 'R-022-P3-01']) {
+  check(phase3.includes(`| ${id} |`), `Missing stable Phase 3 child: ${id}`);
+}
 for (let i = 0; i < 40; i++) {
   const id = `R-${String(i).padStart(3, '0')}`;
   check(register.includes(`| ${id} / ${i} |`), `Missing brief section mapping: ${id}`);

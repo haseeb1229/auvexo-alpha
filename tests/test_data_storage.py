@@ -123,6 +123,33 @@ def test_simultaneous_ingestion_checkpoint_contention(store):
     assert store.checkpoint("feed").next_open == NOW
 
 
+def test_parser_revision_creates_new_lineage_without_overwriting_source(store):
+    start = NOW - timedelta(hours=2)
+    raw = json.dumps([row(start), row(start + timedelta(hours=1))]).encode()
+    bars, report = parse_rest(raw, "BTCUSDT", "1h", start, NOW, NOW, "https://fixture.invalid")
+    args = (
+        bars,
+        report,
+        identity("DS-02"),
+        rights("DS-02"),
+        "parser.fixture",
+        "https://fixture.invalid",
+        raw,
+        NOW,
+        "synthetic-parser-lineage",
+    )
+    old = store.publish(*args, parser_version="spot.v1")
+    original = old.canonical_bytes()
+    new = store.publish(*args, parser_version="spot.v2")
+    assert new.dataset_version != old.dataset_version
+    assert new.source_hash == old.source_hash and new.supersedes == old.dataset_version
+    assert new.changed_rows == 0
+    assert old.canonical_bytes() == original
+    assert len(store.manifests()) == 2
+    replay(store, old)
+    replay(store, new)
+
+
 @pytest.mark.parametrize("stage", ["rename", "database"])
 def test_crash_boundaries_never_publish_partial_manifest(store, monkeypatch, stage):
     if stage == "rename":

@@ -40,10 +40,10 @@ Core operation cannot depend on paid APIs, paid cloud LLMs, a GPU or a free clou
 The supplied 16 GB laptop and approximately 300 GB free disk are planning constraints,
 not measured capacity. Aim for <=120 GB managed footprint with a 150 GB hard quota.
 
-Phase 0 delivered documents, decision records and repository evidence only. Current scope
-is Phase 2 data plus the baseline governance correction and tested schedule retiming.
-No Phase 3 implementation, accounts, demo/real orders, strategy, risk kernel, permit issuance,
-model training, clients, paid signup, root fork or speculative infrastructure is authorized.
+Phase 0 delivered documents only. Current authorized Phase 3 scope is deterministic
+backtest correctness and generic BTC/ETH SPOT personal nonproduction research after the
+accepted normal Phase 2 merge. No Phase 4, broker account/credentials, DEMO/REAL order,
+risk authorizer, permit issuer, runtime agents, frontend, paid signup or speculative infrastructure.
 
 Decision meanings: FROZEN means an accepted design requiring a superseding ADR to change;
 PROVISIONAL means a selected direction with a named validation gate; DEFERRED means no
