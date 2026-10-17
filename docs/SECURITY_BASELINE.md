@@ -64,3 +64,16 @@ not grant foundation-policy writes. [Setup](phase2/SETUP_AND_RECOVERY.md) docume
 the local development writer credential and residual owner/admin access. No broker
 secret store, terminal account, SDK or order path is adopted. Exness remains disabled
 until encrypted OS storage, isolation and genuine demo attestation can be proved.
+
+## Public-source and release integrity gates
+
+The owner-approved temporary PUBLIC source exception is review-due 2026-10-24; private-first
+remains the baseline. Public history/copies cannot be revoked. No broker credentials/sessions
+or owner-private data may enter public Git history. Before broker credential/session integration
+or proprietary alpha work, independent review must resolve return to PRIVATE under separate
+owner instruction or an owner-approved superseding permanent-public ADR. This amendment changes
+no visibility, billing, runner or permissions and infers no permanent public approval.
+
+Before Phase 8, require protected main/release or equivalent independently reviewed integrity
+control, a CI-bound release manifest/tag, exact approved hashes and no unreviewed release.
+Current branch settings are not claimed to implement this future gate. See [operations](OPERATIONS_AND_RECOVERY.md).

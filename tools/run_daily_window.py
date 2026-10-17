@@ -15,6 +15,12 @@ from uuid import uuid4
 import psutil
 from local_db import LOCAL, ROOT
 
+from auvexo_alpha.application.data_schedule import (
+    SCHEDULE_DESCRIPTION,
+    SCHEDULE_ID,
+    target_window,
+)
+
 LOG_LIMIT = 1024 * 1024
 DIRECTORY_LIMIT = 20 * LOG_LIMIT
 LOG_NAME = re.compile(r"\d{8}T\d{12}Z-[0-9a-f]{12}(?:-warmup)?\.log")
@@ -122,13 +128,6 @@ def run_bounded(arguments: list[str], log: Path, timeout: int) -> dict[str, obje
     }
 
 
-def target_window(now: datetime) -> datetime:
-    midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    if not timedelta(0) < midnight - now <= timedelta(minutes=4):
-        raise ValueError("OUTSIDE_PREWINDOW_START")
-    return midnight
-
-
 def main() -> int:
     parser = argparse.ArgumentParser()
     mode = parser.add_mutually_exclusive_group()
@@ -141,7 +140,8 @@ def main() -> int:
                 {
                     "status": "DRY_RUN",
                     "registration_action": "NONE; inspect Task Scheduler separately",
-                    "schedule": "04:57 Asia/Karachi warmup; 05:00-05:12 collection window",
+                    "schedule": SCHEDULE_DESCRIPTION,
+                    "schedule_id": SCHEDULE_ID,
                     "executable": sys.executable,
                     "working_directory": str(ROOT),
                     "arguments": "tools/run_daily_window.py --scheduled",
@@ -156,6 +156,7 @@ def main() -> int:
     run_id = now.strftime("%Y%m%dT%H%M%S%fZ") + "-" + uuid4().hex[:12]
     report: dict[str, object] = {
         "started_at": now.isoformat(),
+        "schedule_id": SCHEDULE_ID,
         "mode": "scheduled" if target else "preflight",
     }
     if target:

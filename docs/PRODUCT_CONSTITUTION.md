@@ -1,6 +1,10 @@
 # Product constitution
 
-Status: FROZEN architecture baseline, 2026-10-15; independent review pending.
+Status: Phase 0 architecture baseline independently accepted; Phase 1 accepted and merged.
+The 2026-10-17 [ADR-013](adr/013-source-specific-acceptance.md) amendment is proposed for
+independent review and supersedes sequencing only after acceptance. Phase 2 full operational
+status remains OPEN. Private-first remains the baseline; source is temporarily PUBLIC under
+the owner-approved exception, review due 2026-10-24. No permanent public approval is inferred.
 
 Auvexo Alpha is a private, single-owner, always-on alpha research and validation desk
 with gated autonomous trading. Initial assets are BTC, ETH and XAU/gold. Its purpose
@@ -35,9 +39,10 @@ Core operation cannot depend on paid APIs, paid cloud LLMs, a GPU or a free clou
 The supplied 16 GB laptop and approximately 300 GB free disk are planning constraints,
 not measured capacity. Aim for <=120 GB managed footprint with a 150 GB hard quota.
 
-Phase 0 delivers documents, decision records and repository evidence only. No trading
-code, accounts, demo orders, real orders, model training, clients, voice, paid signup,
-third-party root fork, Kubernetes or speculative microservices are authorized.
+Phase 0 delivered documents, decision records and repository evidence only. Current scope
+is Phase 2 data plus the baseline governance correction and tested schedule retiming.
+No Phase 3 implementation, accounts, demo/real orders, strategy, risk kernel, permit issuance,
+model training, clients, paid signup, root fork or speculative infrastructure is authorized.
 
 Decision meanings: FROZEN means an accepted design requiring a superseding ADR to change;
 PROVISIONAL means a selected direction with a named validation gate; DEFERRED means no
@@ -49,3 +54,9 @@ Canonical precedence within the project: constitution and requirement IDs, then 
 risk/security/venue policies, then ADRs and architecture, then implementation plans.
 Contradictions block affected work and require a documented resolution, not silent choice.
 The [requirements register](REQUIREMENTS_REGISTER.md) maps all 40 brief sections.
+
+Engineering/research-unblocking acceptance is a reviewed permission to use specified qualified
+inputs/contracts in later NON-MONEY engineering under a new prompt. It never declares earlier
+operational/source gates complete. Full operational/activation acceptance requires all applicable
+real-environment, calendar, source, rights and security evidence. The [roadmap](ROADMAP.md)
+defines these two dispositions; phase numbers 0-9 and financial gates remain unchanged.

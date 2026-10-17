@@ -1,7 +1,13 @@
 """Coverage and actual calendar-day qualification; absent observations remain absent."""
 
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, datetime, timedelta
 
+from auvexo_alpha.application.data_schedule import (
+    FIRST_SCHEDULED_DAY,
+    SCHEDULE_DESCRIPTION,
+    SCHEDULE_ID,
+    qualification_window,
+)
 from auvexo_alpha.domain.market_data import DatasetManifest, IngestionEvent
 
 
@@ -89,20 +95,20 @@ def qualification(
     days = []
     for offset in range(7):
         day = start + timedelta(days=offset)
-        midnight = datetime(day.year, day.month, day.day, tzinfo=UTC)
-        # Scheduled public-data window: 00:00 through 00:12 UTC. At least ten minutes
+        window_start, window_end = qualification_window(day)
+        # Scheduled public-data window: 18:00 through 18:12 UTC. At least ten minutes
         # of genuine per-symbol observations, no >120-second heartbeat gaps.
         selected = sorted(
             [
                 e
                 for e in events
-                if midnight <= e.observed_at < midnight + timedelta(minutes=12)
+                if window_start <= e.observed_at < window_end
                 and e.observed_at <= now
                 and e.feed_key.startswith("DS-02.")
             ],
             key=lambda e: e.observed_at,
         )
-        good = True
+        good = day >= FIRST_SCHEDULED_DAY
         for symbol in ("BTCUSDT", "ETHUSDT"):
             feed = sorted(
                 (e for e in selected if e.feed_key == f"DS-02.{symbol}.1m"),
@@ -121,7 +127,7 @@ def qualification(
                     (b.observed_at - a.observed_at).total_seconds() <= 120
                     for a, b in zip(feed, feed[1:], strict=False)
                 )
-        closed = now >= midnight + timedelta(minutes=12)
+        closed = now >= window_end
         days.append(
             dict(
                 day=day.isoformat(),
@@ -135,6 +141,9 @@ def qualification(
         )
     return dict(
         status="PASS" if all(d["status"] == "PASS" for d in days) else "OPEN",
+        schedule_id=SCHEDULE_ID,
+        schedule=SCHEDULE_DESCRIPTION,
+        first_eligible_day=FIRST_SCHEDULED_DAY.isoformat(),
         days=days,
         scope="Public scheduled 12-minute UTC windows only; "
         "not continuous uptime or Exness qualification",

@@ -17,8 +17,8 @@ Phase 1 child IDs remain intact. Synthetic tests cannot qualify a real source.
 | R-027-P2-01 | Durable freshness, outage, checkpoint and daily evidence | collector and seven-day receipt validation |
 | R-022-P2-01 | Deny-only execution unchanged; no broker writes; real refusal | retain all Phase 1 tests; Exness gate negatives |
 | R-030-P2-01 | Current official source/dependency rights and provenance | source register, lock, audit, notices |
-| R-031-P2-01 | Accepted merge, private unmerged PR, honest local/CI evidence | GitHub receipts and clean clone |
-| R-035-P2-01 | Seven real scheduled days cannot be accelerated or invented | qualification tests, actual dated receipts |
+| R-031-P2-01 | Accepted merge, unmerged PR, private-first baseline with temporary owner-approved PUBLIC exception (review 2026-10-24), honest local/CI evidence | GitHub receipts and clean clone |
+| R-035-P2-01 | Seven actual consecutive dates in [18:00,18:12) UTC / 23:00-23:12 Pakistan, effective 2026-10-18; >=11 verified observations/symbol, >=600s span, <=120s gaps; no duplicate/future/fixture evidence | shared schedule/reporting/wrapper, `test_scheduled_wrapper.py`, `test_data_gates.py`, actual dated receipts; old morning receipt historical |
 
 Runtime tests will live in `tests/test_data_*.py`; source and outcome inventory is
 maintained in the Phase 2 implementation and verification documents at handoff.

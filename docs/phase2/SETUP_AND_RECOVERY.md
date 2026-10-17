@@ -27,7 +27,7 @@ Collection is explicitly opt-in and bounded per invocation:
 .venv/Scripts/python.exe tools/data_local.py collect --enable-public-data --cycles 12 --output .local/public-window.json
 .venv/Scripts/python.exe tools/data_local.py coverage --output .local/coverage.json
 .venv/Scripts/python.exe tools/data_local.py evidence --output .local/dataset-evidence.json
-.venv/Scripts/python.exe tools/data_local.py qualification --start-day 2026-10-17 --output .local/qualification.json
+.venv/Scripts/python.exe tools/data_local.py qualification --start-day 2026-10-18 --output .local/qualification.json
 ```
 
 Choose a new output filename for each invocation: receipts are never overwritten.
@@ -39,24 +39,31 @@ stop the collector and persist a cooldown; do not evade this with alternate host
 
 ## Seven scheduled collection days
 
-The qualification command expects a genuine twelve-minute collection window starting
-00:00 UTC each day (05:00 Asia/Karachi), for seven consecutive dates selected by the
-operator. At least eleven fresh observations per symbol must span ten minutes, with
-no heartbeat gap exceeding 120 seconds. The window qualifies scheduled collection,
-not 24-hour uptime, quote latency or Exness access. A future event, fixture, compressed
-clock, missing day or stale observation cannot count as elapsed proof. The initial
-observation gate is OPEN; no task is silently registered or promised asynchronous work.
+Current schedule supersedes the dated morning proposal/receipt: daily **22:57 Pakistan
+warm-up / 17:57 UTC**, qualifying **23:00-23:12 Pakistan / 18:00-18:12 UTC**.
+Use the [current schedule and inspected registration](../amendments/SCHEDULER_2300.md),
+not direct collection as a Task Scheduler action. The shared `application/data_schedule.py`
+defines the window and first eligible date, **2026-10-18**. October 17's new start was already
+past at entry; no rush, backdating or late catch-up. Old 04:57/05:00 receipts remain historical.
 
-For an operator-run Windows Task Scheduler task, select the owner identity, start in
-this repository, run hidden, one instance only, daily at 05:00 local time, and set a
-20-minute execution limit. Use `.venv/Scripts/python.exe` with arguments
-`tools/data_local.py collect --enable-public-data --cycles 12`. The database stores
-append-only daily receipts without requiring a reused output filename. Keep the
-laptop awake and connected during the window. A missed start remains missing; enabling
-"run as soon as possible after a missed start" does not make a late receipt qualified.
-After seven actual windows, run qualification with the real first date and independently
-inspect manifests, events, downtime and source quality. Task registration/identity remains
-an explicit operator action; credentials are not embedded in task arguments.
+At least eleven genuine verified fresh observations per symbol must span >=600 seconds with
+no heartbeat gap >120 seconds, within [18:00,18:12) UTC. Final manifest/hash/artifact/source/
+quality/receipt checks and duplicate refusal remain mandatory. Report only seven actual
+consecutive calendar dates, never retrospective archives, daytime pilots or fixtures.
+
+The existing `AuvexoAlpha-PublicData-Daily` task uses `.venv/Scripts/python.exe` with
+`tools/run_daily_window.py --scheduled`, this repository as working directory, Limited
+interactive owner identity, IgnoreNew, no retry/late catch-up, network+AC, requested wake
+and a 20-minute cap. The wrapper retains bounded warm-up/child/output limits and owner-only
+logs/summaries. Inspect actual registration rather than assuming settings from this prose.
+
+Owner prerequisite: logged in and awake, online/on AC, Auvexo PostgreSQL already running.
+ChatGPT/Astra/Claude need not be open; the local Windows task runs independently of model
+usage limits. Ready/configured is not observation. The twelve-minute/day check qualifies
+bounded collector reliability, never 24/7 uptime or live-trading readiness. Missing days
+remain gaps. After seven actual windows, select the genuine first date and inspect evidence.
+Full Phase 2 operational status remains OPEN. After ADR-013 independent acceptance and a
+new scoped prompt, non-money engineering may overlap evidence collection on accepted inputs.
 
 For the independent Gitleaks 8.30.1 source/history scan, use the root `.gitleaks.toml`
 configuration. Export tracked/untracked nonignored source to an isolated directory,
@@ -64,11 +71,8 @@ then scan that export and Git history. Runtime credentials belong in ignored own
 storage and are not part of the source export. The narrow public-identifier exception
 and detection controls are documented in [verification](VERIFICATION.md).
 
-As of 2026-10-17, the proposed October 17 window was missed: zero qualifying windows.
-Choose a new real start date (for example October 18 if actually scheduled) instead of
-counting the daytime pilot. The implementation uses monotonic cadence rather than adding
-a full minute after each processing cycle. Slow processing or late startup can still
-leave a window incomplete; the report must retain that result.
+The actual scheduled count remains zero as of this amendment. Monotonic cadence is unchanged;
+slow processing or late startup can still leave a window incomplete. Preserve that result.
 
 ## Recovery and rollback
 

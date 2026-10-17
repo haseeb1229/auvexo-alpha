@@ -68,7 +68,8 @@ patch using the [support policy](https://www.postgresql.org/support/versioning/)
 Timescale is deferred: three assets do not yet justify extension operations or
 [edition/license differences](https://github.com/timescale/timescaledb/blob/main/LICENSE).
 Partition/index plain PostgreSQL and measure before changing it. Exact package versions
-are intentionally not frozen without a compatibility install/test matrix.
+were selected with compatibility install/test evidence in Phase 1/2; the current lock is
+accepted under an explicit [maturity exception](amendments/DEPENDENCY_MATURITY.md), not age alone.
 
 ## Application contracts (design, not runnable schemas)
 

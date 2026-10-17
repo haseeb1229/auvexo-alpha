@@ -65,3 +65,8 @@ compressed/32 MiB expanded archive, 50,000 rows per batch, explicit request/byte
 No tick/quote latency guarantee or continuous uptime claim follows from closed-bar polling.
 The [scheduled collection procedure](phase2/SETUP_AND_RECOVERY.md) produces genuine
 daily evidence; sleeping/offline days remain gaps.
+
+Phase 3 must benchmark the current audit-first Parquet string/canonical-record layout at
+realistic multi-year 1m scale before any derived-format optimization; see
+[data architecture](DATA_ARCHITECTURE.md). This is a future design/measurement requirement,
+not a new storage format or a performance claim.

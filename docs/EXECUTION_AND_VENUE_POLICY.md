@@ -17,7 +17,7 @@ Status: FROZEN gates; Python-first MT5 transport PROVISIONAL pending Phase 5 qua
 Eligibility is keyed by venue, product, instrument, account jurisdiction and operation,
 not one misleading venue-wide flag. States: APPROVED, RESEARCH_ONLY, PAPER_ONLY,
 REVIEW_REQUIRED, BLOCKED. APPROVED is necessary but never sufficient for real execution.
-All executions are disabled in Phase 0. Planned initial policy:
+All executions remain disabled in the current Phase 2/amendment. The matrix describes future gates:
 
 | Venue/product | Data/research | Paper/demo | Real |
 | --- | --- | --- | --- |
@@ -114,3 +114,7 @@ processes do not load execution credentials. No trading credential may withdraw;
 a broker's terminal credential lacks granular scopes, document that fact and prevent
 portal/withdrawal access at the capability and process boundary. Owner portal credentials
 are never loaded into the system. Broker terms/rights must be verified before onboarding.
+
+Source-specific engineering acceptance under [ADR-013](adr/013-source-specific-acceptance.md)
+confers no order or permit capability. Every activation/promotion still needs all applicable
+operational, source, rights, security and financial gates; incomplete qualifications deny it.

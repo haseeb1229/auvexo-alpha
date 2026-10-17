@@ -27,6 +27,10 @@ const required = [
   'docs/phase2/IMPLEMENTATION.md', 'docs/phase2/SOURCES_AND_RIGHTS.md',
   'docs/phase2/QUALITY_AND_COVERAGE.md', 'docs/phase2/SETUP_AND_RECOVERY.md',
   'docs/phase2/VERIFICATION.md', 'docs/phase2/HANDOFF.md',
+  'docs/reference/BASELINE_CORRECTION_BRIEF.txt',
+  'docs/adr/013-source-specific-acceptance.md',
+  'docs/amendments/BASELINE_CORRECTION_HANDOFF.md',
+  'docs/amendments/DEPENDENCY_MATURITY.md', 'docs/amendments/SCHEDULER_2300.md',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -72,6 +76,9 @@ const register = read('docs/REQUIREMENTS_REGISTER.md');
 for (let i = 0; i < 40; i++) {
   const id = `R-${String(i).padStart(3, '0')}`;
   check(register.includes(`| ${id} / ${i} |`), `Missing brief section mapping: ${id}`);
+}
+for (const id of ['R-035-BA-01', 'R-014-BA-01', 'R-014-BA-02', 'R-015-BA-01', 'R-018-BA-01', 'R-031-BA-01', 'R-029-BA-01']) {
+  check(register.includes(`| ${id} |`), `Missing amendment mapping: ${id}`);
 }
 const decisions = read('docs/OPEN_DECISIONS.md');
 for (let i = 1; i <= 15; i++) check(decisions.includes(`| OD-${String(i).padStart(2, '0')} |`), `Missing OD-${i}`);

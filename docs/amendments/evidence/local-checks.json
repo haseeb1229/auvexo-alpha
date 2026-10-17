@@ -1,0 +1,113 @@
+{
+  "observed_at": "2026-10-17T18:16:52.892502+00:00",
+  "status": "PASS",
+  "entry_sha": "3190d104a7a05b43645117ea987bee50ad80c200",
+  "scope": "Windows working-tree amendment checks; not independent acceptance or fresh-clone evidence",
+  "full_suite": "250 passed in 140.37s (0:02:20)",
+  "failures": 0,
+  "skips": 0,
+  "checks": [
+    {
+      "command": [
+        "python.exe",
+        "-m",
+        "ruff",
+        "format",
+        "--check",
+        "src",
+        "tests",
+        "tools",
+        "migrations"
+      ],
+      "status": "PASS",
+      "output": "54 files already formatted"
+    },
+    {
+      "command": [
+        "python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "tools",
+        "migrations"
+      ],
+      "status": "PASS",
+      "output": "All checks passed!"
+    },
+    {
+      "command": [
+        "python.exe",
+        "-m",
+        "mypy"
+      ],
+      "status": "PASS",
+      "output": "Success: no issues found in 29 source files"
+    },
+    {
+      "command": [
+        "node",
+        "tools/check-docs.mjs"
+      ],
+      "status": "PASS",
+      "output": "PASS: 182 repository files; 62 Markdown files; 324 local links; 40 brief mappings; 15 open decisions; 13 ADRs; 10 roadmap phases.\nPASS: aligned agent instructions, exact brief hash, document structure, scope allowlist and high-signal secret patterns.\nLIMIT: no external-link, full secret/security, runtime, trading, performance or profitability certification."
+    },
+    {
+      "command": [
+        "git",
+        "-c",
+        "safe.directory=C:/Users/AR TRADERS/Desktop/Auvexo Alpha",
+        "diff",
+        "--check"
+      ],
+      "status": "PASS",
+      "output": "warning: in the working copy of 'src/auvexo_alpha/application/data_reporting.py', CRLF will be replaced by LF the next time Git touches it\nwarning: in the working copy of 'tools/check-docs.mjs', CRLF will be replaced by LF the next time Git touches it"
+    },
+    {
+      "command": [
+        "python.exe",
+        "tools/secret_scan.py"
+      ],
+      "status": "PASS",
+      "output": "PASS: high-signal scan of 182 source files; no matched secrets"
+    }
+  ],
+  "tested_source_sha256": {
+    "src/auvexo_alpha/application/data_schedule.py": "ceeb803637b71f45a8af89737b2b55fbede984792e523cbe1d4379563bfae31f",
+    "src/auvexo_alpha/application/data_reporting.py": "60c89db9e40afbeee7f5f9bce3bbb8d78648236749db0f724cb45008a47612b6",
+    "tools/run_daily_window.py": "defa78e8b9cd095f4e7e9a2b4933bf30863238f7a432851e1e49d1eb0cb9741d",
+    "tools/check-docs.mjs": "5367c0af1fc663e2b227f840e7f14fc487037d4fbb68f7ef670af56b8985f9c3",
+    "tests/test_data_gates.py": "5cdb342d3ae7c57e5adea4f537663f99d5cb9e4359d3da7f5ffa63ec65160cc3",
+    "tests/test_scheduled_wrapper.py": "592b33389fcd5dc51f624586832f1fd527792a8c7c375508cf7b2f3cf6de6c1e"
+  },
+  "agents_byte_identical": true,
+  "preserved_since_entry": [
+    "migrations",
+    "uv.lock",
+    "pyproject.toml",
+    "requirements-audit.txt",
+    ".github",
+    ".gitleaks.toml",
+    "docs/phase1",
+    "docs/phase2/evidence",
+    "docs/phase2/closure",
+    "docs/phase2/HANDOFF.md",
+    "docs/phase2/VERIFICATION.md",
+    "docs/phase2/SOURCES_AND_RIGHTS.md"
+  ],
+  "accepted_manifests_verified": 56,
+  "scheduled_qualified_dates": [],
+  "observation_status": "OPEN",
+  "execution_enabled": false,
+  "binance_live_derivatives": "BLOCKED_BY_POLICY",
+  "broker_sdk_added": false,
+  "broker_connections": 0,
+  "orders": 0,
+  "phase3_started": false,
+  "failure_history": [
+    "Focused sandbox run: 31 passed, 6 temp-directory setup errors. Workspace-local temp rerun: 37 passed in 2.56s; later focused run 37 passed in 7.85s.",
+    "First owner preflight/qualification failed closed on sandbox-owned amendment-pytest-cache. Granted owner FullControl only on three task-created synthetic temp/cache trees (7+20+20 files), no runtime/security bypass. Rerun verified 56 manifests; bounded preflight passed in scheduler receipt."
+  ],
+  "line_endings": "LF normalized to committed text; no executable tokens changed"
+}

@@ -104,3 +104,20 @@ observed-availability contract. Phase 3 must separately design an opt-in, explic
 named price-only historical close/lag assumption, preserving observed receipt fields
 and its causal limitations. It must not grant historical macro/news vintages a price
 close-time assumption. No simulation mode or relaxed as-of rule is implemented here.
+
+## Future price simulation and research storage benchmark
+
+Phase 3 must name and opt into PRICE_CLOSE_PLUS_CAUSAL_LAG separately from strict observed-as-of:
+finalized close + explicit positive causal lag, actual 2026 receipt/processing retained, no
+same-close lookahead, and policy/lag recorded in the experiment manifest. Macro/news/on-chain
+vintages never inherit the assumption. No simulator or availability relaxation is implemented now.
+
+Before optimizing accepted storage, benchmark the audit-first Parquet shape (string financial
+columns plus canonical row record) at realistic multi-year BTC/ETH/XAU-equivalent 1m research
+scale within laptop CPU/RAM/disk budgets. Record selected years/row counts, canonical dataset/
+version/hash, hardware/software, compressed size, scan/filter/join time, Decimal conversion,
+peak RAM and exact replay correctness. Synthetic scale fixtures must be labelled, never source
+qualification. No fixed history cap follows from this benchmark. If measured necessary later,
+permit a derived research representation bound to the canonical version/hash with exact fixed-point/
+Decimal semantics and parity/round-trip tests. It is regenerable, invalidated with its parent,
+and cannot become conflicting truth. No new format or accepted data rewrite in this correction.

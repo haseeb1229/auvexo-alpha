@@ -1,9 +1,9 @@
 # Roadmap and proof gates
 
-Status: FROZEN sequencing; effort estimates intentionally withheld until Phase 1 tooling
-and Phase 2 data coverage are measured. Phases are evidence gates, not calendar promises.
-Each requires its own authorized prompt and reviewer-accepted handoff. A later row is not
-permission to start it. Financially critical gates cannot be waived for schedule pressure.
+Status: canonical phases 0-9 retained. [ADR-013](adr/013-source-specific-acceptance.md)
+proposes a superseding acceptance model, owner-authorized 2026-10-17 and awaiting independent
+review. Each phase still needs an authorized prompt and reviewer-accepted concrete dependencies.
+A later row is not permission to start it. Financial gates and numeric evidence targets remain hard.
 
 Current evidence: Phase 0 independently accepted and normally merged via PR #1 at
 `eafec07ee7c7a98c9cca17b5f8665494bd650751`. Phase 1 independently accepted at
@@ -11,13 +11,45 @@ Current evidence: Phase 0 independently accepted and normally merged via PR #1 a
 `16e63aeb9e7e1a97082d4a004142e0af163a4571`. Phase 2 data-only work is authorized by
 the revised V2 brief; see [acceptance](reviews/PHASE_1_INDEPENDENT_ACCEPTANCE.md) and
 [engineering snapshot](phase2/HANDOFF.md). The October 17
-[evidence-closure handoff](phase2/closure/HANDOFF.md) is current: retrospective seven-day
+[evidence-closure handoff](phase2/closure/HANDOFF.md) records that delivery: retrospective seven-day
 coverage passed; genuine scheduled days remain OPEN and Exness DEMO is blocked.
 PUBLIC hosted CI has now run successfully; private allocation is not proven resolved.
 The owner approved a temporary public-source exception, review due October 24 with
 independent governance review still required. PR #3 remains unmerged; macro-exit is
-not PASS. Phase 3 remains unauthorized. All phase sequencing and exit thresholds below
-are unchanged.
+not PASS. Phase 3 remains unauthorized. The [baseline amendment](amendments/BASELINE_CORRECTION_HANDOFF.md)
+is the current review package; historical snapshots retain their original facts.
+
+## Two acceptance dispositions
+
+**ENGINEERING / RESEARCH-UNBLOCKING ACCEPTANCE** permits only later NON-MONEY engineering
+whose concrete source/instrument/product/range, rights, versions, availability policy and contracts
+are independently accepted at an exact SHA. A reviewer must record the admitted scope, evidence,
+excluded sources/ranges, still-open operational gates and permitted next work. A new owner phase
+prompt is required. This is not full phase closure, promotion or account activation.
+
+**FULL OPERATIONAL / ACTIVATION ACCEPTANCE** requires every applicable original real-environment,
+calendar/source/security/rights/promotion gate. An engineering pass cannot satisfy it. Evidence
+must name each gate and scope; unknown eligibility denies promotion. No cross-source inference.
+
+Phase 2 disposition for independent review:
+
+| Concern | Current evidence | Acceptance consequence |
+| --- | --- | --- |
+| A: historical/public engineering and replay | Strong DS-01/02 selected BTC/ETH spot evidence; gaps/rights/receipt limits retained | Candidate for source-specific engineering acceptance; not self-accepted or sufficient for every experiment |
+| B: scheduled reliability | OPEN; zero qualified dates; new daily 22:57 warm-up, 23:00-23:12 Pakistan / 17:57, 18:00-18:12 UTC | Seven actual consecutive dates still required for full operational status; archives/pilots cannot substitute |
+| C: Exness DEMO read-only DS-03 | BLOCKED; broker symbols/specs/history/attestation UNKNOWN | All Exness-dependent BTC/ETH/XAU research unavailable until source-specific qualification and secure authorized onboarding |
+
+After independent acceptance of this model, B/C may continue while explicitly authorized
+Phase 3 engineering uses accepted public spot inputs. Full Phase 2 operational status stays OPEN.
+Binance spot results never qualify Exness CFDs, XAU, an execution feed or production data rights.
+See the [current schedule](amendments/SCHEDULER_2300.md); the old morning receipt is historical.
+
+The same dependency rule permits Phase 4 >=14-day paper observation alongside unrelated later
+UI/research engineering, and Phase 5 >=30 days / >=20 sessions / >=100 DEMO lifecycle observations
+alongside non-money Phase 6/7 engineering on already accepted inputs/contracts. Each overlap needs
+an explicit scoped prompt and independent dependency review. It cannot enable incomplete filters,
+strategy promotion, DEMO commissioning or live activation. Preserve Phase 6 >=30 days per new
+material filter and Phase 9 >=90 days with adequate sample; none is shortened by engineering progress.
 
 ## Phase 0 — constitution and architecture freeze
 
@@ -67,10 +99,22 @@ are unchanged.
 - Purpose/scope: common intent/accounting semantics in simulator, preregistered simple hypotheses,
   baselines, walk-forward/OOS, counterfactual book and cost stress.
 - Non-scope: many agents, ML complexity, real or demo orders, cosmetic terminal.
-- Dependencies: Phase 2 dataset coverage and Phase 1 domain schemas.
-- Outputs: correctness fixtures, reproducible experiment ledger and reports, honest edge verdict.
+- Dependencies: independent source-specific engineering acceptance under ADR-013, qualified
+  Phase 2 dataset ranges/rights/availability and Phase 1 schemas, then a new scoped prompt.
+  Full Phase 2 B/C remains OPEN while admissible engineering proceeds; DS-03-dependent work stays blocked.
+- Outputs: correctness fixtures, reproducible experiment ledger and reports, honest edge verdict;
+  typed data-use classification bound to source/rights lineage in every experiment/release manifest.
+  Vision-derived results remain nonproduction research regardless of measured alpha.
 - Tests/security: hand calculations, truncation/leakage, split/embargo, spread/slippage/partial
-  execution simulation, reproducible seed, sandbox job/resource limits.
+  execution simulation, reproducible seed, sandbox job/resource limits. Build correctness before
+  alpha claims: deterministic event-driven simulator with shared intent/accounting semantics,
+  hand-calculated fixtures and selected independent reference/mature-engine or calculation checks
+  (no third-party root fork). Include chronological splits, purge/embargo, walk-forward/OOS,
+  full trial ledger, spread/commission/swap/funding/slippage/latency and intrabar ambiguity.
+  First prompt must specify the opt-in price-close-plus-causal-lag simulation policy, actual
+  receipt retention, no same-close lookahead, no macro/news/on-chain vintage inheritance and
+  manifest assumptions; benchmark multi-year 1m audit-first Parquet before optimizing.
+  [Research](RESEARCH_AND_VALIDATION.md) and [data](DATA_ARCHITECTURE.md) define the design gates.
 - Real-environment proof: rerun from archived real-source datasets on laptop; measured resource
   envelope. Synthetic fixtures are explicitly labeled tests, never live evidence.
 - Exit: correctness passes and preregistered hypotheses assessed. NO EDGE is valid; it prevents
@@ -120,7 +164,9 @@ are unchanged.
   -> bounded agent investigation; optional richer data only after measurable ablations. Extend
   counterfactual/decay analysis. Each substep must show value before advancing its complexity.
 - Non-scope: mandatory paid sources, foundation training, browser trading or policy bypass.
-- Dependencies: Phase 5 reliable desk; Phase 3 baseline and source contracts for each experiment.
+- Dependencies: Phase 3 baseline and accepted source/contracts for each experiment; Phase 5
+  reliable desk for operational enablement. Independently scoped non-money engineering may
+  overlap sustained DEMO qualification under the two dispositions above.
 - Outputs: paired baseline/augmented experiments, cost/latency/coverage report, agent/tool manifests.
 - Tests/security: injected malicious text, stale/recycled news, vintage leakage, tool denial,
   provider outages/budgets, unsupported conclusions and default USD 0 spend behavior.
@@ -138,7 +184,9 @@ are unchanged.
   secure owner flows, explanations and operational visibility. Optional full Binance account/
   paper adapter may be separately scoped here; live derivatives policy remains blocked.
 - Non-scope: new alpha logic in UI, public signup or client-held broker keys.
-- Dependencies: stable typed API/contracts and useful research/demo evidence from Phases 3-6.
+- Dependencies: stable accepted typed API/contracts and useful research evidence; scoped non-money
+  surfaces may precede completion of Phases 4/5 observations. DEMO-backed operational proof and
+  activation flows still require their qualified dependencies and separately authorized phase scope.
 - Outputs: accessible terminal, generated clients, signed packaging/secure storage plans.
 - Tests/security: contract and accessibility checks, responsive/keyboard flows, auth/CSRF,
   stale state, disconnect/resume, action confirmation and voice replay negatives.
@@ -154,7 +202,11 @@ are unchanged.
   then explicitly authorized LIVE_LIMITED Exness activation with tiny absolute capital cap.
 - Non-scope: automatic launch because demo passed, Binance derivatives, scaling or guaranteed profit.
 - Dependencies: all applicable prior safety/evidence gates, eligible validated champion, OD-04/05/06/07
-  closed, current terms/jurisdiction review and step-up owner activation. No edge means no launch.
+  closed, current legal/jurisdiction/data-use eligibility and step-up owner activation.
+  Protected main/release or equivalent reviewed control, CI-bound release manifest/tag and no
+  unreviewed release; off-device encrypted recovery and owner-response/uptime proof are mandatory.
+  Tax/statement/recordkeeping responsibility is an EXTERNAL owner/qualified-professional gate,
+  not a software conclusion. No edge means no launch.
 - Outputs: release evidence manifest, threat/incident review, approved numeric policy and signed permit.
 - Tests/security: full adversarial regression, dependency audit, account attestation, tampered/expired
   permit refusal, kill/restore drill and independent credential permission verification.
@@ -182,5 +234,6 @@ are unchanged.
 
 Sequence rationale: risk contracts are designed now and shared with the Phase 3 simulator;
 full risk implementation precedes any broker orders. Read-only demo data precedes execution
-so research tests the actual intended product. Useful edge and correctness precede cosmetic
-clients and optional intelligence. Safety monitoring is never deferred for a dashboard redesign.
+for claims about that intended product; it need not block independently qualified spot research.
+Correctness precedes alpha claims. Useful accepted contracts allow unrelated non-money engineering
+to overlap observation without granting activation. Safety monitoring is never deferred for UI work.

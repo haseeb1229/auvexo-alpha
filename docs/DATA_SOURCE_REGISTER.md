@@ -45,3 +45,8 @@ repository README code-license label. No future live-use license is inferred.
 DS-03 remains externally blocked pending owner-side demo prerequisites; spot cannot
 substitute for broker CFD prices/specs/history. Actual provider evidence is in
 [verification](phase2/VERIFICATION.md).
+
+[ADR-013](adr/013-source-specific-acceptance.md) requires source-specific research admission
+and future typed experiment/release data-use classification. DS-01/02 selected spot evidence
+cannot qualify DS-03 CFDs/XAU, continuous uptime, execution feed quality or production rights.
+Full Phase 2 operational status remains OPEN during any later explicitly authorized engineering.

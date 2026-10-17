@@ -108,3 +108,37 @@ Historical LLM evaluation can leak future knowledge through model pretraining ev
 retrieval is point-in-time correct. Record known training cutoff/version and contamination
 limits; do not count a historical LLM narrative as clean OOS evidence. Material LLM filters
 require prospective frozen-model paper/shadow evaluation before any promotion claim.
+
+## Phase 3 first-prompt requirements under ADR-013
+
+No simulator is implemented by this amendment. The first implementation prompt must build
+correctness before alpha claims: a deterministic event-driven simulator with common intent/
+accounting semantics, hand-calculated fixtures and selected independent reference/mature-engine
+or calculation cross-checks. No root-forked bot. All splits, purge/embargo, walk-forward/OOS,
+trial ledger, spread/commission/swap/funding/slippage/latency and intrabar cost assumptions
+above remain required; NO EDGE is valid and all broker orders remain forbidden.
+
+Experiments and release evidence must carry a typed `data_use_classification` when implemented:
+ENGINEERING_ONLY (correctness/benchmark evidence only), PERSONAL_RESEARCH (permitted personal
+nonproduction study), PROMOTION_ELIGIBLE (current source/derived-use rights match intended use;
+necessary but insufficient for promotion), BLOCKED (unknown/expired/incompatible rights or
+unqualified source/instrument). Bind intended use, source/product/instrument/range, immutable
+dataset/version/hash, rights snapshot/expiry, reviewer and availability policy. Unknown values
+fail closed. All input/derived lineage restrictions propagate; combining a restricted input
+with an eligible one cannot upgrade the result. Test unknown/expired/restricted inputs,
+cross-source transfer and attempted promotion when these contracts are implemented in Phase 3.
+No new runtime contract is installed now. Vision-derived results stay PERSONAL_RESEARCH or
+ENGINEERING_ONLY as permitted, never PROMOTION_ELIGIBLE on alpha alone. Rights appropriate to
+future intended use must be independently evidenced before reconsideration; revalidate or
+reproduce affected lineage under eligible data. DS-02 has no inferred production entitlement.
+
+Spot evidence cannot transfer to Exness CFD research or XAU. DS-03-dependent results remain
+unavailable until secure owner-authorized source qualification. Source-specific engineering
+acceptance in the [roadmap](ROADMAP.md) does not close Phase 2 operational B/C.
+
+An opt-in, separately named PRICE_CLOSE_PLUS_CAUSAL_LAG simulation availability policy must
+record finalized candle close plus explicit positive causal lag and decision timing that
+prevents same-close execution/lookahead. Retain actual 2026 receipt/processing times alongside
+the assumption in each experiment manifest. Strict observed-as-of truth is unchanged. Macro,
+news and on-chain vintage availability never inherit price-close assumptions; absent vintages
+block the affected claim. See [data requirements](DATA_ARCHITECTURE.md).
