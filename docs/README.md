@@ -35,3 +35,10 @@ Root [AGENTS.md](../AGENTS.md) and [CLAUDE.md](../CLAUDE.md) carry identical con
 instructions. [Documentation checker](../tools/check-docs.mjs) enforces structural checks
 without installing application tooling. There are no package lockfiles because Phase 0
 installs no runtime dependencies; exact supported versions are a Phase 1 deliverable.
+
+## Phase 2 data engineering
+
+[Acceptance](phase2/ACCEPTANCE_TESTS.md), [implementation](phase2/IMPLEMENTATION.md),
+[rights](phase2/SOURCES_AND_RIGHTS.md), [coverage](phase2/QUALITY_AND_COVERAGE.md),
+[setup/recovery](phase2/SETUP_AND_RECOVERY.md), [verification](phase2/VERIFICATION.md),
+and [handoff](phase2/HANDOFF.md).

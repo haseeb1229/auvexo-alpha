@@ -1,7 +1,7 @@
 name: foundation
 on:
   push:
-    branches: [phase-1/engineering-foundation]
+    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data]
   pull_request:
     branches: [main]
 permissions:
@@ -42,6 +42,7 @@ jobs:
       - run: uv run --frozen mypy
       - run: uv run --frozen pytest
         env:
+          TEST_PG_DATA_WRITER_PASSWORD: ci-synthetic-data-only-not-a-secret-123
           TEST_PG_ADMIN_PASSWORD: ci-synthetic-ephemeral-only
           TEST_PG_APP_PASSWORD: ci-synthetic-app-only-not-a-secret-123
       - run: node tools/check-docs.mjs

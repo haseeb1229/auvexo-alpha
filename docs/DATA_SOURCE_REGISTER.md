@@ -35,3 +35,13 @@ retention, timestamp/vintage behavior, quality tests, fallback and next review d
 contracts close in Phase 2; P1/P2 close before their Phase 6 experiment. Do not backfill
 restricted content by prohibited scraping. Raw article retention defaults to permitted
 metadata/hash/excerpts; full content only when rights allow.
+
+## Phase 2 source review
+
+Current DS-01/02 rights, endpoints, limits, hashes and expiry are recorded in
+[sources and rights](phase2/SOURCES_AND_RIGHTS.md); implemented access is restricted
+to personal nonproduction research. Vision dataset terms take precedence over the
+repository README code-license label. No future live-use license is inferred.
+DS-03 remains externally blocked pending owner-side demo prerequisites; spot cannot
+substitute for broker CFD prices/specs/history. Actual provider evidence is in
+[verification](phase2/VERIFICATION.md).

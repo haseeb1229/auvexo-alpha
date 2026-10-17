@@ -1,0 +1,143 @@
+{
+  "observed_at": "2026-10-16T07:02:04.932889+00:00",
+  "receipts": [
+    {
+      "command": [
+        "history",
+        "--enable-public-data",
+        "--symbol",
+        "BTCUSDT",
+        "--interval",
+        "1h",
+        "--period",
+        "2024-12-31",
+        "--period",
+        "2025-01-01",
+        "--period",
+        "2020-03",
+        "--period",
+        "2022-11",
+        "--period",
+        "2024-06",
+        "--period",
+        "2026-09"
+      ],
+      "status": "BLOCKED_OR_FAILED",
+      "exit_code": 1,
+      "seconds": 6.179,
+      "peak_tree_rss_bytes": 116191232,
+      "cpu_seconds": 2.90625,
+      "sampling_races": 0,
+      "evidence": null,
+      "log": ".local\\data-pilot-20261016T070125Z\\00.log"
+    },
+    {
+      "command": [
+        "history",
+        "--enable-public-data",
+        "--symbol",
+        "ETHUSDT",
+        "--interval",
+        "1h",
+        "--period",
+        "2024-12-31",
+        "--period",
+        "2025-01-01",
+        "--period",
+        "2020-03",
+        "--period",
+        "2022-11",
+        "--period",
+        "2024-06",
+        "--period",
+        "2026-09"
+      ],
+      "status": "BLOCKED_OR_FAILED",
+      "exit_code": 1,
+      "seconds": 5.573,
+      "peak_tree_rss_bytes": 115867648,
+      "cpu_seconds": 3.21875,
+      "sampling_races": 0,
+      "evidence": null,
+      "log": ".local\\data-pilot-20261016T070125Z\\01.log"
+    },
+    {
+      "command": [
+        "specs",
+        "--enable-public-data"
+      ],
+      "status": "BLOCKED_OR_FAILED",
+      "exit_code": 1,
+      "seconds": 5.353,
+      "peak_tree_rss_bytes": 115630080,
+      "cpu_seconds": 2.65625,
+      "sampling_races": 1,
+      "evidence": null,
+      "log": ".local\\data-pilot-20261016T070125Z\\02.log"
+    },
+    {
+      "command": [
+        "collect",
+        "--enable-public-data",
+        "--cycles",
+        "2"
+      ],
+      "status": "BLOCKED_OR_FAILED",
+      "exit_code": 1,
+      "seconds": 6.476,
+      "peak_tree_rss_bytes": 116412416,
+      "cpu_seconds": 3.203125,
+      "sampling_races": 0,
+      "evidence": null,
+      "log": ".local\\data-pilot-20261016T070125Z\\03.log"
+    },
+    {
+      "command": [
+        "coverage"
+      ],
+      "status": "BLOCKED_OR_FAILED",
+      "exit_code": 1,
+      "seconds": 5.41,
+      "peak_tree_rss_bytes": 115970048,
+      "cpu_seconds": 2.640625,
+      "sampling_races": 0,
+      "evidence": null,
+      "log": ".local\\data-pilot-20261016T070125Z\\04.log"
+    },
+    {
+      "command": [
+        "verify"
+      ],
+      "status": "BLOCKED_OR_FAILED",
+      "exit_code": 1,
+      "seconds": 6.463,
+      "peak_tree_rss_bytes": 116178944,
+      "cpu_seconds": 3.53125,
+      "sampling_races": 0,
+      "evidence": null,
+      "log": ".local\\data-pilot-20261016T070125Z\\05.log"
+    },
+    {
+      "command": [
+        "qualification",
+        "--start-day",
+        "2026-10-17"
+      ],
+      "status": "BLOCKED_OR_FAILED",
+      "exit_code": 1,
+      "seconds": 4.124,
+      "peak_tree_rss_bytes": 116146176,
+      "cpu_seconds": 2.515625,
+      "sampling_races": 0,
+      "evidence": null,
+      "log": ".local\\data-pilot-20261016T070125Z\\06.log"
+    }
+  ],
+  "mandatory_spend_usd": 0,
+  "environment": {
+    "platform": "win32",
+    "python": "3.13.16",
+    "total_ram": 16895107072,
+    "free_disk": 376845991936
+  }
+}

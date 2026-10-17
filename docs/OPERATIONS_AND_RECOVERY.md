@@ -59,3 +59,11 @@ snapshot, unknown exposures, actions/actors, evidence hashes, root cause, residu
 preventive tests. Daily review checks coverage, costs and reconciliation; weekly review checks
 edge/capacity/security updates. An owner unavailable during unqualified incidents keeps
 new exposure disabled. Monitoring doesn't replace a realistic owner-response commitment.
+
+## Phase 2 data operations
+
+Use the [data setup and recovery runbook](phase2/SETUP_AND_RECOVERY.md) for bounded
+imports, scheduled observation, persistent cooldowns, orphan reconciliation and
+metadata-plus-Parquet restore. Seven scheduled days must be actual calendar evidence;
+engineering completion does not close this observation gate. Readiness is diagnostics,
+never trading readiness. Source correction creates a new lineage, not a destructive rollback.

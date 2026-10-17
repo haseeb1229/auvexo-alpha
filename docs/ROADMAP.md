@@ -6,8 +6,11 @@ Each requires its own authorized prompt and reviewer-accepted handoff. A later r
 permission to start it. Financially critical gates cannot be waived for schedule pressure.
 
 Current evidence: Phase 0 independently accepted and normally merged via PR #1 at
-`eafec07ee7c7a98c9cca17b5f8665494bd650751`. Phase 1 implementation/evidence is being submitted
-in an unmerged feature PR; see [handoff](phase1/HANDOFF.md). Phase 2 has not started.
+`eafec07ee7c7a98c9cca17b5f8665494bd650751`. Phase 1 independently accepted at
+`295ded25afdd5a95ee0585b41da9966e45812bcf` and normally merged via PR #2 at
+`16e63aeb9e7e1a97082d4a004142e0af163a4571`. Phase 2 data-only work is authorized by
+the revised V2 brief; see [acceptance](reviews/PHASE_1_INDEPENDENT_ACCEPTANCE.md) and
+[Phase 2 handoff](phase2/HANDOFF.md). Phase 3 remains unauthorized.
 
 ## Phase 0 — constitution and architecture freeze
 

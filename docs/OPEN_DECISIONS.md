@@ -34,3 +34,13 @@ Phase 1 hosted CI passed after the owner's temporary public-visibility change re
 availability for verification; independent review is pending. Future private Actions allowance
 is unverified and must be checked before subsequent workflow runs; no paid usage is authorized.
 Future external gates remain deliberately closed.
+
+## Phase 2 gate update (2026-10-16)
+
+Phase 1 independent acceptance and normal merge are recorded in the
+[acceptance record](reviews/PHASE_1_INDEPENDENT_ACCEPTANCE.md). OD-01 extends only to
+the audited pinned Parquet dependency; OD-03 remains externally blocked, OD-07 still
+does not establish broker encrypted-store/service isolation, and OD-08 needs actual
+Phase 2 workload receipts. [Source rights](phase2/SOURCES_AND_RIGHTS.md) restrict
+public data to research; no live-use entitlement. Seven real scheduled days and
+private hosted CI remain separate evidence gates in the [handoff](phase2/HANDOFF.md).

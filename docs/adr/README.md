@@ -17,4 +17,6 @@ records require their named proof gate. None is evidence of an implemented contr
 | [ADR-010](010-reuse-without-root-fork.md) | FROZEN | reuse without root fork |
 | [ADR-011](011-phase1-foundation.md) | FROZEN | Phase 1 zero-capability foundation; scoped checker evolution |
 
+| [ADR-012](012-phase2-data-boundaries.md) | Phase 2 implementation decision; review pending | Bounded research data, immutable lineage and evidence-driven retention |
+
 Exact versions, capital decisions and deferred triggers live in [open decisions](../OPEN_DECISIONS.md).

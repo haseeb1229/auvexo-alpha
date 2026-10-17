@@ -354,6 +354,21 @@ pluggy==1.7.0 \
     # via
     #   hatchling
     #   pytest
+polars==2.0.0 \
+    --hash=sha256:35d62f3541b7a6d4c360a2e2f07fccc0c2bcbd33b0ea51c83a25417a47a3f3ad \
+    --hash=sha256:62da109e27a19a9d36657ee25dc035c9d3f87e7bd610526fe467dc37ea7dc115
+    # via auvexo-alpha
+polars-runtime-32==2.0.0 \
+    --hash=sha256:0d6ac584ea2b38913784db943879412380d92e28ab9cb88e20a77ba71ba3f911 \
+    --hash=sha256:55c26eef325b6840584d91aac232e9cf3ac19e1b904594b9b54131be1edeab4d \
+    --hash=sha256:7012d8a0201bd95638545ce8f256c0efe2c5cab0f806eb043021dddde5a9498b \
+    --hash=sha256:7da1caf3c7b4f397fb213c984013a0c755557619a2d511899a1ff74392484078 \
+    --hash=sha256:8b85bb42e6009acc9629afcc70a83473fd468694d6a30ffb0ab376c8dd1a0a17 \
+    --hash=sha256:a6bf5e260e0a6f00d0f9181438fe9e45776df8c66cee9cba16e3675cc3888488 \
+    --hash=sha256:b5f9afcc742b4a67eabd2c680ff0f12eb02ede9b4bf807bffabd6dbb9a58d5c7 \
+    --hash=sha256:c30ba698c8904048df4a9bc3d6c5033cc2d0a7cbb0e13f4fd2de5a1947b61994 \
+    --hash=sha256:ffb7ac6cf4e8c4a652df1951e3c3840c7c23a033603d5a9efd422fa8dd699d82
+    # via polars
 psutil==7.2.2 \
     --hash=sha256:0746f5f8d406af344fd547f1c8daa5f5c33dbc293bb8d6a16d80b4bb88f59372 \
     --hash=sha256:076a2d2f923fd4821644f5ba89f059523da90dc9014e85f8e45a5774ca5bc6f9 \

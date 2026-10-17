@@ -1,0 +1,86 @@
+[
+  {
+    "url": "https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1h/BTCUSDT-1h-2024-12-31.zip",
+    "received_at": "2026-10-16T06:53:36.106746+00:00",
+    "source_sha256": "4a6836ceae18ee150f54de0d8d33d60864b0f4c18457e025d56711e61dfdd343",
+    "bytes": 1595,
+    "quality": {
+      "schema_version": "1.0",
+      "instrument_id": "binance.spot.BTCUSDT",
+      "interval": "1h",
+      "requested_start": "2024-12-31T00:00:00Z",
+      "requested_end": "2025-01-01T00:00:00Z",
+      "earliest": "2024-12-31T00:00:00Z",
+      "latest_end": "2025-01-01T00:00:00Z",
+      "expected_rows": 24,
+      "observed_rows": 24,
+      "rejected_rows": 0,
+      "findings": [],
+      "status": "PASS"
+    },
+    "unit": "MILLISECOND"
+  },
+  {
+    "url": "https://data.binance.vision/data/spot/daily/klines/BTCUSDT/1h/BTCUSDT-1h-2025-01-01.zip",
+    "received_at": "2026-10-16T06:53:42.617999+00:00",
+    "source_sha256": "8077644eb5088200969b135d7046ba777281be303fa32aceff28fe3baeaa5873",
+    "bytes": 1591,
+    "quality": {
+      "schema_version": "1.0",
+      "instrument_id": "binance.spot.BTCUSDT",
+      "interval": "1h",
+      "requested_start": "2025-01-01T00:00:00Z",
+      "requested_end": "2025-01-02T00:00:00Z",
+      "earliest": "2025-01-01T00:00:00Z",
+      "latest_end": "2025-01-02T00:00:00Z",
+      "expected_rows": 24,
+      "observed_rows": 24,
+      "rejected_rows": 0,
+      "findings": [],
+      "status": "PASS"
+    },
+    "unit": "MICROSECOND"
+  },
+  {
+    "url": "https://data.binance.vision/data/spot/daily/klines/ETHUSDT/1h/ETHUSDT-1h-2024-12-31.zip",
+    "received_at": "2026-10-16T06:53:54.339046+00:00",
+    "source_sha256": "1e4294f36b783eaa5b655de55572a3ca3252c56dc2cfe2db5035cd004518907c",
+    "bytes": 1512,
+    "quality": {
+      "schema_version": "1.0",
+      "instrument_id": "binance.spot.ETHUSDT",
+      "interval": "1h",
+      "requested_start": "2024-12-31T00:00:00Z",
+      "requested_end": "2025-01-01T00:00:00Z",
+      "earliest": "2024-12-31T00:00:00Z",
+      "latest_end": "2025-01-01T00:00:00Z",
+      "expected_rows": 24,
+      "observed_rows": 24,
+      "rejected_rows": 0,
+      "findings": [],
+      "status": "PASS"
+    },
+    "unit": "MILLISECOND"
+  },
+  {
+    "url": "https://data.binance.vision/data/spot/daily/klines/ETHUSDT/1h/ETHUSDT-1h-2025-01-01.zip",
+    "received_at": "2026-10-16T06:54:00.947451+00:00",
+    "source_sha256": "cf644908ba18eebe9ae6e20571d000941273b8ca6457acabcba84137bab74bfc",
+    "bytes": 1526,
+    "quality": {
+      "schema_version": "1.0",
+      "instrument_id": "binance.spot.ETHUSDT",
+      "interval": "1h",
+      "requested_start": "2025-01-01T00:00:00Z",
+      "requested_end": "2025-01-02T00:00:00Z",
+      "earliest": "2025-01-01T00:00:00Z",
+      "latest_end": "2025-01-02T00:00:00Z",
+      "expected_rows": 24,
+      "observed_rows": 24,
+      "rejected_rows": 0,
+      "findings": [],
+      "status": "PASS"
+    },
+    "unit": "MICROSECOND"
+  }
+]

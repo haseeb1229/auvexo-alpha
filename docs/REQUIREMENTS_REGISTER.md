@@ -72,3 +72,6 @@ Safety acceptance details (permanent subrequirements of R-022):
 Acceptance scope: a Phase 0 row passes when a coherent design and future proof are
 documented. It does not imply an implemented safety test passed. Requirements are only
 retired by explicit recorded owner/reviewer decision; priority does not authorize omission.
+
+Phase 2 refines the same parents through [stable child requirements](phase2/ACCEPTANCE_TESTS.md).
+No original ID or Phase 1 acceptance assertion is retired.

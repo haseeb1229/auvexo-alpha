@@ -1,12 +1,17 @@
 # Project agent rules
 
-Current authorized scope: Phase 1 engineering foundation, following independent acceptance
-of Phase 0 at 745be5b0779f685f731167c0c981d74caae307cf and normal PR #1 merge.
-Read docs/reviews/PHASE_0_INDEPENDENT_ACCEPTANCE.md and docs/phase1/ACCEPTANCE_TESTS.md.
-Current evidence and any remaining exit blockers: docs/phase1/HANDOFF.md.
-No Phase 2, account connection, market ingestion or demo/live orders. Execution must remain
-disabled in every mode; no broker SDK, real risk kernel or permit issuance in Phase 1.
-Phase 1 PR must remain unmerged for independent review and a new phase prompt.
+Current authorized scope: Phase 2 trustworthy historical and public live market data.
+Phase 1 accepted at 295ded25afdd5a95ee0585b41da9966e45812bcf; normal PR #2 merge
+16e63aeb9e7e1a97082d4a004142e0af163a4571. Read docs/reference/PHASE_2_BRIEF.txt,
+docs/reviews/PHASE_1_INDEPENDENT_ACCEPTANCE.md and docs/phase2/ACCEPTANCE_TESTS.md.
+Current evidence and exit blockers: docs/phase2/HANDOFF.md.
+No Phase 3, real account, strategy, order transport, risk kernel or permit issuance.
+Execution remains disabled in every mode. Exness remains disabled until secure owner-side
+DEMO access, isolation and genuine attestation are proven. No broker SDK is adopted now.
+Phase 2 PR must remain unmerged for independent review and a new phase prompt.
+No fixed historical lookback; storage budgets do not impose a research-history cap.
+Never fabricate seven-day observations or treat fixtures as real-source qualification.
+Keep repository private; no billing, visibility, permission or runner changes.
 
 Before changes, read [constitution](docs/PRODUCT_CONSTITUTION.md),
 [architecture](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md),

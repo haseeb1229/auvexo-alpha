@@ -23,6 +23,10 @@ const required = [
   'docs/reference/PHASE_1_BRIEF.txt', 'docs/phase1/ACCEPTANCE_TESTS.md',
   'docs/phase1/SETUP.md', 'docs/phase1/TOOLCHAIN.md', 'docs/phase1/IMPLEMENTATION.md',
   'docs/phase1/VERIFICATION.md', 'docs/phase1/HANDOFF.md', 'pyproject.toml', 'uv.lock',
+  'docs/reference/PHASE_2_BRIEF.txt', 'docs/phase2/ACCEPTANCE_TESTS.md',
+  'docs/phase2/IMPLEMENTATION.md', 'docs/phase2/SOURCES_AND_RIGHTS.md',
+  'docs/phase2/QUALITY_AND_COVERAGE.md', 'docs/phase2/SETUP_AND_RECOVERY.md',
+  'docs/phase2/VERIFICATION.md', 'docs/phase2/HANDOFF.md',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -33,6 +37,8 @@ check(read('AGENTS.md') === read('CLAUDE.md'), 'AGENTS.md and CLAUDE.md differ')
 const digest = createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_0_BRIEF.txt'))).digest('hex');
 check(digest === '1a3ffff5ed19d09ea48e80d4591ccaddfb09e9da64bde1ce3ce31fbd69b70fb2', 'Archived brief hash changed');
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_1_BRIEF.txt'))).digest('hex') === 'c67380a3ead8744b85f30447b8cd00b362813abe185610221f975306d840b98b', 'Archived Phase 1 brief hash changed');
+
+check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_2_BRIEF.txt'))).digest('hex') === 'f730821f0bc78faf90cb598579b1c1e93109c3d9b59bdda6b2395300062a85a5', 'Archived Phase 2 brief hash changed');
 
 const files = [];
 function walk(dir) {

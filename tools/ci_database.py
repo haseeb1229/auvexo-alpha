@@ -32,3 +32,17 @@ env["AUVEXO_MIGRATION_DSN"] = URL.create(
     database="auvexo_test",
 ).render_as_string(hide_password=False)
 subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], env=env, check=True)
+
+with psycopg.connect(
+    host="127.0.0.1",
+    port=55432,
+    user="auvexo_admin",
+    password="ci-synthetic-ephemeral-only",
+    dbname="auvexo_test",
+    autocommit=True,
+) as conn:
+    conn.execute(
+        "CREATE ROLE auvexo_data_writer LOGIN PASSWORD 'ci-synthetic-data-only-not-a-secret-123' "
+        "NOSUPERUSER NOCREATEDB NOCREATEROLE"
+    )
+    conn.execute("GRANT auvexo_ingest TO auvexo_data_writer")

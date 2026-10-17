@@ -85,3 +85,13 @@ Database roles separate migrator, application, append-only audit writer, read-on
 and backup. Append-only constraints plus hash chains and signed exported checkpoints detect
 tampering; a local administrator can still alter storage, so do not call local logs immutable
 against administrator compromise. Restore verification includes referential/lineage checks.
+
+## Phase 2 implementation and retention clarification
+
+[ADR-012](adr/012-phase2-data-boundaries.md) scopes the implemented
+[research data path](phase2/IMPLEMENTATION.md). The five-year warm-bar default above
+is an operational planning default, never a research-history maximum or minimum.
+Accepted pilot hourly artifacts use review-before-removal retention within byte quotas;
+no age-only deletion is implemented. Exact selected coverage and gaps live in the
+[coverage matrix](phase2/QUALITY_AND_COVERAGE.md). Actual receipt remains distinct from
+the unknown original publication/first-seen time; strict as-of queries use receipt.

@@ -1,0 +1,766 @@
+AUVEXO ALPHA — PHASE 2 IMPLEMENTATION PROMPT (REVISED V2)
+Trustworthy Historical & Live Market Data — Evidence-Driven Historical Coverage
+Authoritative reviewer issue date: 2026-10-16
+Target: Astra 6 High (acting as main implementation engineer)
+Repository: haseeb1229/auvexo-alpha (PRIVATE)
+
+READ THIS ENTIRE PROMPT AND THE ACTUAL REPO BEFORE IMPLEMENTING.
+
+REVISION V2 / AUTHORITATIVE CLARIFICATION:
+The founder's phrase "like a trader with ten years of experience" expressed a desire
+for capable market reasoning, NOT a fixed ten-year historical-data requirement.
+No ten-year minimum, ten-year cap or arbitrary lookback is authorized. Likewise,
+Phase 0's five-year warm-bars retention default is an operational STORAGE POLICY,
+not a research-history limit. This revision supersedes the earlier Phase 2 prompt.
+Do not blindly ingest everything available; choose coverage by research utility,
+source correctness, cost/storage limits, regimes and reproducibility. See Section 7A.
+
+
+======================================================================
+0. REVIEW DISPOSITION AND ENTRY CONTRACT
+======================================================================
+
+The independent reviewer ACCEPTS the Phase 1 engineering foundation at exactly:
+  295ded25afdd5a95ee0585b41da9966e45812bcf
+PR #2:
+  https://github.com/haseeb1229/auvexo-alpha/pull/2
+Reviewed main baseline:
+  eafec07ee7c7a98c9cca17b5f8665494bd650751
+
+Acceptance is scoped to Phase 1 only, NOT demo/live trading certification.
+
+Independent check established:
+- PR #2 open/mergeable, head SHA as above, four commits and 72 changed files.
+- Exact-head PR and push GitHub Actions SUCCESS:
+  https://github.com/haseeb1229/auvexo-alpha/actions/runs/38855590691
+  https://github.com/haseeb1229/auvexo-alpha/actions/runs/38855587103
+- Actual CI steps ran a PostgreSQL service, locked install, lint/format, strict mypy,
+  pytest (145 passing by recorded evidence), docs, secret scan, hash-locked dependency audit.
+- Core deny-only execution source, strict config, loopback authenticated diagnostics,
+  immutable disabled database policy and representative negative tests were inspected.
+- No execution transport exists; Exness real and Binance derivatives live remain blocked.
+- Repo is PRIVATE; main still at the Phase 0 acceptance merge when reviewed.
+
+Independent review file:
+  Auvexo_Alpha_Phase_1_Independent_Review_2026-10-16.txt
+The same disposition and conditions are fully incorporated in THIS prompt. A separate
+attachment is not required for you to understand the authorization.
+
+YOU ARE AUTHORIZED TO:
+1. Re-fetch PR #2 and verify its head has not changed. If it changed, STOP and
+   request re-review instead of merging a different commit.
+2. Verify main has not diverged unexpectedly and all existing review/protection rules
+   are satisfied; execute a NORMAL GitHub PR merge (no direct push/bypass/force).
+   Do not forge an independent review or self-approve in place of a required human review.
+3. Verify the resulting main SHA and merge history.
+4. Create branch `phase-2/trustworthy-data` FROM accepted main.
+5. Execute only the Phase 2 scope below, test, push and open an UNMERGED Phase 2 PR.
+6. Do NOT start Phase 3 or change real-money policy.
+
+If an existing merge/protection requirement cannot be satisfied, report the external
+blocker and do not bypass protection or branch from an unaccepted baseline.
+
+IMPORTANT PRIVATE CI ISSUE:
+Phase 1 CI ran successfully during an explicitly owner-authorized temporary PUBLIC
+repository window. The repository is now PRIVATE. Future private Actions eligibility
+remains UNVERIFIED. Never alter visibility, GitHub billing/spending limits, Actions
+permissions, GitHub account settings or runner configuration without a NEW explicit
+owner approval. If private CI cannot allocate a runner, provide local/clean-clone proof,
+report CI as EXTERNALLY BLOCKED and do not misrepresent it as green. Do not require
+repeated public/private toggling as a routine workflow.
+
+======================================================================
+1. PRODUCT CONSTITUTION — PERMANENT INVARIANTS
+======================================================================
+
+Auvexo Alpha is a private, free-first, local-first, always-on-capable agentic alpha
+research and autonomous trading desk. Initially BTC, ETH and XAU only.
+
+Architecture: AGENTIC OUTSIDE, DETERMINISTIC INSIDE.
+Future AI agents may reason, retrieve and propose, but never directly authorize
+capital or bypass deterministic risk/venue controls.
+
+Current phase: data only. No strategy, trading orders, account positions, risk permit,
+live account credential, fake fill, or successful money action.
+
+Exness Real: DISABLED.
+Binance LIVE derivatives: BLOCKED_BY_POLICY.
+All other execution: PHASE-1 DENY remains intact in Phase 2.
+No withdrawal capability, ever.
+
+No mandatory paid LLM/data/cloud/API service; no purchase.
+Do not convert the private repository to public without explicit fresh approval.
+Use existing owner Git identity; no AI co-author trailers, generated-by banners, or
+AI product branding in code. Preserve third-party copyright/license/NOTICE obligations.
+
+Preserve clean layered architecture. Frontend must never be coupled to core logic;
+no frontend/client implementations in Phase 2. Future desktop/mobile clients use
+versioned typed APIs. Future nontrading Auvexo systems remain separate bounded services.
+
+No dead code, duplicate implementations, unused dependencies, skipped tests,
+weakening auth for convenience, silent exceptions, unbounded retries, TODO security
+bypasses, undocumented breaking schemas, exposed secrets or misleading success claims.
+
+======================================================================
+2. RE-READ THE CANONICAL BASELINE
+======================================================================
+
+Before coding read at minimum:
+- AGENTS.md and CLAUDE.md;
+- docs/PRODUCT_CONSTITUTION.md;
+- docs/ARCHITECTURE.md;
+- docs/ROADMAP.md (Phase 2 and adjacent phase boundaries);
+- docs/AGENT_ARCHITECTURE.md;
+- docs/DATA_ARCHITECTURE.md;
+- docs/DATA_SOURCE_REGISTER.md;
+- docs/RISK_AND_CAPITAL_POLICY.md;
+- docs/EXECUTION_AND_VENUE_POLICY.md;
+- docs/SECURITY_BASELINE.md;
+- docs/PERFORMANCE_AND_RELIABILITY.md;
+- docs/OPERATIONS_AND_RECOVERY.md;
+- docs/engineering/ENGINEERING_RULES.md;
+- docs/OPEN_DECISIONS.md;
+- docs/phase1/IMPLEMENTATION.md;
+- docs/phase1/VERIFICATION.md;
+- docs/phase1/ACCEPTANCE_TESTS.md;
+- ADRs 001–011;
+- current source, migrations, CLI, tests and GitHub workflows.
+
+Update CLAUDE.md and AGENTS.md BYTE-IDENTICALLY for Phase 2 authorization and
+restrictions, retaining all permanent instructions. Do not rewrite history or
+retroactively change what Phase 1 implemented.
+
+Add stable Phase 2 child requirements and map them to code/tests/source evidence.
+Preserve R-000..R-039 and Phase 1 acceptance IDs.
+
+======================================================================
+3. PHASE 2 DEFINITION AND SCOPE
+======================================================================
+
+Build a TRUSTWORTHY, BOUNDED market-data foundation, not a screen of random candles.
+
+IN SCOPE:
+- Source registry and rights/limits/freshness register;
+- versioned instrument and market-source identities;
+- Binance BTC/ETH historical SPOT OHLCV source onboarding;
+- Binance BTC/ETH PUBLIC live candles/trades/quotes as justified by small scope;
+- Exness MT5 DEMO-only READ-ONLY instrument/spec and limited history/quote onboarding,
+  if and only if owner-provided access, encrypted credential handling and demo account
+  attestation are safely available;
+- immutable or append-only provenance/manifest/audit records;
+- deterministic timestamp normalization, arrival/availability semantics;
+- Parquet archival and PostgreSQL manifest/control metadata;
+- integrity/quality checks, gap identification, quarantine, idempotent backfill/recovery;
+- bounded collectors, quotas, observability and resource measurements;
+- authenticated read-only local diagnostics/quality endpoints if warranted;
+- offline CI and genuine source integration evidence;
+- a seven-scheduled-day collection qualification procedure and evidence collector;
+- per-asset/venue/timeframe HISTORY COVERAGE MATRIX and an evidence-driven historical
+  expansion plan, with no arbitrary five-/ten-year cap or mandatory bulk download.
+
+OUT OF SCOPE:
+- any real-money account;
+- any broker or exchange order transport;
+- trading SDK functions that submit or change orders;
+- trading decisions/signals or strategy validation;
+- position/reservation/risk authorization logic;
+- news/macro/on-chain/OI/funding aggregation (later Phase 6);
+- agent swarms, local LLM, speech, browser agents or autonomous trading loops;
+- desktop/web/mobile UI;
+- public Internet bind or account signup;
+- requiring paid feeds, subscriptions, hosted servers or huge historical downloads;
+- training predictive models or claiming historical data alone demonstrates profit.
+
+If technical data requirements conflict with Phase 0, document a proposed ADR and
+resolve coherently; do NOT silently relax safety.
+
+======================================================================
+4. INSTRUMENT IDENTITY / UNIT SEMANTICS
+======================================================================
+
+Explicitly separate:
+- BTC and ETH as underlying assets;
+- Binance SPOT BTCUSDT / ETHUSDT;
+- Exness BTCUSD and ETHUSD CFD contracts;
+- Exness XAUUSD CFD;
+- any aliases/suffixes actually returned by broker (never assume symbols).
+
+Historical Binance spot quotes are NOT the same as Exness executable CFD quotes.
+Binance spot data cannot silently stand in for broker CFD spread, margin, financing,
+lot/contract multiplier, trading sessions or broker execution price.
+
+Record source/venue/product, canonical instrument ID, provider symbol, quote currency,
+base currency, price tick, quantity step, min/max quantity, unit meaning, contract size,
+session/timezone, trade status, observed_at, spec_version and authoritative provenance.
+Do not invent broker tick/lot/contract specs. Unavailable values must be explicitly
+UNKNOWN, and research/availability dependent on them remains gated.
+
+Use decimal-safe representations for prices, quantity and financial units; never let
+naive floating-point coercion silently erase tick/precision information.
+
+If existing Phase 1 InstrumentSpec is insufficient for an UNKNOWN/external draft state,
+introduce a separate, typed candidate/attestation shape or schema version rather than
+manufacturing valid-looking numbers or weakening financial contract validation.
+
+======================================================================
+5. EXTERNAL DATA SOURCE TERMS / RIGHTS
+======================================================================
+
+For DS-01 Binance public archives and DS-02 Binance public REST/streams, verify from
+CURRENT OFFICIAL documentation on implementation day:
+- exact endpoints/archives;
+- data-use rights and redistribution constraints;
+- per-IP and per-connection limits;
+- rate-limit responses/backoff;
+- freshness/latency limitations;
+- historical coverage and checksum availability;
+- stream disconnect/recovery behavior.
+
+DO NOT:
+- bypass geo/IP restrictions;
+- scrape unauthorized pages;
+- silently use private auth keys where public data suffices;
+- claim premium data coverage;
+- download unbounded archives;
+- ignore source checksum files or corrections.
+
+Keep URL provenance (not secrets), retrieval timestamp, checksum/source identity,
+source terms version/review date, rate policy and allowed retention.
+
+Treat websites, exchange feeds and retrieved content as UNTRUSTED INPUT.
+Validate archive paths to prevent ZIP-slip, decompression bombs, malformed encodings,
+oversized rows and malicious payloads. Do not execute downloaded code.
+
+======================================================================
+6. BINANCE HISTORY — CRITICAL TIMESTAMP TRAP
+======================================================================
+
+IMPORTANT CURRENT OFFICIAL FACT:
+The binance/binance-public-data README states that SPOT archive timestamps from
+2025-01-01 onward are MICROSECONDS; earlier historical SPOT archives generally use
+MILLISECONDS. Futures archive timestamps have their own documented units.
+
+Official source: https://github.com/binance/binance-public-data
+
+Make this transition an EXPLICIT golden-fixture and boundary test:
+- one pre-2025 daily/monthly SPOT record;
+- one 2025-01-01 onward SPOT record;
+- unit selection by documented source family/date and measured plausibility;
+- reject implausible 1970, far future, overflow and ambiguous timestamp values;
+- ensure identical UTC instants normalize consistently across archives, REST and stream;
+- preserve source raw timestamps and unit metadata;
+- do NOT infer nanoseconds or silently autodetect from magnitude alone.
+
+Handle finalized vs still-open candles. A candle's OHLCV must not be declared
+historically available before it was completed. Do not let backfilled data fabricate
+second-by-second historical first-seen timestamps. Distinguish conservative availability
+assumptions from actual observed publication/arrival times.
+
+Provider corrections must create a revised dataset lineage; never rewrite an accepted
+snapshot in-place without retained history/manifest.
+
+======================================================================
+7. HISTORICAL RESEARCH DATA — SMALL, USEFUL, REPRODUCIBLE
+======================================================================
+
+Create an operator-configurable, quota-limited BTC/ETH SPOT history import.
+
+Prefer an initial SMALL bounded genuine sample of 1-minute and/or hourly OHLCV, then
+support staged history expansion. The architecture must be capable of years of history,
+but do not download every symbol, all ticks or every year automatically.
+
+Recommended first real-source pilot:
+- BTCUSDT and ETHUSDT;
+- a short documented month/week range for smoke and integrity checks;
+- a broader carefully sized range to establish reproducibility;
+- optionally older selected years/months for calendar and volatility diversity;
+- capture exact ranges and quality gaps.
+
+For each archive:
+- verify provider checksum when available;
+- record source URL/checksum/retrieval time/size/terms;
+- stream/decompress within bounded memory;
+- validate OHLC invariants and price/volume nonnegative bounds;
+- explicit volume meaning, base/quote units and quote-asset identity;
+- record complete/partial/unknown bars;
+- validate expected interval cadence with documented market/session exceptions;
+- stable deterministic ordering, duplicate resolution and gap reports;
+- preserve raw/bronze input or sufficient provider checksum/provenance so output
+  can be independently reproduced under license/storage constraints;
+- Parquet dataset partitioning, atomic writes, hashes and immutable manifests;
+- safe idempotent re-import: same bytes MUST NOT double count;
+- corrected/replaced source bytes MUST produce a new dataset version and impact report.
+
+Do not label a 2026 research rerun as if those archived market bars were observed by
+Auvexo live in 2021. Explain known historical execution-data limitations.
+
+======================================================================
+7A. CRITICAL CLARIFICATION — NO FIXED "TEN YEARS" OF DATA
+======================================================================
+
+The founder once described wanting a system that reasons like an experienced trader.
+This is an INTELLIGENCE/RESEARCH aspiration, NOT a data-window instruction.
+Do not codify a ten-year lookback, ten-year data-download job, ten-year minimum,
+or ten-year maximum. Do not turn the separate five-year warm-Parquet retention
+DEFAULT from docs/DATA_ARCHITECTURE.md into an artificial research-history cap.
+
+Choose historical coverage scientifically and source-by-source:
+- Asset/contract existence and actual provider coverage (no pre-inception fabrication).
+- Exact venue, product, symbol and contract-version identity.
+- Intended hypotheses, horizons, holding periods and features.
+- Relevant timeframes/resolutions: 1m, 5m, 15m, 1h, 4h, 1d etc. only as useful;
+  do NOT store independently duplicated resolutions without a reason.
+- Diverse observed market regimes: bull, bear, sideways, volatility shocks, rate
+  cycles, liquidity events, major drawdowns, and ordinary conditions when available.
+- Enough independent examples for later Phase 3 out-of-sample/walk-forward/stress
+  evaluation; calendar length alone is not sample sufficiency.
+- Regime shifts, nonstationarity and structural breaks: older regimes are valuable
+  for stress tests but not automatically representative of current execution.
+- True data-release/availability semantics; broker-vs-exchange differences.
+- Source quality, permitted use/retention, reproducibility and storage/network cost.
+
+Deliver an explicit HISTORY COVERAGE MATRIX, at minimum by:
+  asset/venue/product/symbol × timeframe/source × actual earliest/latest timestamps
+  × observed row count × gaps/outages × timestamps/availability confidence
+  × source version/rights × storage bytes × research usability/limitations.
+
+Coverage plan should explain WHY each selected period/resolution was chosen:
+(1) small real-provider parser/integrity pilot;
+(2) bounded multi-regime foundation if accessible and worthwhile;
+(3) incremental, checksum-verified older/recent expansions triggered by later
+    experiments, gaps or stress requirements;
+(4) selective high-resolution historical windows only when needed.
+
+History can be less than 10 years, more than 10 years, or a mixture across sources.
+No assertion of one universal horizon for BTC, ETH, XAU, macro, OI, ETF or news.
+Data that did not exist or was not available at that time must be marked unavailable,
+not fabricated, filled with today's values or reconstructed via an LLM's memory.
+
+If reliable older hourly/daily bars are inexpensive to retain, preserve their
+research value rather than deleting them solely due to an arbitrary age threshold.
+Use compression, feature derivation and per-dataset retention profiles while
+respecting the existing total 120 GB target / 150 GB managed ceiling. Keep separate
+hot/raw-tick limits to protect the laptop. An operational default retention period
+may be changed only with an explicit scoped ADR, rationale, impact assessment and
+reviewable docs/test update; do not silently overwrite frozen Phase 0 decisions.
+
+Do NOT attempt to prove profitability or train models in Phase 2. Phase 3 decides
+which historical coverage is sufficient for particular experiments, and may request
+more data using the versioned, bounded import tools delivered here. NO EDGE and
+INSUFFICIENT DATA must remain valid future conclusions.
+
+======================================================================
+8. LIVE PUBLIC DATA — ROBUST, BOUNDED
+======================================================================
+
+Implement a small, default-OFF live public Binance market feed (REST polling and/or
+websocket as appropriate). No credentials for public endpoints.
+
+Include:
+- explicit opt-in to begin/stop collector;
+- bounded workers/concurrency and memory;
+- rate/connection budgets and provider reconnect behavior;
+- bounded exponential backoff + jitter, no busy-looping;
+- cancellation/clean shutdown;
+- source heartbeat, fresh/stale/unknown states;
+- message sequence/time continuity where available;
+- lost-connection detection and REST backfill/reconciliation;
+- no silent fill of missing candles;
+- raw timestamp/receive timestamp + data availability;
+- checkpoint and restart without duplicate inserts;
+- durable provenance/quality counters;
+- explicit unsupported/blocked provider behavior;
+- configured cap on disk and network requests.
+
+Prefer an understandable minimal design to premature NATS/Redis/microservices.
+
+Do not represent live websocket observation as a complete tick-history feed.
+Never guarantee seconds-level data with actual evidence absent.
+
+======================================================================
+9. EXNESS MT5 DEMO READ-ONLY ONBOARDING
+======================================================================
+
+A real broker data source is important because the eventual intended executable
+instruments are Exness CFDs, not Binance spot instruments.
+
+Phase 2 is DATA-ONLY. Exness MT5 connection is OPTIONAL UNTIL the founder has safely
+provisioned DEMO-only access and authorized source connection on their machine.
+
+Before any connection:
+- verify current provider terms and MetaTrader 5 Python API compatibility on Windows;
+- require genuine DEMO account type attestation from terminal/account_info, not the
+  filename/account label or user's assumption;
+- deny access if the current terminal/account is REAL or unverified;
+- never request actual account passwords in chat/PR/logs/source files;
+- establish an appropriate encrypted OS-backed store (Windows Credential Manager/DPAPI
+  or a justified audited equivalent), least-privilege process/service identity and cleanup;
+- isolate the data collector from trading-capable request routes, even if the underlying
+  MT5 SDK exports order_send; never invoke or expose order_send/order_check/position
+  modification or account-change operations;
+- no execution transport, successful fill or trading side effect in Phase 2;
+- keep Phase 1 global deny-only boundary immutable and test it repeatedly;
+- recognize that the vendor MT5 SDK may contain order_send even when our collector
+  exposes read-only tools: an API allowlist is NOT a technically proven broker-level
+  read-only credential. Require an isolated process, demo-only terminal/profile,
+  preflight checks, no reachable order tool/route, and explicit evidence/limitations;
+  do not claim that importing an SDK makes unauthorized orders impossible;
+- disable any outbound broker write capability in the collector's exposed interfaces;
+- default OFF; explicit controlled owner-side enable and safe disconnect.
+
+Preferred source API scope when DEMO connection is authorized:
+- terminal/account identity read-only attestation;
+- symbols enumeration and symbol_info snapshots;
+- tick size/digits/contract size/volume min-step-max/stops/trade mode/sessions when supplied;
+- read-only symbols tick/bid/ask/spread snapshots;
+- limited copy_rates_range / copy_ticks_range history as justified;
+- market/session status and gaps.
+
+Never assume the MT5 terminal returns all historical data. Official MQL5 copy_rates_range
+documentation says returned bars are limited by chart history / Max. bars in chart and
+uses UTC semantics. Record actual earliest/latest result by symbol/timeframe and explicitly
+label incomplete XAU/BTC/ETH history. No synthetic XAU data or silent source mixing.
+Official source:
+  https://www.mql5.com/en/docs/python_metatrader5/mt5copyratesrange_py
+
+If login/terminal/service isolation/correct demo identity cannot be demonstrated:
+- complete safe interface/contracts/offline negative tests;
+- leave Exness adapter DISABLED;
+- mark the source EXTERNALLY BLOCKED;
+- do not treat fixtures as proof of live Exness access;
+- DO NOT start Phase 5 demo orders as a workaround.
+
+======================================================================
+10. DATA SCHEMAS / TEMPORAL PROVENANCE
+======================================================================
+
+Define versioned typed contracts for at least:
+- SourceIdentity / SourceRights;
+- InstrumentAlias / SpecSnapshot;
+- RawObservation or SourceRecord;
+- Candle/Bar with explicit interval and finalization;
+- MarketTick/Quote (if adopted);
+- IngestionEvent / Checkpoint;
+- DataQualityFinding;
+- DatasetManifest / DatasetVersion;
+- CoverageReport;
+- DataAvailabilityWindow;
+- provider correction lineage and quarantined data.
+
+Keep core domain pure (no SQLAlchemy, FastAPI, broker SDK imports).
+Integrate with existing Phase 1 strict UTC/Decimal contracts without weakening them.
+
+Temporal distinctions must not collapse:
+- market event/open/close time;
+- provider's publication/last-update time if available;
+- source first-seen/received time observed by Auvexo;
+- ingestion/processed time;
+- usable/as-of/available-at time;
+- version correction time.
+
+For backfilled data where original first-seen is unknown, record UNKNOWN with a documented
+conservative assumption rather than faking historical receipt time.
+
+Always store UTC; session/calendar rules stay explicit and venue-specific.
+
+No future data permitted in any as-of query.
+
+======================================================================
+11. DATABASE / PARQUET / STORAGE INTEGRITY
+======================================================================
+
+Use Phase 1 PostgreSQL and Alembic, adding NEW forward-only migrations.
+Do not rewrite `0001_foundation` after its accepted merge.
+
+Keep foundation_policy fully disabled and isolated.
+Introduce distinct data-ingestion/storage privileges without granting data writers power
+over system execution policy or migrations. Positive and negative DB privilege tests.
+
+Keep bulk candles/time-series in compressed Parquet or another justified versioned
+storage path, not a needlessly indexed huge PostgreSQL hot table.
+Store metadata, checkpoints, provenance, immutable manifests, quality findings and
+minimal operational state in PostgreSQL where appropriate.
+
+Require:
+- bounded atomic stage -> validate -> commit/publish;
+- crash safety and restart/recovery;
+- no partially published manifests;
+- source hash and generated partition hashes;
+- idempotent ingestion/canonical uniqueness;
+- accepted versions immutable or append-only;
+- provider correction lineage;
+- manifest/disk DB consistency verification;
+- backup/restore of metadata + referentially connected Parquet artifacts;
+- schema version and migration drift checks;
+- tests for crash at commit boundaries and incomplete files.
+
+Phase 0 target managed storage: 120 GB; hard managed quota: 150 GB.
+These are DISK BUDGETS, not time-horizon limits. The Phase 0 five-year warm-bar
+retention default is not an instruction to discard every bar older than five years.
+Set per-source/per-resolution retention and archive rules based on quality, usefulness,
+rights and measured bytes; preserve reproducible manifests and accepted evidence.
+Change a frozen operational default only by documented reviewable ADR, not fiat.
+Within Phase 2 initially aim for much smaller, measured footprint and leave ample disk
+headroom for Windows, PostgreSQL, research and future MT5.
+
+Make storage quota enforceable, not merely a documentation table.
+At minimum introduce explicit warnings, pressure states, backfill refusal, optional-feed
+pauses and safe cleanup of regenerable staging data, never delete accepted audit/decision
+lineage for disk-space reasons. No giant multi-venue L2 archive.
+
+======================================================================
+12. DATA QUALITY AND COVERAGE EVIDENCE
+======================================================================
+
+Define machine-readable quality findings:
+- schema/shape error;
+- invalid OHLC (high/low/open/close);
+- negative/invalid volume;
+- duplicate;
+- out-of-order;
+- missing/gap;
+- partial candle;
+- stale feed;
+- timestamp unit mismatch;
+- implausible cross-source timestamp;
+- spec/unit mismatch;
+- checksum mismatch;
+- source correction;
+- unknown/insufficient history;
+- session/calendar mismatch.
+
+For every feed/range produce:
+- exact instrument/venue/product/timeframe;
+- observed earliest/latest available history; selected period and evidence-based
+  rationale (not ten-year/five-year default);
+- source and dataset version;
+- first/last observation;
+- expected vs observed rows (only when definable);
+- gaps/overlaps/duplicates;
+- quarantined/untrusted rows;
+- stale intervals and retrieval failures;
+- checksum status;
+- rate-limit/cost counts;
+- known availability lag;
+- quality status PASS / DEGRADED / BLOCKED with reasons.
+
+Make quality gate consumers fail closed on unknown/stale/gapped data when the strategy
+requires complete data. Do NOT claim false universal 100% coverage.
+
+======================================================================
+13. TESTING — MANDATORY NEGATIVES AND REAL EVIDENCE
+======================================================================
+
+Add unit/property/integration tests for:
+- old Binance spot milliseconds vs 2025+ spot microseconds;
+- UTC/timezone/DST and interval close semantics;
+- fake future timestamp and lookahead blocking;
+- invalid/corrupt/oversized ZIP payload and ZIP-slip;
+- missing/corrupt archive CHECKSUM;
+- malformed prices/quantities/units;
+- duplicate/reordered/missing candles;
+- explicit unknown source values;
+- provider update/correction new version;
+- forced network timeout/429/5xx;
+- bounded backoff/retry/cancel/restart;
+- websocket disconnect/reconciliation if websocket adopted;
+- partial/stale live candle exclusion;
+- idempotent repeated backfills;
+- simultaneous ingestion/checkpoint contention;
+- DB transaction failure/recovery;
+- dataset manifest interrupted publish and quarantine;
+- source config injection;
+- storage limit and low-disk fail-safe;
+- exposed API auth/loopback/sanitized errors;
+- Exness DEMO attestation negative tests including real-account refusal;
+- no callable broker order route or trading SDK write operation in collector;
+- no accidental relaxation of all Phase 1 execution denials;
+- import boundaries, migration upgrades/restore;
+- deterministic offline fixture replay;
+- resource caps under representative pilot load;
+- coverage-matrix generation for uneven BTC/ETH/XAU availability, late-listed products,
+  sparse history, selective old-period expansion and compressed-retention policies;
+- historical-regime gaps and older data never impersonating current executable CFD quotes.
+
+CI MUST remain deterministic without external network/broker credentials.
+Integration tests against actual sources should run in a clearly separated opt-in job
+on the owner machine, with recorded network availability, rate limits and provider results.
+Do not let fake fixture tests satisfy real-provider acceptance.
+
+Retain existing 145 tests and all applicable lint/mypy/lock/dependency/secrets checks.
+Introduce new dependencies only when justified, pinned, locked, audited and license-reviewed.
+
+======================================================================
+14. OPERATIONAL / RESOURCE BUDGET
+======================================================================
+
+Hardware: HP EliteBook 1040 G8, i5-1145G7 4c/8t, 15.73 GiB RAM, roughly 300+ GB
+free at Phase 1 measurement. Phase 1 idle process footprints are NOT ingestion budgets.
+
+Profile on real laptop where available:
+- bounded pilot archive download/import wall time and total bytes;
+- peak RSS/process tree of ingestion;
+- DB/Parquet footprint;
+- compression ratio;
+- 5-minute/1-hour data processing rates where applicable;
+- ingestion freshness/lag/reconnect;
+- steady-state CPU/RAM/disk/network usage;
+- health under restart, network loss and source corrections;
+- cost in dollars ($0 mandatory base runtime).
+
+Do not run an unbounded historical backfill or a high-rate websocket fan-out.
+No GPU required.
+No hidden paid provider calls.
+No unnecessary Docker/WSL requirement on native Windows.
+
+A no-network/no-provider state is NOT a reason to invent measurements.
+
+======================================================================
+15. SEVEN-SCHEDULED-DAY OBSERVATION GATE
+======================================================================
+
+The Phase 0 roadmap requires a real-environment Phase 2 proof:
+SEVEN CONSECUTIVE SCHEDULED COLLECTION DAYS,
+plus disconnect/backfill drill, measured storage rate and actual broker symbol/spec
+snapshot when owner-authorized Exness onboarding is in scope.
+
+Implement a reliable collection/evidence command and runbook that can gather daily
+receipts, quality reports, source latency, downtime intervals, quotas and failure reasons.
+
+A single coding session, a seven-minute accelerated clock or fixture replay DOES NOT
+satisfy seven actual calendar days. Never fabricate the time window, uptime or receipts.
+
+If the seven days have not elapsed when engineering is complete:
+  Mark PHASE 2 ENGINEERING IMPLEMENTATION COMPLETE, OBSERVATION GATE OPEN.
+  Open a review PR with full implementation and current evidence.
+  Explicitly do not claim Phase 2 macro-exit PASS or start Phase 3.
+
+Do not promise to personally continue the work asynchronously; instead supply an
+operator-runnable startup/scheduled task procedure and verifiable observation evidence
+workflow. The next invocation can review genuine elapsed evidence later.
+
+If the user has not yet provided Exness DEMO access, distinguish:
+  PUBLIC DATA QUALIFICATION
+  from
+  EXNESS DEMO SPEC/HISTORY ATTESTATION BLOCKED.
+
+Do not falsely treat one as evidence for the other.
+
+======================================================================
+16. PHASE 2 GIT / CI / REVIEW PROCESS
+======================================================================
+
+After authorized normal merge of exact Phase 1 head:
+- Record verified Phase 1 merge/main SHA in docs/evidence.
+- Branch `phase-2/trustworthy-data` from the accepted main.
+- Keep work only in Phase 2 branch.
+- Document scoped acceptance IDs and ADRs if needed before implementation.
+- Commit implementation, tests, docs and evidence in logical owner-authored commits.
+- Push branch only after verification; open PR targeting main.
+- DO NOT merge Phase 2 PR before independent review.
+- No force-push, direct main push, secret commit, CI bypass or fake approval.
+- Keep repo private.
+- Do not alter GitHub billing, visibility, spending limits or permissions.
+- If private Actions blocked, record the exact error, run equivalent safe local tests,
+  mark hosted verification EXTERNALLY BLOCKED, and await explicit owner decision.
+- Do not start Phase 3.
+
+Do not create multiple divergent implementation tracks or dead spike code.
+Temporary experiments stay outside committed production or are removed after decision.
+
+======================================================================
+17. PHASE 2 DOCUMENTATION / HANDOFF
+======================================================================
+
+Maintain/update:
+- docs/DATA_ARCHITECTURE.md;
+- docs/DATA_SOURCE_REGISTER.md;
+- docs/ARCHITECTURE.md when warranted;
+- docs/OPEN_DECISIONS.md and ADRs;
+- docs/ROADMAP.md phase evidence links;
+- docs/SECURITY_BASELINE.md;
+- docs/OPERATIONS_AND_RECOVERY.md;
+- docs/PERFORMANCE_AND_RELIABILITY.md;
+- docs/engineering/ENGINEERING_RULES.md if needed;
+- AGENTS.md and CLAUDE.md byte-identically;
+- docs/phase2/ACCEPTANCE_TESTS.md;
+- docs/phase2/IMPLEMENTATION.md;
+- docs/phase2/SOURCES_AND_RIGHTS.md;
+- docs/phase2/QUALITY_AND_COVERAGE.md;
+- docs/phase2/SETUP_AND_RECOVERY.md;
+- docs/phase2/VERIFICATION.md;
+- docs/phase2/HANDOFF.md;
+- machine-readable nonsecret evidence/receipts and dataset manifests.
+
+Keep generated bulk data, credentials, raw broker data and noisy runtime caches outside
+Git. Use sane .gitignore and tracked small legal test fixtures only.
+
+Document known limitations honestly; a completed module with no provider proof is not
+claimed source-qualified.
+
+======================================================================
+18. REQUIRED PHASE 2 HANDOFF
+======================================================================
+
+At end provide a SINGLE consolidated Phase 2 handoff containing:
+
+1. Exact Phase 1 accepted SHA and normal merge/main SHA.
+2. Phase 2 branch + exact commit SHAs + PR URL, branch push and PRIVATE visibility.
+3. Full changed-file/module summary.
+4. Source-by-source implementation status and actual rights/access proof.
+5. Actual Binance BTC/ETH history/live provider proofs, exact ranges, source URLs,
+   checksums, dataset versions, temporal semantics and quality results.
+5a. Historical coverage matrix across actual sources, venue/products/timeframes,
+    genuine earliest/latest data, missing years/regimes, choices and retained sizes.
+    Explicit confirmation that no fixed five-/ten-year historical cap was imposed.
+6. Exness DEMO status: verified READ-ONLY account/spec/history, or precise external gate.
+   Never include credentials/account numbers in report.
+7. Storage/db schema versions and backup/restore integrity proof.
+8. Timestamp boundary microseconds/milliseconds test outcomes.
+9. ALL negative/failure tests, existing test retention, Ruff/mypy/CI/audit result.
+10. Windows clean environment and measured resource usage.
+11. Seven-day observation status with exact actual start/end dates and per-day receipts,
+    or explicitly OPEN if not elapsed.
+12. Open limitations and real source/data quality gaps.
+13. Zero spend confirmation and repo/privacy/secrets check.
+14. Confirmation: no trades, no broker order transport, no real account connection,
+    no market strategy, no risk permit, Binance live derivatives still blocked.
+15. Honest engineering verdict:
+       ENGINEERING_PASS_OBSERVATION_OPEN
+       ENGINEERING_PASS_WITH_EXTERNAL_SOURCE_GATES
+       PASS (only if all real-observation/source/CI gates genuinely pass)
+       FAIL
+16. Exact independent-review evidence and Phase 3 prerequisites.
+
+No Phase 3 work even if you finish quickly.
+
+======================================================================
+19. NON-NEGOTIABLE CLOSING SELF-AUDIT
+======================================================================
+
+Before reporting completion, inspect everything as a skeptic:
+- Does a reviewer reproduce source bytes -> normalized bars -> exact Parquet and hashes?
+- Can archives from before/after 2025-01-01 be joined without a time-unit bug?
+- Is the historical-data horizon chosen from evidence rather than a mistaken
+  "ten-year trader" phrase or a five-year warm-storage retention default?
+- Is there a reproducible asset/venue/timeframe coverage matrix with justified
+  older/recent regimes and gaps, without fabricated pre-inception history?
+- Can a missing candle, stale quote or partial bar silently pass as complete?
+- Does correction/versioning preserve the originally known state?
+- Did any code accidentally enable a broker trading operation or live mode?
+- Does a REAL terminal cause Exness collector hard refusal?
+- Is access encrypted/OS-backed before DEMO credentials are used?
+- Does a data source outage leave the database consistent and marked degraded?
+- Can the same file/message be ingested twice without double counting?
+- Can storage pressure fill the OS drive or destroy decision provenance?
+- Does source-rights register reflect current actual provider terms?
+- Are all accepted source claims backed by REAL source observations, not fixtures?
+- Are all tests genuinely executed without hiding failures?
+- Is the repo still PRIVATE and the branch unmerged?
+- Are CLAUDE.md and AGENTS.md coherent with this phase and each other?
+- Have you made zero invented seven-day observations?
+
+Correct implementation defects that are in scope. If a material external requirement is
+unavailable, leave it explicitly BLOCKED and ask only for the irreducible owner action.
+
+STOP AFTER PHASE 2 ENGINEERING HANDOFF. REPORT TO THE FOUNDER FOR INDEPENDENT REVIEW.

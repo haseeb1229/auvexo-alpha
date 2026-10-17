@@ -55,3 +55,12 @@ GitHub security entitlement is assumed. Before demo: auth negatives, service iso
 credential redaction and malicious-tool tests. Before live: independent security review,
 backup drill, owner recovery rehearsal, current dependency scan and release integrity.
 Auth/library selection must use maintained official documentation when implemented.
+
+## Phase 2 data boundary
+
+Public sources use an explicit GET-only host/path allowlist, no credentials, no
+redirects and bounded untrusted input parsing. Separate ingestion DB privileges do
+not grant foundation-policy writes. [Setup](phase2/SETUP_AND_RECOVERY.md) documents
+the local development writer credential and residual owner/admin access. No broker
+secret store, terminal account, SDK or order path is adopted. Exness remains disabled
+until encrypted OS storage, isolation and genuine demo attestation can be proved.

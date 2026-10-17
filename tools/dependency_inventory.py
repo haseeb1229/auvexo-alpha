@@ -1,9 +1,13 @@
 """Record installed package license metadata without duplicating dependency management."""
 
+import argparse
 import importlib.metadata
 import json
 from pathlib import Path
 
+parser = argparse.ArgumentParser()
+parser.add_argument("--output", type=Path, default=Path("docs/phase2/DEPENDENCIES.json"))
+args = parser.parse_args()
 rows = []
 for dist in importlib.metadata.distributions():
     name = str(dist.metadata["Name"])
@@ -25,5 +29,5 @@ for dist in importlib.metadata.distributions():
         )
     )
 rows.sort(key=lambda row: row["name"].lower())
-Path("docs/phase1/DEPENDENCIES.json").write_text(json.dumps(rows, indent=2) + "\n")
+args.output.write_text(json.dumps(rows, indent=2) + "\n")
 print(f"Recorded {len(rows)} installed third-party distributions; inspect license metadata")

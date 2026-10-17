@@ -1,0 +1,56 @@
+[
+  {
+    "schema_version": "1.0",
+    "alias": {
+      "schema_version": "1.0",
+      "instrument_id": "binance.spot.BTCUSDT",
+      "asset": "BTC",
+      "venue": "BINANCE",
+      "product": "SPOT",
+      "provider_symbol": "BTCUSDT",
+      "quote_currency": "USDT",
+      "mapping_version": "spot.v1"
+    },
+    "source_id": "DS-02",
+    "observed_at": "2026-10-17T05:26:04.773135Z",
+    "spec_version": "2187e51f023b18541da5b47fe7e4bb0263c92c185ea3bfb4ec2d73da1958183b",
+    "provenance_url": "https://data-api.binance.vision/api/v3/exchangeInfo?symbol=BTCUSDT",
+    "price_tick": "0.01000000",
+    "quantity_step": "0.00001000",
+    "min_quantity": "0.00001000",
+    "max_quantity": "9000.00000000",
+    "contract_size": "1",
+    "quantity_unit": "BASE_UNIT",
+    "session": "24x7 subject to provider outages",
+    "timezone": "UTC",
+    "trade_status": "TRADING",
+    "unknown_reason": "No broker CFD facts; current spot specification only"
+  },
+  {
+    "schema_version": "1.0",
+    "alias": {
+      "schema_version": "1.0",
+      "instrument_id": "binance.spot.ETHUSDT",
+      "asset": "ETH",
+      "venue": "BINANCE",
+      "product": "SPOT",
+      "provider_symbol": "ETHUSDT",
+      "quote_currency": "USDT",
+      "mapping_version": "spot.v1"
+    },
+    "source_id": "DS-02",
+    "observed_at": "2026-10-17T05:26:14.183894Z",
+    "spec_version": "6ba55d8db8887f185285e5ec322ec225e37dd89348e714d646b6477cbbb2b0a6",
+    "provenance_url": "https://data-api.binance.vision/api/v3/exchangeInfo?symbol=ETHUSDT",
+    "price_tick": "0.01000000",
+    "quantity_step": "0.00010000",
+    "min_quantity": "0.00010000",
+    "max_quantity": "9000.00000000",
+    "contract_size": "1",
+    "quantity_unit": "BASE_UNIT",
+    "session": "24x7 subject to provider outages",
+    "timezone": "UTC",
+    "trade_status": "TRADING",
+    "unknown_reason": "No broker CFD facts; current spot specification only"
+  }
+]
