@@ -14,6 +14,7 @@ Start with [Phase 3 acceptance requirements](docs/phase3/ACCEPTANCE_TESTS.md),
 [original plan](docs/phase3/DATA_PLAN.md),
 [frozen V2 availability amendment](docs/phase3/DATA_PLAN_V2.md),
 [ADR-014](docs/adr/014-nonproduction-research.md),
+[review handoff](docs/phase3/HANDOFF.md),
 [Phase 2 independent acceptance](docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md),
 [daily schedule](docs/amendments/SCHEDULER_2300.md) and [document index](docs/README.md).
 

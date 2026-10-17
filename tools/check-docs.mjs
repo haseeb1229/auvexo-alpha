@@ -34,6 +34,7 @@ const required = [
   'docs/reference/PHASE_3_BRIEF.txt', 'docs/reference/PHASE_3_RESUME_BRIEF.txt',
   'docs/phase3/ACCEPTANCE_TESTS.md', 'docs/phase3/DATA_PLAN.md', 'docs/phase3/DATA_PLAN_V2.md',
   'docs/phase3/evidence/provider-outage-diagnosis.json', 'docs/adr/014-nonproduction-research.md',
+  'docs/phase3/IMPLEMENTATION.md', 'docs/phase3/VERIFICATION.md', 'docs/phase3/HANDOFF.md',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
