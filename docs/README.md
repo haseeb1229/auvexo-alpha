@@ -3,8 +3,9 @@
 Read the [current baseline correction handoff](amendments/BASELINE_CORRECTION_HANDOFF.md),
 [ADR-013](adr/013-source-specific-acceptance.md), [current schedule](amendments/SCHEDULER_2300.md),
 constitution/requirements and policies. Phases 0/1 are independently accepted; Phase 2
-engineering is delivered with operational/source gates OPEN. The amendment awaits independent
-review; Phase 3 has NOT begun. Dated handoffs and receipts remain historical snapshots.
+engineering has independently accepted DS-01/02 BTC/ETH SPOT research-unblocking scope;
+operational/source gates remain OPEN. See [acceptance](reviews/PHASE_2_RESEARCH_ACCEPTANCE.md).
+Phase 3 implementation follows the authorized normal merge/new branch, not this status commit. Dated handoffs and receipts remain historical snapshots.
 
 | Document | Authority/purpose |
 | --- | --- |

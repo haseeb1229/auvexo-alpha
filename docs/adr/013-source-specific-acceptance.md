@@ -1,6 +1,6 @@
 # ADR-013: source-specific engineering acceptance and retained operational gates
 
-Status: PROPOSED; owner-authorized correction, independent acceptance pending
+Status: FROZEN; independently accepted at bdae1a1978ecfe26c201074fe12e81f2c654a4af
 Date: 2026-10-17
 Requirements: R-003, R-005, R-006, R-014, R-015, R-018, R-022, R-023, R-029, R-030, R-031, R-035
 
@@ -117,7 +117,13 @@ NO EDGE validity, with no broker orders. All financial/source gates remain uncha
 
 ## Review point
 
-Request GPT-5.6 Sol independent exact-final-SHA review of this ADR, requirement impacts,
-source-specific admission semantics, schedule/code/tests/actual task and public exception.
-Only reviewer acceptance plus a new owner prompt may unblock later engineering. PR #3
-stays OPEN/UNMERGED; later explicit merge authorization is separate. Phase 3 has NOT begun.
+The required independent exact-SHA review is supplied in the owner-authorized Phase 3
+prompt, accepting this ADR at `bdae1a1` with the source-specific limits below. That prompt
+also separately authorizes normal PR #3 merge after an administrative-only acceptance
+record, then Phase 3 on a new branch. Full operational gates and later financial gates remain open.
+
+Independent acceptance recorded 2026-10-17: the owner-supplied Phase 3 prompt accepts
+exact `bdae1a1978ecfe26c201074fe12e81f2c654a4af`, ADR-013 and DS-01/02 BTC/ETH SPOT
+engineering/personal nonproduction research only. Full Phase 2 operational status remains
+OPEN; scheduled reliability OPEN, DS-03 BLOCKED. This is a supplied independent disposition,
+not a new implementer review. See [acceptance record](../reviews/PHASE_2_RESEARCH_ACCEPTANCE.md).

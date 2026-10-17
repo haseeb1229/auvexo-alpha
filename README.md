@@ -9,9 +9,10 @@ historical/public spot data and replay. PR #3 remains OPEN/UNMERGED: seven genui
 days and Exness DEMO source qualification remain OPEN. Execution is disabled in every mode.
 
 The [baseline amendment](docs/amendments/BASELINE_CORRECTION_HANDOFF.md) and
-[ADR-013](docs/adr/013-source-specific-acceptance.md) propose source-specific engineering
-acceptance separately from full operational acceptance. Independent review and a new prompt
-are required before any later engineering. Phase 3 has NOT begun.
+[ADR-013](docs/adr/013-source-specific-acceptance.md) define independently accepted source-specific engineering
+acceptance separately from full operational acceptance. The [acceptance record](docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md)
+records the supplied Phase 3 prompt; implementation begins only after normal PR #3 merge
+and creation of the authorized new branch. Phase 3 has NOT begun in this administrative commit.
 
 Start with the [current handoff](docs/amendments/BASELINE_CORRECTION_HANDOFF.md),
 [current daily schedule](docs/amendments/SCHEDULER_2300.md), [Windows setup](docs/phase2/SETUP_AND_RECOVERY.md),

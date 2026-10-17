@@ -3,8 +3,11 @@
 Current authorized scope: Phase 2 data plus the owner-requested baseline governance amendment
 and tested 23:00 Pakistan schedule retiming; no Phase 3 implementation. Read
 docs/amendments/BASELINE_CORRECTION_HANDOFF.md and docs/adr/013-source-specific-acceptance.md.
-ADR-013 awaits independent acceptance: later source-specific NON-MONEY engineering requires
-qualified inputs/contracts, independent review and a new explicit prompt. Full Phase 2
+ADR-013 independently accepted at bdae1a1978ecfe26c201074fe12e81f2c654a4af for DS-01/02
+BTC/ETH SPOT engineering/personal nonproduction research only. See
+docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md. The new owner Phase 3 prompt authorizes normal
+exact-head PR #3 merge after administrative recording, then a new Phase 3 branch.
+This acceptance/status commit implements no Phase 3 behavior. Full Phase 2
 operational acceptance remains OPEN; seven real days and DS-03 are not waived.
 Phase 1 accepted at 295ded25afdd5a95ee0585b41da9966e45812bcf; normal PR #2 merge
 16e63aeb9e7e1a97082d4a004142e0af163a4571. Read docs/reference/PHASE_2_BRIEF.txt,
@@ -14,7 +17,7 @@ The October 17 evidence-closure brief is docs/reference/PHASE_2_EVIDENCE_CLOSURE
 No Phase 3, real account, strategy, order transport, risk kernel or permit issuance.
 Execution remains disabled in every mode. Exness remains disabled until secure owner-side
 DEMO access, isolation and genuine attestation are proven. No broker SDK is adopted now.
-Phase 2 PR must remain unmerged for independent review and a new phase prompt.
+Phase 2 merge is now explicitly authorized only through the accepted prompt workflow; no bypass.
 Daily warm-up 22:57 Pakistan / 17:57 UTC; evidence 23:00-23:12 / 18:00-18:12 UTC,
 first eligible date October 18, 2026. Preserve old morning receipts; no late catch-up.
 No fixed historical lookback; storage budgets do not impose a research-history cap.

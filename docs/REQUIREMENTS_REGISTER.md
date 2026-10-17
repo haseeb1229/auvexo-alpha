@@ -76,7 +76,7 @@ retired by explicit recorded owner/reviewer decision; priority does not authoriz
 Phase 2 refines the same parents through [stable child requirements](phase2/ACCEPTANCE_TESTS.md).
 No original ID or Phase 1 acceptance assertion is retired.
 
-## Baseline correction impact (2026-10-17; independent acceptance pending)
+## Baseline correction impact (2026-10-17; independently accepted at bdae1a1)
 
 The parent rows preserve original Phase 0 traceability, not current implementation status.
 [ADR-013](adr/013-source-specific-acceptance.md) supersedes the all-or-nothing sequencing
@@ -84,7 +84,7 @@ interpretation after independent acceptance; phase numbers, IDs and financial th
 
 | Stable child ID | Requirement / impact | Proof / disposition |
 | --- | --- | --- |
-| R-035-BA-01 | Separate reviewed source-specific engineering/research admission from full operational/activation acceptance; Phase 2 A/B/C explicit; later non-money overlap requires accepted dependencies and a new prompt | [Roadmap](ROADMAP.md), ADR-013; independent exact-head review pending |
+| R-035-BA-01 | Separate reviewed source-specific engineering/research admission from full operational/activation acceptance; Phase 2 A/B/C explicit; later non-money overlap requires accepted dependencies and a new prompt | [Roadmap](ROADMAP.md), ADR-013; independent exact-head review accepted at bdae1a1; source-specific scope in acceptance record |
 | R-014-BA-01 | Future typed data-use classification in experiment/release manifests; source/product/instrument/range rights propagate; Vision is nonproduction; DS-03/XAU claims blocked | [Research](RESEARCH_AND_VALIDATION.md); positive/negative tests required when implemented in Phase 3 |
 | R-014-BA-02 | Future opt-in price close + positive causal lag simulation policy, actual 2026 receipt retained, no same-close lookahead or macro/news/on-chain inheritance | [Data](DATA_ARCHITECTURE.md); Phase 3 manifest/leakage proofs; no simulator now |
 | R-015-BA-01 | Multi-year 1m audit-first Parquet benchmark before any measured derived optimization; exact canonical hash/fixed-point parity, no conflicting truth/history cap | Data/performance requirements; Phase 3 benchmark and future parity tests |

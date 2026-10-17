@@ -1,6 +1,6 @@
 # ADR-012: bounded data ingestion and research-only provenance
 
-Status: ACCEPTED for Phase 2 implementation; independent review pending
+Status: independently ACCEPTED for DS-01/02 BTC/ETH SPOT research-unblocking scope at bdae1a1; full operational gates OPEN
 Date: 2026-10-16
 Requirements: R-014, R-015, R-018, R-023, R-024, R-025
 

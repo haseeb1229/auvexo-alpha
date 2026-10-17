@@ -1,8 +1,8 @@
 # Roadmap and proof gates
 
 Status: canonical phases 0-9 retained. [ADR-013](adr/013-source-specific-acceptance.md)
-proposes a superseding acceptance model, owner-authorized 2026-10-17 and awaiting independent
-review. Each phase still needs an authorized prompt and reviewer-accepted concrete dependencies.
+defines the superseding acceptance model independently accepted at exact `bdae1a1` by the
+owner-supplied Phase 3 prompt; [acceptance record](reviews/PHASE_2_RESEARCH_ACCEPTANCE.md). Each phase still needs an authorized prompt and reviewer-accepted concrete dependencies.
 A later row is not permission to start it. Financial gates and numeric evidence targets remain hard.
 
 Current evidence: Phase 0 independently accepted and normally merged via PR #1 at
@@ -16,8 +16,9 @@ coverage passed; genuine scheduled days remain OPEN and Exness DEMO is blocked.
 PUBLIC hosted CI has now run successfully; private allocation is not proven resolved.
 The owner approved a temporary public-source exception, review due October 24 with
 independent governance review still required. PR #3 remains unmerged; macro-exit is
-not PASS. Phase 3 remains unauthorized. The [baseline amendment](amendments/BASELINE_CORRECTION_HANDOFF.md)
-is the current review package; historical snapshots retain their original facts.
+not PASS. The owner-supplied Phase 3 prompt authorizes entry only after administrative recording
+and a normal exact-head PR #3 merge; no Phase 3 implementation occurs in this status commit. The [baseline amendment](amendments/BASELINE_CORRECTION_HANDOFF.md)
+is the dated amendment delivery package; historical snapshots retain their original facts.
 
 ## Two acceptance dispositions
 
@@ -31,11 +32,11 @@ prompt is required. This is not full phase closure, promotion or account activat
 calendar/source/security/rights/promotion gate. An engineering pass cannot satisfy it. Evidence
 must name each gate and scope; unknown eligibility denies promotion. No cross-source inference.
 
-Phase 2 disposition for independent review:
+Independently accepted Phase 2 source-specific disposition (full operational status OPEN):
 
 | Concern | Current evidence | Acceptance consequence |
 | --- | --- | --- |
-| A: historical/public engineering and replay | Strong DS-01/02 selected BTC/ETH spot evidence; gaps/rights/receipt limits retained | Candidate for source-specific engineering acceptance; not self-accepted or sufficient for every experiment |
+| A: historical/public engineering and replay | Strong DS-01/02 selected BTC/ETH spot evidence; gaps/rights/receipt limits retained | Research-unblocking PASS for complete, rights-valid, hash-verified, lineage-preserved DS-01/02 BTC/ETH SPOT inputs only; not sufficient for every experiment |
 | B: scheduled reliability | OPEN; zero qualified dates; new daily 22:57 warm-up, 23:00-23:12 Pakistan / 17:57, 18:00-18:12 UTC | Seven actual consecutive dates still required for full operational status; archives/pilots cannot substitute |
 | C: Exness DEMO read-only DS-03 | BLOCKED; broker symbols/specs/history/attestation UNKNOWN | All Exness-dependent BTC/ETH/XAU research unavailable until source-specific qualification and secure authorized onboarding |
 

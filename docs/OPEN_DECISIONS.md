@@ -6,7 +6,8 @@ rerun succeeded; PRIVATE allocation remains unproven. Owner approved a temporary
 [public-source exception](phase2/closure/PUBLIC_VISIBILITY_PROPOSAL.md), independent
 governance review due October 24, and the bounded local daily task after verification.
 Current governance/schedule review is [ADR-013](adr/013-source-specific-acceptance.md) and the
-[baseline amendment](amendments/BASELINE_CORRECTION_HANDOFF.md). Independent acceptance is pending;
+[dated baseline amendment](amendments/BASELINE_CORRECTION_HANDOFF.md). Independent source-specific
+acceptance at `bdae1a1` is recorded in [acceptance](reviews/PHASE_2_RESEARCH_ACCEPTANCE.md);
 Phase 2 full operational status remains OPEN. Earlier receipts remain historical.
 
 All statuses have an owner and decision point. Owner labels refer to future accountable
@@ -15,7 +16,7 @@ to the founder merely to avoid making a decision.
 
 | ID | Status | Decision / current safe default | Owner | Closure evidence / deadline |
 | --- | --- | --- | --- | --- |
-| OD-01 | FROZEN | Phase 1 foundation toolchain pinned and measured; quant/broker libraries not adopted | Phase 1 implementer | [Release/license matrix](phase1/TOOLCHAIN.md), hashed lock, 145-test fresh Windows clone, real PostgreSQL and hosted CI proof; Phase 1 independently accepted at `295ded25afdd5a95ee0585b41da9966e45812bcf`; [current-lock maturity exception](amendments/DEPENDENCY_MATURITY.md) awaiting amendment review |
+| OD-01 | FROZEN | Phase 1 foundation toolchain pinned and measured; quant/broker libraries not adopted | Phase 1 implementer | [Release/license matrix](phase1/TOOLCHAIN.md), hashed lock, 145-test fresh Windows clone, real PostgreSQL and hosted CI proof; Phase 1 independently accepted at `295ded25afdd5a95ee0585b41da9966e45812bcf`; [current-lock maturity exception](amendments/DEPENDENCY_MATURITY.md) independently accepted with ADR-013 at bdae1a1 |
 | OD-02 | PROVISIONAL | Python-first MT5 gateway, EA/hybrid deferred | Execution maintainer | Real demo disconnect/latency/recovery matrix; decide before Phase 5 exit |
 | OD-03 | EXTERNAL | Exness actual demo symbols/contracts/terms/history unverified; no account connected | Owner provides demo authentication, maintainer verifies | Read-only demo attestation/spec snapshot/source rights; Phase 2; execution permission Phase 5 |
 | OD-04 | EXTERNAL | Live capital and all live numerical limits unset; current allocation zero | Founder | Signed absolute/percentage capital/loss/leverage policy; before Phase 8 activation |
@@ -56,8 +57,9 @@ private hosted CI remain separate evidence gates in the [handoff](phase2/HANDOFF
 
 ## Baseline amendment review gates (2026-10-17)
 
-ADR-013 is PROPOSED pending GPT-5.6 Sol independent exact-head review. No Phase 3 prompt is
-issued here. OD-03 stays blocked; R-035 scheduled evidence stays OPEN at zero dates. The new
+ADR-013 is independently accepted/FROZEN at exact `bdae1a1` by GPT-5.6 Sol's disposition
+supplied in the owner-authorized Phase 3 prompt. The acceptance/status-only commit implements
+no Phase 3 behavior; normal merge/new branch remain required before implementation. OD-03 stays blocked; R-035 scheduled evidence stays OPEN at zero dates. The new
 23:00 Pakistan schedule begins no earlier than October 18; no old archive/pilot date transfers.
 OD-01's explicit current-lock maturity exception has no auto-upgrade and is reviewed at next
 dependency adoption (broker/financial-critical libraries at their adoption phase), or 2026-11-16,

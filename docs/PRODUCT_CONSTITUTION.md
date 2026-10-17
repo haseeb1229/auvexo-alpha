@@ -1,8 +1,9 @@
 # Product constitution
 
 Status: Phase 0 architecture baseline independently accepted; Phase 1 accepted and merged.
-The 2026-10-17 [ADR-013](adr/013-source-specific-acceptance.md) amendment is proposed for
-independent review and supersedes sequencing only after acceptance. Phase 2 full operational
+The 2026-10-17 [ADR-013](adr/013-source-specific-acceptance.md) amendment is independently
+accepted at `bdae1a1978ecfe26c201074fe12e81f2c654a4af`; see the
+[source-specific acceptance](reviews/PHASE_2_RESEARCH_ACCEPTANCE.md). Phase 2 full operational
 status remains OPEN. Private-first remains the baseline; source is temporarily PUBLIC under
 the owner-approved exception, review due 2026-10-24. No permanent public approval is inferred.
 
