@@ -10,7 +10,10 @@ Current evidence: Phase 0 independently accepted and normally merged via PR #1 a
 `295ded25afdd5a95ee0585b41da9966e45812bcf` and normally merged via PR #2 at
 `16e63aeb9e7e1a97082d4a004142e0af163a4571`. Phase 2 data-only work is authorized by
 the revised V2 brief; see [acceptance](reviews/PHASE_1_INDEPENDENT_ACCEPTANCE.md) and
-[Phase 2 handoff](phase2/HANDOFF.md). Phase 3 remains unauthorized.
+[Phase 2 handoff](phase2/HANDOFF.md). Phase 2 engineering is delivered for independent
+review in unmerged PR #3; seven scheduled days remain OPEN, Exness DEMO source gates
+and private hosted CI are EXTERNALLY BLOCKED. Macro-exit is not PASS. Phase 3 remains
+unauthorized.
 
 ## Phase 0 — constitution and architecture freeze
 

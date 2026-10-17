@@ -246,11 +246,22 @@ def test_default_off_and_persistent_rate_limit(store):
     assert http.requests == 1
 
 
-def test_poll_restart_and_disconnect_backfill(store):
+def test_poll_restart_and_disconnect_backfill(store, monkeypatch):
+    from datetime import UTC, datetime
     from threading import Event
     from urllib.parse import parse_qs, urlsplit
 
     from auvexo_alpha.infrastructure.spot_parser import EPOCH
+
+    # A controlled fixture clock prevents a wall-minute boundary from making this flaky.
+    clock = datetime.now(UTC).replace(second=20, microsecond=0)
+
+    class FixtureClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return clock
+
+    monkeypatch.setattr("auvexo_alpha.infrastructure.data_collection.datetime", FixtureClock)
 
     def transport(url, limit):
         params = parse_qs(urlsplit(url).query)
@@ -274,6 +285,11 @@ def test_poll_restart_and_disconnect_backfill(store):
         store, PublicHTTP(Event(), transport, lambda _: False), "synthetic-test", True
     )
     assert restarted.poll("BTCUSDT") is None
+    clock += timedelta(minutes=5)
+    recovered = restarted.poll("BTCUSDT")
+    assert recovered.coverage.requested_start == first.coverage.requested_end
+    assert recovered.coverage.observed_rows == 5 and recovered.coverage.status == "PASS"
+    assert store.checkpoint("DS-02.BTCUSDT.1m").next_open == recovered.coverage.requested_end
 
 
 def test_malformed_spec_retained_and_never_accepted(store):

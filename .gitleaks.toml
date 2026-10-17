@@ -1,0 +1,15 @@
+title = "Auvexo source scan with public dataset identifier exception"
+
+[extend]
+useDefault = true
+
+# Reviewed 2026-10-17; review again by 2026-11-16. These are public source/asset/
+# interval identifiers, not credentials. Keep every default detector enabled.
+# Both the exact evidence path and whole-line format must match. No file is skipped.
+[[allowlists]]
+description = "Public Binance dataset/feed identifiers in retained evidence only"
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''(^|/)docs/phase2/evidence/(datasets|final-datasets|committed-live)\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"(logical_key|feed_key)": "DS-0[12]\.(BTCUSDT|ETHUSDT)\.(1m|1h)(\.(20[0-9]{2}-[0-9]{2}(-[0-9]{2})?|[0-9]{13}\.[0-9]{13}))?",?\s*$''']

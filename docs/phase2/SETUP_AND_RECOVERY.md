@@ -58,6 +58,12 @@ After seven actual windows, run qualification with the real first date and indep
 inspect manifests, events, downtime and source quality. Task registration/identity remains
 an explicit operator action; credentials are not embedded in task arguments.
 
+For the independent Gitleaks 8.30.1 source/history scan, use the root `.gitleaks.toml`
+configuration. Export tracked/untracked nonignored source to an isolated directory,
+then scan that export and Git history. Runtime credentials belong in ignored owner
+storage and are not part of the source export. The narrow public-identifier exception
+and detection controls are documented in [verification](VERIFICATION.md).
+
 As of 2026-10-17, the proposed October 17 window was missed: zero qualifying windows.
 Choose a new real start date (for example October 18 if actually scheduled) instead of
 counting the daytime pilot. The implementation uses monotonic cadence rather than adding
