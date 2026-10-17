@@ -100,6 +100,7 @@ def main():
             files.append(path)
             del bars
         generated = time.monotonic() - start
+        print(json.dumps({"phase": "GENERATED", "rows": count, "seconds": generated}), flush=True)
         scan = pl.scan_parquet(str(root / "*.parquet"))
         started = time.monotonic()
         rows = scan.select(pl.len()).collect().item()
@@ -120,6 +121,16 @@ def main():
             del batch
         canonical_replay_seconds = time.monotonic() - started
         assert loaded == count
+        print(
+            json.dumps(
+                {
+                    "phase": "CANONICAL_VALIDATION",
+                    "rows": loaded,
+                    "seconds": canonical_replay_seconds,
+                }
+            ),
+            flush=True,
+        )
         started = time.monotonic()
         result = simulate(
             subset,
@@ -164,7 +175,10 @@ def main():
             ),
         )
         assert peak[0] < 2_000_000_000 and report["cpu_threads"] <= 2
-        assert pressure(report["stored_bytes"], psutil.disk_usage(root).free) == "NORMAL"
+        assert (
+            pressure(report["stored_bytes"], psutil.disk_usage(str(root.resolve())).free)
+            == "NORMAL"
+        )
         Path(".local/research-scale-evidence.json").write_text(json.dumps(report, indent=2) + "\n")
         print(json.dumps(report, indent=2))
     finally:
