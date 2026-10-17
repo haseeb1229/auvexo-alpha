@@ -1,4 +1,4 @@
-# Public repository state and proposed governance exception
+# Public repository state and approved temporary exception
 
 Observed 2026-10-17: `haseeb1229/auvexo-alpha` is PUBLIC, with unchanged main
 `16e63aeb9e7e1a97082d4a004142e0af163a4571` and open/unmerged PR #3 at the entry head

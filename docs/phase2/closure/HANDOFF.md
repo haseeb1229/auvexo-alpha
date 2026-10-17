@@ -19,6 +19,9 @@ receipts as dated snapshots, including their then-PRIVATE and blocked-CI facts.
 - Entry branch `phase-2/trustworthy-data`, exact head
   `32ada1f35836246486fb1379c808d9119bbe9ce4`; original implementation
   `aa96a69983332d2dafe149a12430d9d3deb3de86`.
+- Tested closure implementation: **`8eb92ea0a41cc0f43ec9003dcd63a6537262e156`**.
+  The following evidence/handoff commit changes review documents only. Its exact
+  final-tip validation is retained in the local final delivery record.
 - [PR #3](https://github.com/haseeb1229/auvexo-alpha/pull/3) is the sole review PR.
   Delivery commits follow entry without history rewriting or AI co-author trailers.
   The final ignored `.local/PHASE_2_FINAL_HANDOFF.md` records the exact final PR head
@@ -80,6 +83,8 @@ invocations prove **28 requests / 942,267 response-body bytes**. Failed request 
 are unknown, maximum six per failed invocation: overall requests bounded **28–46**.
 Counters are cumulative per invocation; aggregate maxima, not every event counter.
 
+The [current coverage matrix](evidence/coverage.json) preserves all source identities,
+including degraded originals and three separately blocked/unknown Exness instruments.
 Original **42 manifests / 5,944 rows** remain unchanged. Current **56 manifests /
 26,104 rows**, **1,286,102 raw + 2,431,856 Parquet bytes**. All 56 replay exactly from
 retained source bytes through normalized candles to Parquet. Cached reimport of all 14
@@ -127,6 +132,26 @@ missed. This is a daily twelve-minute gate, never 24/7 reliability proof.
 
 ## Verification and honest limitations
 
+Committed-source proof at **8eb92ea0a41cc0f43ec9003dcd63a6537262e156**:
+
+- [Fresh Windows clone](evidence/committed-clean-clone.json): **241 passed in 213.27s**,
+  no skips/failures; fresh venv, isolated real PostgreSQL migration, Ruff format/check,
+  strict mypy, docs/source scan and clean Git tree. Clone/install 76.465s, core checks
+  423.388s overall. Shared verified download cache/runtime wheel explicitly reused.
+- [Extended cloned-code checks](evidence/committed-extended-checks.json): actual DEV
+  artifact/DB backup restored into a fresh isolated database, all eight tables equal,
+  **56** exact replays and five immutable triggers; separate foundation recovery,
+  schema/downgrade/idempotence negatives, unchanged locked export, no known dependency
+  vulnerabilities, zero Gitleaks source/history findings (**11 commits scanned**).
+  Application/recovery programs loaded from this clone; only owner-private credentials
+  and the existing native PostgreSQL harness were shared. Data restore 125.506s,
+  foundation restore 24.613s. These are measured checks, not twelve-minute feed timing.
+- [Hosted PR run 39041805713](evidence/committed-hosted-ci.json), job **117422638695**:
+  **SUCCESS, 241 tests in 12.61s**; all actual job steps inspected, including migrations,
+  lint/types/docs/source scan/audit/diff. [Observed PR/main state](evidence/committed-github-state.json)
+  is OPEN/UNMERGED and PUBLIC, main unchanged. Final evidence-only head is checked
+  again; its external local receipts avoid a self-referential commit.
+
 - Working-tree full suite **241 passed in 131.18 seconds**, no skips/failures; Ruff
   format/check (53 files) and strict mypy (28 source files) passed. The subsequent
   editorial registry snapshot is covered by committed-clone checks after delivery.
@@ -154,7 +179,10 @@ missed. This is a daily twelve-minute gate, never 24/7 reliability proof.
   reproduced. A loaded intermediate root run had three CLI failures. Lazy imports
   address unnecessary cold work; no timeout/test weakened. Four verified obsolete
   disposable clone venvs inside this workspace were removed, preserving their source,
-  receipts and all market data; no other project's files/caches touched. Final root
+  receipts and all market data; two additional completed-verification venvs were
+  subsequently removed for the same bounded-storage reason. Candidate source and
+  receipts remain; recreate its venv from the unchanged lock if needed. No other
+  project's files/caches touched. Final root
   suite passed. Verifier tuple parsing and scan-log-count assertions were corrected;
   these were verifier errors, not data defects or suppressed scanner findings.
 
@@ -163,6 +191,10 @@ disk-pressure refusal remain. Prior sustained-resource proof stays dated, not a 
 week-long measurement. Native PostgreSQL 17.11, Python 3.13.16, uv 0.13.1 and Polars/runtime
 2.0.0 reused. Fresh-clone proof uses committed source, fresh venv and verified shared
 cache/wheel; it is explicitly not a cold internet-cache benchmark.
+[Dated Windows/storage snapshot](evidence/windows-environment.json): 16.90 GB RAM,
+eight logical CPUs, 2.023 GB managed workspace, 338.05 GB free, 8,738,483-byte DEV
+database, NORMAL storage pressure; the default 2 GB market-data budget remains.
+This is a snapshot, not a fresh peak-load/overnight measurement.
 
 ## Exness and remaining exit actions
 

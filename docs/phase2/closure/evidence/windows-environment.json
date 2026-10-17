@@ -1,0 +1,21 @@
+{
+  "observed_at": "2026-10-17T14:55:33.380641+00:00",
+  "python": "3.13.16",
+  "uv": "uv 0.13.1 (62faed335 2026-10-13 x86_64-pc-windows-msvc)",
+  "postgres": "17.11",
+  "platform": "Windows",
+  "logical_cpus": 8,
+  "ram_bytes": 16895107072,
+  "managed_workspace_bytes": 2023328779,
+  "database_bytes": 8738483,
+  "disk_free_bytes": 338049019904,
+  "storage_pressure": "NORMAL",
+  "manifests": 56,
+  "polars_threads": 2,
+  "data_quota_bytes": 2000000000,
+  "accepted_raw_and_parquet_bytes": 3717958,
+  "execution_enabled": false,
+  "binance_live_derivatives": "BLOCKED_BY_POLICY",
+  "verification_venv_cleanup": "Six explicitly resolved disposable venvs only; native PowerShell containment/reparse checks before deletion. All sources, receipts, caches, active root runtime and market data preserved. Final-clone availability is recorded separately after verification.",
+  "benchmark_limitation": "Snapshot only, not seven-day or peak-load proof; previous sustained receipt remains historical."
+}

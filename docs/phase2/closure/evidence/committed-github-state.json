@@ -1,0 +1,38 @@
+{
+  "observed_at": "2026-10-17T14:44:16.470974+00:00",
+  "main": "16e63aeb9e7e1a97082d4a004142e0af163a4571",
+  "head": "8eb92ea0a41cc0f43ec9003dcd63a6537262e156",
+  "pr": {
+    "headRefName": "phase-2/trustworthy-data",
+    "headRefOid": "8eb92ea0a41cc0f43ec9003dcd63a6537262e156",
+    "mergedAt": null,
+    "state": "OPEN",
+    "url": "https://github.com/haseeb1229/auvexo-alpha/pull/3"
+  },
+  "repository": {
+    "nameWithOwner": "haseeb1229/auvexo-alpha",
+    "url": "https://github.com/haseeb1229/auvexo-alpha",
+    "visibility": "PUBLIC"
+  },
+  "runs": [
+    {
+      "conclusion": "success",
+      "databaseId": 39041805713,
+      "event": "pull_request",
+      "headSha": "8eb92ea0a41cc0f43ec9003dcd63a6537262e156",
+      "status": "completed",
+      "url": "https://github.com/haseeb1229/auvexo-alpha/actions/runs/39041805713"
+    },
+    {
+      "conclusion": "success",
+      "databaseId": 39041802379,
+      "event": "push",
+      "headSha": "8eb92ea0a41cc0f43ec9003dcd63a6537262e156",
+      "status": "completed",
+      "url": "https://github.com/haseeb1229/auvexo-alpha/actions/runs/39041802379"
+    }
+  ],
+  "settings_changed": false,
+  "owner_public_exception": "APPROVED temporary, independent review by 2026-10-24",
+  "scheduled_qualified_dates": []
+}
