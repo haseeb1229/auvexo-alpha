@@ -1,0 +1,55 @@
+{
+  "status": "OPEN",
+  "days": [
+    {
+      "day": "2026-10-17",
+      "events": 0,
+      "status": "INCOMPLETE",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-18",
+      "events": 0,
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-19",
+      "events": 0,
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-20",
+      "events": 0,
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-21",
+      "events": 0,
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-22",
+      "events": 0,
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-23",
+      "events": 0,
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    }
+  ],
+  "scope": "Public scheduled 12-minute UTC windows only; not continuous uptime or Exness qualification"
+}

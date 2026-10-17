@@ -59,3 +59,26 @@ snapshot, unknown exposures, actions/actors, evidence hashes, root cause, residu
 preventive tests. Daily review checks coverage, costs and reconciliation; weekly review checks
 edge/capacity/security updates. An owner unavailable during unqualified incidents keeps
 new exposure disabled. Monitoring doesn't replace a realistic owner-response commitment.
+
+## Phase 2 data operations
+
+Use the [data setup and recovery runbook](phase2/SETUP_AND_RECOVERY.md) for bounded
+imports, scheduled observation, persistent cooldowns, orphan reconciliation and
+metadata-plus-Parquet restore. Seven scheduled days must be actual calendar evidence;
+engineering completion does not close this observation gate. Readiness is diagnostics,
+never trading readiness. Source correction creates a new lineage, not a destructive rollback.
+
+## Amendment: parallel evidence and live prerequisites
+
+The [current bounded daily schedule](amendments/SCHEDULER_2300.md) is 22:57 warm-up and
+23:00-23:12 Pakistan time (17:57 / 18:00-18:12 UTC), first eligible October 18, 2026.
+Seven genuine consecutive dates may continue alongside independently authorized non-money
+engineering under [ADR-013](adr/013-source-specific-acceptance.md); full operational acceptance
+remains OPEN until applicable original evidence is complete. Twelve minutes/day is collector
+reliability qualification, never 24/7 uptime or live readiness.
+
+Before Phase 8, independently verify protected main/release or equivalent, CI-bound release
+manifest/tag and no unreviewed release; current legal/jurisdiction/data-use eligibility;
+off-device encrypted recovery and owner-response/uptime plans. Tax/statement/recordkeeping
+responsibility requires EXTERNAL owner/qualified-professional disposition. The agent makes no
+legal, tax or religious conclusion; software completion cannot close these external gates.

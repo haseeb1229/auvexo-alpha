@@ -2,8 +2,9 @@
 
 Status: FROZEN boundaries; Phase 1 stack pinned and exercised in
 [toolchain evidence](phase1/TOOLCHAIN.md). [Implemented subset](phase1/IMPLEMENTATION.md)
-contains contracts, disabled boundaries and diagnostics only. The worker/gateway/data/risk
-components below remain future architecture, not installed services.
+records the historical foundation. The [Phase 2 data subset](phase2/IMPLEMENTATION.md)
+adds bounded public data collection and immutable research storage. Risk, strategy and
+broker gateway components below remain future architecture, not installed services.
 
 Use a modular monolith with a separate bounded research worker and a separate Windows
 MT5 gateway process. This is process isolation for safety and resource limits, not a
@@ -67,7 +68,8 @@ patch using the [support policy](https://www.postgresql.org/support/versioning/)
 Timescale is deferred: three assets do not yet justify extension operations or
 [edition/license differences](https://github.com/timescale/timescaledb/blob/main/LICENSE).
 Partition/index plain PostgreSQL and measure before changing it. Exact package versions
-are intentionally not frozen without a compatibility install/test matrix.
+were selected with compatibility install/test evidence in Phase 1/2; the current lock is
+accepted under an explicit [maturity exception](amendments/DEPENDENCY_MATURITY.md), not age alone.
 
 ## Application contracts (design, not runnable schemas)
 

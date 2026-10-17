@@ -23,6 +23,14 @@ const required = [
   'docs/reference/PHASE_1_BRIEF.txt', 'docs/phase1/ACCEPTANCE_TESTS.md',
   'docs/phase1/SETUP.md', 'docs/phase1/TOOLCHAIN.md', 'docs/phase1/IMPLEMENTATION.md',
   'docs/phase1/VERIFICATION.md', 'docs/phase1/HANDOFF.md', 'pyproject.toml', 'uv.lock',
+  'docs/reference/PHASE_2_BRIEF.txt', 'docs/phase2/ACCEPTANCE_TESTS.md',
+  'docs/phase2/IMPLEMENTATION.md', 'docs/phase2/SOURCES_AND_RIGHTS.md',
+  'docs/phase2/QUALITY_AND_COVERAGE.md', 'docs/phase2/SETUP_AND_RECOVERY.md',
+  'docs/phase2/VERIFICATION.md', 'docs/phase2/HANDOFF.md',
+  'docs/reference/BASELINE_CORRECTION_BRIEF.txt',
+  'docs/adr/013-source-specific-acceptance.md',
+  'docs/amendments/BASELINE_CORRECTION_HANDOFF.md',
+  'docs/amendments/DEPENDENCY_MATURITY.md', 'docs/amendments/SCHEDULER_2300.md',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -33,6 +41,8 @@ check(read('AGENTS.md') === read('CLAUDE.md'), 'AGENTS.md and CLAUDE.md differ')
 const digest = createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_0_BRIEF.txt'))).digest('hex');
 check(digest === '1a3ffff5ed19d09ea48e80d4591ccaddfb09e9da64bde1ce3ce31fbd69b70fb2', 'Archived brief hash changed');
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_1_BRIEF.txt'))).digest('hex') === 'c67380a3ead8744b85f30447b8cd00b362813abe185610221f975306d840b98b', 'Archived Phase 1 brief hash changed');
+
+check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_2_BRIEF.txt'))).digest('hex') === 'f730821f0bc78faf90cb598579b1c1e93109c3d9b59bdda6b2395300062a85a5', 'Archived Phase 2 brief hash changed');
 
 const files = [];
 function walk(dir) {
@@ -66,6 +76,9 @@ const register = read('docs/REQUIREMENTS_REGISTER.md');
 for (let i = 0; i < 40; i++) {
   const id = `R-${String(i).padStart(3, '0')}`;
   check(register.includes(`| ${id} / ${i} |`), `Missing brief section mapping: ${id}`);
+}
+for (const id of ['R-035-BA-01', 'R-014-BA-01', 'R-014-BA-02', 'R-015-BA-01', 'R-018-BA-01', 'R-031-BA-01', 'R-029-BA-01']) {
+  check(register.includes(`| ${id} |`), `Missing amendment mapping: ${id}`);
 }
 const decisions = read('docs/OPEN_DECISIONS.md');
 for (let i = 1; i <= 15; i++) check(decisions.includes(`| OD-${String(i).padStart(2, '0')} |`), `Missing OD-${i}`);

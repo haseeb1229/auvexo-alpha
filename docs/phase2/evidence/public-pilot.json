@@ -1,0 +1,143 @@
+{
+  "observed_at": "2026-10-17T05:29:11.562535+00:00",
+  "receipts": [
+    {
+      "command": [
+        "history",
+        "--enable-public-data",
+        "--symbol",
+        "BTCUSDT",
+        "--interval",
+        "1h",
+        "--period",
+        "2024-12-31",
+        "--period",
+        "2025-01-01",
+        "--period",
+        "2020-03",
+        "--period",
+        "2022-11",
+        "--period",
+        "2024-06",
+        "--period",
+        "2026-09"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "seconds": 260.771,
+      "peak_tree_rss_bytes": 143925248,
+      "cpu_seconds": 73.453125,
+      "sampling_races": 0,
+      "evidence": ".local\\data-pilot-20261017T052005Z\\00-history.json",
+      "log": ".local\\data-pilot-20261017T052005Z\\00.log"
+    },
+    {
+      "command": [
+        "history",
+        "--enable-public-data",
+        "--symbol",
+        "ETHUSDT",
+        "--interval",
+        "1h",
+        "--period",
+        "2024-12-31",
+        "--period",
+        "2025-01-01",
+        "--period",
+        "2020-03",
+        "--period",
+        "2022-11",
+        "--period",
+        "2024-06",
+        "--period",
+        "2026-09"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "seconds": 84.846,
+      "peak_tree_rss_bytes": 157405184,
+      "cpu_seconds": 19.0,
+      "sampling_races": 0,
+      "evidence": ".local\\data-pilot-20261017T052005Z\\01-history.json",
+      "log": ".local\\data-pilot-20261017T052005Z\\01.log"
+    },
+    {
+      "command": [
+        "specs",
+        "--enable-public-data"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "seconds": 27.473,
+      "peak_tree_rss_bytes": 133296128,
+      "cpu_seconds": 11.15625,
+      "sampling_races": 0,
+      "evidence": ".local\\data-pilot-20261017T052005Z\\02-specs.json",
+      "log": ".local\\data-pilot-20261017T052005Z\\02.log"
+    },
+    {
+      "command": [
+        "collect",
+        "--enable-public-data",
+        "--cycles",
+        "2"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "seconds": 110.419,
+      "peak_tree_rss_bytes": 147521536,
+      "cpu_seconds": 18.984375,
+      "sampling_races": 0,
+      "evidence": ".local\\data-pilot-20261017T052005Z\\03-collect.json",
+      "log": ".local\\data-pilot-20261017T052005Z\\03.log"
+    },
+    {
+      "command": [
+        "coverage"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "seconds": 21.159,
+      "peak_tree_rss_bytes": 134270976,
+      "cpu_seconds": 4.21875,
+      "sampling_races": 0,
+      "evidence": ".local\\data-pilot-20261017T052005Z\\04-coverage.json",
+      "log": ".local\\data-pilot-20261017T052005Z\\04.log"
+    },
+    {
+      "command": [
+        "verify"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "seconds": 28.324,
+      "peak_tree_rss_bytes": 143093760,
+      "cpu_seconds": 7.46875,
+      "sampling_races": 0,
+      "evidence": ".local\\data-pilot-20261017T052005Z\\05-verify.json",
+      "log": ".local\\data-pilot-20261017T052005Z\\05.log"
+    },
+    {
+      "command": [
+        "qualification",
+        "--start-day",
+        "2026-10-17"
+      ],
+      "status": "PASS",
+      "exit_code": 0,
+      "seconds": 12.964,
+      "peak_tree_rss_bytes": 128802816,
+      "cpu_seconds": 4.203125,
+      "sampling_races": 0,
+      "evidence": ".local\\data-pilot-20261017T052005Z\\06-qualification.json",
+      "log": ".local\\data-pilot-20261017T052005Z\\06.log"
+    }
+  ],
+  "mandatory_spend_usd": 0,
+  "environment": {
+    "platform": "win32",
+    "python": "3.13.16",
+    "total_ram": 16895107072,
+    "free_disk": 362582224896
+  }
+}

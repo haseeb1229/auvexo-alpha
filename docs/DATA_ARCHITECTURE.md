@@ -85,3 +85,39 @@ Database roles separate migrator, application, append-only audit writer, read-on
 and backup. Append-only constraints plus hash chains and signed exported checkpoints detect
 tampering; a local administrator can still alter storage, so do not call local logs immutable
 against administrator compromise. Restore verification includes referential/lineage checks.
+
+## Phase 2 implementation and retention clarification
+
+[ADR-012](adr/012-phase2-data-boundaries.md) scopes the implemented
+[research data path](phase2/IMPLEMENTATION.md). The five-year warm-bar default above
+is an operational planning default, never a research-history maximum or minimum.
+Accepted pilot hourly artifacts use review-before-removal retention within byte quotas;
+no age-only deletion is implemented. Exact selected coverage and gaps live in the
+[coverage matrix](phase2/QUALITY_AND_COVERAGE.md). Actual receipt remains distinct from
+the unknown original publication/first-seen time; strict as-of queries use receipt.
+
+### Phase 2 closure clarification: historical simulation is a separate design gate
+
+Strict `read_as_of` preserves the actual 2026 receipt/processing boundary. A simulated
+2020 decision cannot consume a bar first retrieved in 2026 through that production
+observed-availability contract. Phase 3 must separately design an opt-in, explicitly
+named price-only historical close/lag assumption, preserving observed receipt fields
+and its causal limitations. It must not grant historical macro/news vintages a price
+close-time assumption. No simulation mode or relaxed as-of rule is implemented here.
+
+## Future price simulation and research storage benchmark
+
+Phase 3 must name and opt into PRICE_CLOSE_PLUS_CAUSAL_LAG separately from strict observed-as-of:
+finalized close + explicit positive causal lag, actual 2026 receipt/processing retained, no
+same-close lookahead, and policy/lag recorded in the experiment manifest. Macro/news/on-chain
+vintages never inherit the assumption. No simulator or availability relaxation is implemented now.
+
+Before optimizing accepted storage, benchmark the audit-first Parquet shape (string financial
+columns plus canonical row record) at realistic multi-year BTC/ETH/XAU-equivalent 1m research
+scale within laptop CPU/RAM/disk budgets. Record selected years/row counts, canonical dataset/
+version/hash, hardware/software, compressed size, scan/filter/join time, Decimal conversion,
+peak RAM and exact replay correctness. Synthetic scale fixtures must be labelled, never source
+qualification. No fixed history cap follows from this benchmark. If measured necessary later,
+permit a derived research representation bound to the canonical version/hash with exact fixed-point/
+Decimal semantics and parity/round-trip tests. It is regenerable, invalidated with its parent,
+and cannot become conflicting truth. No new format or accepted data rewrite in this correction.

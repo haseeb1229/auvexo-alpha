@@ -1,6 +1,7 @@
 # Architecture decision records
 
-All decisions dated 2026-10-15. FROZEN records require a superseding ADR; PROVISIONAL
+ADRs 001-010 date from 2026-10-15, 011-012 from 2026-10-16 and 013 from 2026-10-17.
+Each record states its own status. FROZEN records require a superseding ADR; PROVISIONAL
 records require their named proof gate. None is evidence of an implemented control.
 
 | ADR | Status | Decision |
@@ -16,5 +17,8 @@ records require their named proof gate. None is evidence of an implemented contr
 | [ADR-009](009-security-and-local-first.md) | FROZEN | security and local first |
 | [ADR-010](010-reuse-without-root-fork.md) | FROZEN | reuse without root fork |
 | [ADR-011](011-phase1-foundation.md) | FROZEN | Phase 1 zero-capability foundation; scoped checker evolution |
+| [ADR-012](012-phase2-data-boundaries.md) | Accepted for DS-01/02 spot research; operational gates OPEN | Bounded research data, immutable lineage and evidence-driven retention |
+
+| [ADR-013](013-source-specific-acceptance.md) | FROZEN; independently accepted at bdae1a1 | Source-specific engineering acceptance; full operational gates retained; 23:00 Pakistan schedule |
 
 Exact versions, capital decisions and deferred triggers live in [open decisions](../OPEN_DECISIONS.md).

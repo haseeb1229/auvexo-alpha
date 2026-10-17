@@ -1,0 +1,72 @@
+{
+  "status": "OPEN",
+  "schedule_id": "public-data-2300-pkt-v1",
+  "schedule": "22:57 Asia/Karachi warmup (17:57 UTC); 23:00-23:12 Asia/Karachi collection (18:00-18:12 UTC)",
+  "first_eligible_day": "2026-10-18",
+  "days": [
+    {
+      "day": "2026-10-18",
+      "events": 0,
+      "verified_events": 0,
+      "invalid_event_ids": [],
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-19",
+      "events": 0,
+      "verified_events": 0,
+      "invalid_event_ids": [],
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-20",
+      "events": 0,
+      "verified_events": 0,
+      "invalid_event_ids": [],
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-21",
+      "events": 0,
+      "verified_events": 0,
+      "invalid_event_ids": [],
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-22",
+      "events": 0,
+      "verified_events": 0,
+      "invalid_event_ids": [],
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-23",
+      "events": 0,
+      "verified_events": 0,
+      "invalid_event_ids": [],
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    },
+    {
+      "day": "2026-10-24",
+      "events": 0,
+      "verified_events": 0,
+      "invalid_event_ids": [],
+      "status": "OPEN",
+      "first": null,
+      "last": null
+    }
+  ],
+  "scope": "Public scheduled 12-minute UTC windows only; not continuous uptime or Exness qualification"
+}

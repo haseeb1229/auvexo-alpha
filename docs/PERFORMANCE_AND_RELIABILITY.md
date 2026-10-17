@@ -56,3 +56,17 @@ external delivery is optional, explicitly configured and tested. An alert cannot
 an offline laptop always-on. Demo may pause with sleep/lid close; live needs an approved
 uptime/power/connectivity/owner-response plan and broker-side protection. Free-tier uptime
 is not a capital-safety assumption.
+
+## Phase 2 workload qualification
+
+[Data verification](phase2/VERIFICATION.md) separates genuine bounded pilot load from
+Phase 1 idle measurements. Collector: one worker, two Polars CPU threads, 16 MiB
+compressed/32 MiB expanded archive, 50,000 rows per batch, explicit request/byte budgets.
+No tick/quote latency guarantee or continuous uptime claim follows from closed-bar polling.
+The [scheduled collection procedure](phase2/SETUP_AND_RECOVERY.md) produces genuine
+daily evidence; sleeping/offline days remain gaps.
+
+Phase 3 must benchmark the current audit-first Parquet string/canonical-record layout at
+realistic multi-year 1m scale before any derived-format optimization; see
+[data architecture](DATA_ARCHITECTURE.md). This is a future design/measurement requirement,
+not a new storage format or a performance claim.

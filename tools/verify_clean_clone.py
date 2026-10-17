@@ -19,10 +19,13 @@ def main() -> None:
     uv = LOCAL / "toolchains/uv-wheel/uv-0.13.1.data/scripts/uv.exe"
     env = {k: v for k, v in os.environ.items() if not k.startswith("AUVEXO_")}
     env["UV_PYTHON_INSTALL_DIR"] = str(LOCAL / "python")
-    env["UV_CACHE_DIR"] = str(LOCAL / f"clean-cache-{suffix}")
+    env["UV_CACHE_DIR"] = str(LOCAL / "uv-cache")
     env["UV_LINK_MODE"] = "copy"
     creds = credentials()
     env.update(
+        TEST_PG_DATA_WRITER_PASSWORD=json.loads((LOCAL / "data-secrets.json").read_text())[
+            "data_writer"
+        ],
         TEST_PG_ADMIN_PASSWORD=creds["admin"],
         TEST_PG_APP_PASSWORD=creds["app"],
         TEST_PG_DATABASE=database,
@@ -38,7 +41,7 @@ def main() -> None:
             "--no-local",
             "--no-hardlinks",
             "--branch",
-            "phase-1/engineering-foundation",
+            "phase-2/trustworthy-data",
             str(ROOT),
             str(target),
         ],
@@ -47,6 +50,26 @@ def main() -> None:
     actual = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=target, text=True).strip()
     assert actual == commit
     assert not (target / ".venv").exists()
+    wheel = LOCAL / "wheels/polars_runtime_32-2.0.0-cp310-abi3-win_amd64.whl"
+    if wheel.exists():
+        assert hashlib.sha256(wheel.read_bytes()).hexdigest() == (
+            "7da1caf3c7b4f397fb213c984013a0c755557619a2d511899a1ff74392484078"
+        )
+        subprocess.run([str(uv), "venv"], cwd=target, env=env, check=True)
+        subprocess.run(
+            [
+                str(uv),
+                "pip",
+                "install",
+                "--no-index",
+                "--find-links",
+                str(wheel.parent),
+                "polars-runtime-32==2.0.0",
+            ],
+            cwd=target,
+            env=env,
+            check=True,
+        )
     subprocess.run([str(uv), "sync", "--locked"], cwd=target, env=env, check=True)
     install_seconds = time.monotonic() - started
     args = dict(host="127.0.0.1", port=PORT, user="auvexo_admin", password=creds["admin"])
@@ -87,7 +110,9 @@ def main() -> None:
         clone_path=target.name,
         clone_method="git clone --no-local --no-hardlinks; committed source only",
         fresh_venv=True,
-        fresh_download_cache=True,
+        fresh_download_cache=False,
+        verified_shared_download_cache=True,
+        verified_local_runtime_wheel=wheel.exists(),
         shared_verified_python=True,
         isolated_migration=True,
         clean_tree=True,

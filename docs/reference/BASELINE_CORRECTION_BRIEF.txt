@@ -1,0 +1,272 @@
+AUVEXO ALPHA — BASELINE CORRECTION & ROADMAP GOVERNANCE AMENDMENT
+Target: Astra 6 High
+Reviewer/next-phase planner: GPT-5.6 Sol
+Owner: haseeb1229
+Scope: DOCUMENTATION/GOVERNANCE + MINIMAL TESTED SUPPORT ONLY.
+DO NOT START PHASE 3 IMPLEMENTATION.
+
+ENTRY SOURCE OF TRUTH
+Before work, inspect current GitHub/local repo. Expected reviewed state on 2026-10-17:
+- repository: haseeb1229/auvexo-alpha
+- branch: phase-2/trustworthy-data
+- expected reviewed head: 3190d104a7a05b43645117ea987bee50ad80c200
+- main: 16e63aeb9e7e1a97082d4a004142e0af163a4571
+- PR #3 open/unmerged
+- current visibility PUBLIC under temporary owner-approved exception
+- exact-head hosted CI successful
+If anything differs, report and reconcile rather than reset or rewrite history.
+
+READ FIRST
+Read every current canonical document and the latest Phase 2 closure evidence:
+PRODUCT_CONSTITUTION, REQUIREMENTS_REGISTER, ARCHITECTURE, AGENT_ARCHITECTURE,
+RESEARCH_AND_VALIDATION, RISK_AND_CAPITAL_POLICY, EXECUTION_AND_VENUE_POLICY,
+DATA_ARCHITECTURE, DATA_SOURCE_REGISTER, SECURITY_BASELINE,
+PERFORMANCE_AND_RELIABILITY, OPERATIONS_AND_RECOVERY,
+OPEN_SOURCE_REUSE_REVIEW, CLIENT_AND_UX_DIRECTION, ROADMAP, OPEN_DECISIONS,
+engineering/ENGINEERING_RULES, ADR index and all ADRs, AGENTS/CLAUDE,
+Phase 0/1 acceptance records, Phase 2 acceptance/implementation/verification/handoff,
+and docs/phase2/closure including public/scheduler/Exness proposals/evidence.
+Current repo state outranks old handoffs. Preserve historical snapshots as dated facts.
+
+OWNER INTENT
+Auvexo Alpha is NOT being restarted. Preserve correct Phase 0/1/2 engineering.
+The owner wants continued development without fake evidence and without calendar-only
+qualification tests needlessly blocking unrelated engineering.
+The owner also explicitly approves changing the Phase 2 public-data daily qualification
+schedule to **22:57 Pakistan-time warm-up and 23:00–23:12 Pakistan-time collection**
+(**17:57 UTC warm-up; 18:00–18:12 UTC qualification**), implemented coherently in code,
+tests, canonical docs and the existing Windows scheduled task as specified below.
+
+PRIMARY CORRECTION
+The current FROZEN sequential roadmap over-couples engineering progression with external
+calendar/source qualification. Introduce an explicit, reviewed distinction between:
+
+1. ENGINEERING / RESEARCH-UNBLOCKING ACCEPTANCE
+Allows later NON-MONEY engineering only where its concrete inputs/contracts are already
+qualified. It does NOT close earlier operational/source gates and does NOT authorize
+promotion, broker orders, demo execution or live capital.
+
+2. FULL OPERATIONAL / ACTIVATION ACCEPTANCE
+Requires the original real-environment evidence applicable to execution/promotion.
+Calendar/source/security gates remain hard for activation.
+
+The new model must preserve canonical Phase numbers 0–9. Do not create marketing phases
+or renumber requirements. Use a superseding ADR (next sequential ADR number) and update
+ROADMAP/requirements/open decisions/agent instructions as needed.
+
+PHASE 2 SPECIFIC DISPOSITION TO DESIGN
+Phase 2 contains independent concerns:
+A. trusted historical/public-data engineering and replay;
+B. scheduled collector operational reliability;
+C. Exness DEMO read-only source qualification.
+
+Current evidence supports A strongly.
+B remains genuine future calendar evidence; retrospective history cannot substitute.
+C remains blocked until owner separately authorizes secure DEMO onboarding.
+
+The corrected governance may authorize Phase 3 ENGINEERING/RESEARCH on a SOURCE-SPECIFIC basis
+after independent review, while B/C continue, provided:
+- no execution capability exists;
+- unqualified instruments/sources remain blocked;
+- a research claim cannot silently transfer between Binance spot and Exness CFD;
+- any Phase 3 result depending on Exness/XAU stays unavailable until DS-03 is qualified;
+- full Phase 2 operational status remains visibly OPEN;
+- no strategy promotion skips data/source eligibility.
+
+DATA RIGHTS CORRECTION
+Current Binance Vision terms explicitly restrict commercial/live proprietary use.
+Make Phase 3 experiment/release evidence carry a typed data-use classification, e.g.:
+ENGINEERING_ONLY / PERSONAL_RESEARCH / PROMOTION_ELIGIBLE / BLOCKED.
+Exact naming may be improved, but semantics must be explicit and tested when implemented.
+Vision-derived results must not become live/promoted merely because alpha looks good.
+Any future promotion needs data/source rights consistent with intended use.
+
+HISTORICAL SIMULATION CORRECTION
+Do NOT weaken strict observed-as-of truth.
+Document the Phase 3 requirement for a separately named opt-in price simulation availability
+policy:
+- candle close + explicit causal lag;
+- actual 2026 receipt retained;
+- no same-close lookahead;
+- macro/news/on-chain vintage availability does NOT inherit price-close assumptions;
+- experiment manifest records this simulation assumption.
+No simulator is implemented in this correction.
+
+DEPENDENCY MATURITY REVIEW
+Original owner preference is mature/supported, not novelty.
+Current tested lock includes several extremely recent releases, including FastAPI 0.143.2,
+Pydantic 2.14.1 and Polars 2.0.0. Do NOT churn a green lock merely to downgrade.
+Record an explicit maturity exception/review:
+- exact current lock is accepted because Windows/CI/restore evidence exists;
+- no auto-upgrade;
+- re-evaluate broker/financial-critical libraries at adoption phase;
+- dependency age is not itself correctness proof.
+Do not change dependency pins unless a real defect/security issue is found and tested.
+
+DOCUMENTATION HYGIENE
+Audit/fix current-navigation status without altering historical snapshot documents:
+- root README is stale Phase 1 text;
+- docs/README lead-in is stale;
+- OPEN_DECISIONS OD-01 stale review wording;
+- ADR index incorrectly says all decisions date 2026-10-15;
+- AGENTS/CLAUDE contain historical Phase-0-specific merge language;
+- constitution/status/navigation lines that can mislead current agents;
+- public temporary exception vs private-first baseline must remain explicit.
+Do not rewrite dated historical handoffs merely to make them look current.
+
+PUBLIC REPOSITORY
+The owner-approved PUBLIC exception is temporary and review-due 2026-10-24.
+Do not change visibility in this task unless the owner explicitly instructs.
+Document that:
+- public history cannot be revoked later;
+- no broker/session/owner-private data may enter public Git history;
+- before broker credential/session integration or proprietary alpha work, independent review
+  must resolve PRIVATE return or an owner-approved superseding permanent-public ADR.
+Do not infer permanent-public approval.
+
+RESEARCH STORAGE PERFORMANCE
+Do not rewrite accepted Phase 2 data.
+Add a Phase 3 design/benchmark requirement to assess the current audit-first Parquet shape
+(string financial columns + canonical row record) at realistic multi-year 1m research scale.
+If measured necessary later, allow a derived research-optimized representation bound to
+canonical dataset/version/hash and exact fixed-point/Decimal semantics. Never establish a
+conflicting source of truth. No new storage format now.
+
+SCHEDULER GATE — OWNER-APPROVED 11 PM PAKISTAN WINDOW
+Keep all existing scheduler/evidence history honest. Never backfill fake runs and never
+rewrite the dated 04:57/05:00 scheduler receipt as if it had always used a different time.
+
+The founder now explicitly authorizes changing the daily Phase 2 scheduled reliability
+window from the awkward 05:00–05:12 Pakistan-time window to the owner-friendly fixed
+**23:00–23:12 Pakistan Standard Time (UTC+05:00)** window, with bounded warm-up beginning
+at **22:57 Pakistan time**. This corresponds to:
+- warm-up: **17:57 UTC**
+- qualifying evidence window: **18:00–18:12 UTC**
+
+This authorization applies only to the existing bounded PUBLIC market-data reliability
+task. It does NOT authorize Exness, any broker/account connection, orders, new services,
+sleep/power-policy weakening, or Phase 3 implementation.
+
+Implement this as one coherent reviewed requirement/code/test/scheduler change, not by
+editing only Windows Task Scheduler:
+1. Update the canonical scheduler/qualification requirement and current docs so 23:00–23:12
+   Pakistan / 18:00–18:12 UTC is the single new qualifying window.
+2. Update `tools/run_daily_window.py` so the scheduled wrapper targets the new UTC window.
+   Prefer one explicit canonical schedule definition/helper rather than duplicated magic
+   clock constants that can drift between wrapper, qualification and tests.
+3. Update `src/auvexo_alpha/application/data_reporting.py` qualification logic so a day
+   qualifies only from genuine verified observations in the new 18:00–18:12 UTC window.
+   Preserve all existing manifest/artifact/freshness/duplicate/gap requirements.
+4. Update focused tests (`test_scheduled_wrapper.py`, `test_data_gates.py` and any related
+   contract/docs checks) for the new local/UTC mapping, boundary behavior, late starts and
+   seven actual consecutive calendar dates. Do not weaken any evidence threshold.
+5. After code/tests/preflight pass, update the already-approved Windows task
+   `AuvexoAlpha-PublicData-Daily` from 04:57 local to **22:57 local** using the same
+   limited interactive owner identity, IgnoreNew, no retries/late catch-up, network+AC
+   requirement, bounded execution and owner-restricted logs. This owner message is the
+   explicit authorization required for that retiming; do not ask again merely for the
+   clock-time change.
+6. Inspect and record the actual registered task after retiming, including exact next run,
+   identity, action, arguments, working directory and constraints. A configured/Ready task
+   is still not a successful observation.
+7. Preserve the old 04:57/05:00 scheduler proposal/receipt as a dated historical fact where
+   appropriate; create a superseding/current receipt or clearly versioned update rather
+   than falsifying old evidence.
+8. The genuine consecutive-day sequence starts only from the first actual successful
+   23:00–23:12 Pakistan-time window after this reviewed change. Earlier retrospective
+   Oct 10–16 archives and daytime pilots never count as scheduler reliability.
+9. If the first intended 22:57 start is already too close/past to complete safe verification,
+   do NOT rush, backdate or use late catch-up. Start from the next genuine scheduled day.
+10. Owner operating prerequisite remains: laptop logged in and awake, online, on AC, and
+    Auvexo PostgreSQL already running for the scheduled window. Astra/Claude/ChatGPT does
+    NOT need to be open; the Windows-local task runs independently of model usage limits.
+11. Document that this seven-day operational reliability evidence may continue in parallel
+    with Phase 3 engineering after the new research-unblocking governance is independently
+    accepted. It remains a hard gate wherever full operational/source acceptance is required.
+12. The twelve-minute/day check is only a bounded collector-reliability qualification,
+    never a claim of 24/7 uptime or live-trading readiness.
+
+FUTURE QUALIFICATION TRACKS
+Clarify that engineering work and qualification can overlap where safe:
+- Phase 4 paper observation does not have to freeze unrelated later UI/research engineering;
+- Phase 5 sustained DEMO evidence may run while non-money Phase 6/7 engineering is built;
+- no activation/promotion/live eligibility may use an incomplete qualification.
+Preserve existing financial gates and numeric evidence targets unless this correction
+specifically explains a conflict; do not casually lower them.
+
+PHASE 3 FUTURE ACCEPTANCE PREPARATION
+Without implementing Phase 3, ensure the roadmap says its first implementation prompt must:
+- build correctness before alpha claims;
+- use a deterministic event-driven simulator with common intent/accounting semantics;
+- include hand-calculated fixtures;
+- cross-check selected cases against an independent reference/mature engine or calculation,
+  without root-forking a third-party bot;
+- use chronological splits, purge/embargo, walk-forward/OOS, trial ledger and cost stress;
+- model spread/commission/swap/funding/slippage/latency/intrabar ambiguity;
+- keep unqualified source/instrument research blocked;
+- treat Binance Vision as nonproduction research unless rights change;
+- preserve NO EDGE as valid;
+- forbid broker orders.
+
+LIVE GOVERNANCE ADDITIONS
+Before Phase 8, make explicit (documentation only):
+- repo/release integrity control (protected main/release or equivalent, CI-bound release
+  manifest/tag, no unreviewed release);
+- current legal/jurisdiction/data-use eligibility;
+- tax/statement/recordkeeping responsibility as an EXTERNAL owner/professional gate;
+- off-device encrypted recovery and owner-response/uptime plan.
+Do not make legal/tax/religious conclusions yourself.
+
+PERMANENT RULES
+- Agentic outside, deterministic inside.
+- No Phase 3 implementation in this task.
+- No Exness connection/SDK installation/credential changes.
+- No DEMO or REAL order.
+- Execution disabled all modes.
+- Binance live derivatives BLOCKED_BY_POLICY.
+- No paid services/purchases.
+- No Git history rewrite/force push.
+- Founder Git identity, no AI coauthor/generated-by banner.
+- AGENTS and CLAUDE byte-identical.
+- Preserve all current tests; do not weaken for pass.
+- No unrelated Wayvro/Minhaj files/services/databases.
+- Keep architecture modular monolith; no speculative Docker/microservices/message bus.
+- Do not modify reviewed migrations/data manifests merely for documentation cleanup.
+
+VERIFICATION
+Run all applicable existing checks after documentation/governance changes:
+- docs checker and local-link/requirements mappings
+- AGENTS/CLAUDE byte equality
+- git diff --check
+- source/history secret scan if tracked source changes
+- full existing tests if any executable/tool/checker file changes
+- hosted CI at final pushed PR head when available
+- confirm scheduler state was not mutated
+- confirm execution remains disabled
+- confirm no broker SDK/order path introduced.
+
+GIT WORKFLOW
+Work on existing phase-2/trustworthy-data PR #3 unless current repo evidence demands otherwise.
+No force push, no merge.
+Use minimal commits with clear founder authorship.
+Push final reviewed changes and leave PR #3 open.
+
+REQUIRED HANDOFF
+Produce a consolidated "Baseline Correction / Roadmap Amendment Handoff" containing:
+- exact before/after SHA, main, PR and visibility;
+- files changed with rationale;
+- contradictions found and exact resolution;
+- new ADR number/status and requirement impact;
+- exact new acceptance semantics (research-unblocking vs full operational);
+- Phase 2 A/B/C status matrix;
+- data-rights promotion rules;
+- dependency maturity exception;
+- current 7-day scheduled count (do not fabricate future days);
+- Exness DS-03 status;
+- stale-doc fixes;
+- tests/checks/CI and failures;
+- remaining owner/reviewer decisions;
+- statement that Phase 3 has NOT begun;
+- explicit request for GPT-5.6 Sol independent review before merge/next phase.
+
+Stop there. Do not generate or execute a Phase 3 prompt yourself.

@@ -55,3 +55,25 @@ GitHub security entitlement is assumed. Before demo: auth negatives, service iso
 credential redaction and malicious-tool tests. Before live: independent security review,
 backup drill, owner recovery rehearsal, current dependency scan and release integrity.
 Auth/library selection must use maintained official documentation when implemented.
+
+## Phase 2 data boundary
+
+Public sources use an explicit GET-only host/path allowlist, no credentials, no
+redirects and bounded untrusted input parsing. Separate ingestion DB privileges do
+not grant foundation-policy writes. [Setup](phase2/SETUP_AND_RECOVERY.md) documents
+the local development writer credential and residual owner/admin access. No broker
+secret store, terminal account, SDK or order path is adopted. Exness remains disabled
+until encrypted OS storage, isolation and genuine demo attestation can be proved.
+
+## Public-source and release integrity gates
+
+The owner-approved temporary PUBLIC source exception is review-due 2026-10-24; private-first
+remains the baseline. Public history/copies cannot be revoked. No broker credentials/sessions
+or owner-private data may enter public Git history. Before broker credential/session integration
+or proprietary alpha work, independent review must resolve return to PRIVATE under separate
+owner instruction or an owner-approved superseding permanent-public ADR. This amendment changes
+no visibility, billing, runner or permissions and infers no permanent public approval.
+
+Before Phase 8, require protected main/release or equivalent independently reviewed integrity
+control, a CI-bound release manifest/tag, exact approved hashes and no unreviewed release.
+Current branch settings are not claimed to implement this future gate. See [operations](OPERATIONS_AND_RECOVERY.md).

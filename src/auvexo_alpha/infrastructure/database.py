@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from auvexo_alpha.application.safety import POLICY_VERSION
 from auvexo_alpha.config import Settings
 
-SCHEMA_REVISION = "0001_foundation"
+SCHEMA_REVISION = "0003_source_receipts"
 
 
 def make_engine(settings: Settings) -> Engine:

@@ -1,0 +1,20 @@
+{
+  "observed_at": "2026-10-17T05:45:35.029615+00:00",
+  "status": "PASS",
+  "runtime_commit": "aa96a69983332d2dafe149a12430d9d3deb3de86",
+  "runtime_source_hash": "13d892e68e783a249fdb6bbbf5e6115684058458bc368f42f339b41f457c9b36",
+  "runtime_unchanged": true,
+  "tests": {
+    "passed": 226,
+    "failed": 0,
+    "skipped": 0,
+    "seconds": 154.26,
+    "log_sha256": "0dc0a25bef3a876647db6b3ebd03bce1a054b4a932f6e7b819d90b4bdec7beb5",
+    "backfill_test_sha256": "d76888d16374838c4fec3a3c065c183a4c1a7b399af1ac52a5e3bf544c0119cb"
+  },
+  "ruff_format": "PASS",
+  "ruff_check": "PASS",
+  "strict_mypy": "PASS; 28 source files",
+  "dependency_audit": "PASS; no known vulnerabilities",
+  "clean_clone": "PASS; implementation commit; 226 tests"
+}

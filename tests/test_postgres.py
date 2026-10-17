@@ -36,7 +36,7 @@ def test_r025_p1_actual_postgres_schema_and_defaults() -> None:
         assert conn.execute("SHOW server_version").fetchone()[0].startswith("17.")
         assert (
             conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-            == "0001_foundation"
+            == "0003_source_receipts"
         )
         assert conn.execute(
             "SELECT execution_enabled,binance_live_derivatives FROM foundation_policy"

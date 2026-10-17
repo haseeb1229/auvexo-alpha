@@ -72,3 +72,30 @@ Safety acceptance details (permanent subrequirements of R-022):
 Acceptance scope: a Phase 0 row passes when a coherent design and future proof are
 documented. It does not imply an implemented safety test passed. Requirements are only
 retired by explicit recorded owner/reviewer decision; priority does not authorize omission.
+
+Phase 2 refines the same parents through [stable child requirements](phase2/ACCEPTANCE_TESTS.md).
+No original ID or Phase 1 acceptance assertion is retired.
+
+## Baseline correction impact (2026-10-17; independently accepted at bdae1a1)
+
+The parent rows preserve original Phase 0 traceability, not current implementation status.
+[ADR-013](adr/013-source-specific-acceptance.md) supersedes the all-or-nothing sequencing
+interpretation after independent acceptance; phase numbers, IDs and financial thresholds stay.
+
+| Stable child ID | Requirement / impact | Proof / disposition |
+| --- | --- | --- |
+| R-035-BA-01 | Separate reviewed source-specific engineering/research admission from full operational/activation acceptance; Phase 2 A/B/C explicit; later non-money overlap requires accepted dependencies and a new prompt | [Roadmap](ROADMAP.md), ADR-013; independent exact-head review accepted at bdae1a1; source-specific scope in acceptance record |
+| R-014-BA-01 | Future typed data-use classification in experiment/release manifests; source/product/instrument/range rights propagate; Vision is nonproduction; DS-03/XAU claims blocked | [Research](RESEARCH_AND_VALIDATION.md); positive/negative tests required when implemented in Phase 3 |
+| R-014-BA-02 | Future opt-in price close + positive causal lag simulation policy, actual 2026 receipt retained, no same-close lookahead or macro/news/on-chain inheritance | [Data](DATA_ARCHITECTURE.md); Phase 3 manifest/leakage proofs; no simulator now |
+| R-015-BA-01 | Multi-year 1m audit-first Parquet benchmark before any measured derived optimization; exact canonical hash/fixed-point parity, no conflicting truth/history cap | Data/performance requirements; Phase 3 benchmark and future parity tests |
+| R-018-BA-01 | Explicit current tested-lock maturity exception, no auto-upgrade; financial-critical adoption review | [Maturity review](amendments/DEPENDENCY_MATURITY.md); lock/pins unchanged; next adoption or 2026-11-16 |
+| R-031-BA-01 | Temporary public exception only; no private broker/session/owner data; before broker/proprietary alpha resolve PRIVATE return or independently reviewed owner-approved permanent-public ADR | [Security](SECURITY_BASELINE.md); review 2026-10-24, no settings change |
+| R-029-BA-01 | Before Phase 8, release integrity/CI-bound reviewed manifest/tag, current legal/data-use eligibility, external tax/statement/records responsibility, encrypted off-device recovery and owner-response/uptime proof | [Operations](OPERATIONS_AND_RECOVERY.md); EXTERNAL/reviewer gates remain open |
+
+R-027-P2-01 / R-035-P2-01 retain all observation thresholds with the owner-approved new
+22:57 warm-up / 23:00-23:12 Pakistan window (17:57 / 18:00-18:12 UTC), first eligible
+October 18, 2026. R-031-P2-01 now explicitly records the temporary public exception rather
+than falsely requiring a currently private PR. R-005/006/030 gain the first Phase 3 prompt's
+correctness/reference/rights requirements; R-023/029 retain hard source/security/live gates.
+R-036 remains the historical Phase 0 scope, not a ban on later explicitly authorized work.
+No parent/Phase 1 child requirement or financial numerical target is removed.

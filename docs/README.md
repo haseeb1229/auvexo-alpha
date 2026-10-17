@@ -1,9 +1,11 @@
 # Project document index
 
-Read the [Phase 1 handoff](phase1/HANDOFF.md), [setup](phase1/SETUP.md),
-[implementation](phase1/IMPLEMENTATION.md), [toolchain](phase1/TOOLCHAIN.md) and
-[verification](phase1/VERIFICATION.md), then constitution/requirements and policies.
-Phase 0 documents remain the accepted design baseline; Phase 1 adds a disabled foundation.
+Read the [current baseline correction handoff](amendments/BASELINE_CORRECTION_HANDOFF.md),
+[ADR-013](adr/013-source-specific-acceptance.md), [current schedule](amendments/SCHEDULER_2300.md),
+constitution/requirements and policies. Phases 0/1 are independently accepted; Phase 2
+engineering has independently accepted DS-01/02 BTC/ETH SPOT research-unblocking scope;
+operational/source gates remain OPEN. See [acceptance](reviews/PHASE_2_RESEARCH_ACCEPTANCE.md).
+Phase 3 implementation follows the authorized normal merge/new branch, not this status commit. Dated handoffs and receipts remain historical snapshots.
 
 | Document | Authority/purpose |
 | --- | --- |
@@ -25,7 +27,7 @@ Phase 0 documents remain the accepted design baseline; Phase 1 adds a disabled f
 | [Client and UX direction](CLIENT_AND_UX_DIRECTION.md) | Future terminal, mobile, desktop and voice boundaries |
 | [Roadmap](ROADMAP.md) | Phases 0-9 and explicit proof/exit gates |
 | [Open decisions](OPEN_DECISIONS.md) | Status, owner and closure point for every open gate |
-| [ADR index](adr/README.md) | Original ten decisions plus Phase 1 ADR-011 |
+| [ADR index](adr/README.md) | Decisions 001-013 with individual dates/statuses |
 | [Self-review](PHASE_0_SELF_REVIEW.md) | Consistency findings and resolutions |
 | [Verification evidence](validation/PHASE_0_CHECKS.md) | Commands, results and limitations |
 | [Handoff template](HANDOFF_TEMPLATE.md) | Required future phase delivery fields |
@@ -33,5 +35,19 @@ Phase 0 documents remain the accepted design baseline; Phase 1 adds a disabled f
 
 Root [AGENTS.md](../AGENTS.md) and [CLAUDE.md](../CLAUDE.md) carry identical concise
 instructions. [Documentation checker](../tools/check-docs.mjs) enforces structural checks
-without installing application tooling. There are no package lockfiles because Phase 0
-installs no runtime dependencies; exact supported versions are a Phase 1 deliverable.
+without installing application tooling. The current `uv.lock` pins the tested Phase 1/2
+environment; see the [maturity exception](amendments/DEPENDENCY_MATURITY.md).
+
+## Phase 2 data engineering
+
+[Acceptance](phase2/ACCEPTANCE_TESTS.md), [implementation](phase2/IMPLEMENTATION.md),
+[rights](phase2/SOURCES_AND_RIGHTS.md), [coverage](phase2/QUALITY_AND_COVERAGE.md),
+[setup/recovery](phase2/SETUP_AND_RECOVERY.md), [verification](phase2/VERIFICATION.md),
+and [handoff](phase2/HANDOFF.md).
+
+The dated October 17 [evidence-closure handoff](phase2/closure/HANDOFF.md) supersedes
+earlier status snapshots for that delivery, preserving their original receipts. The
+baseline amendment above now provides current navigation. Closure records the originally
+approved [daily task](phase2/closure/SCHEDULER_PROPOSAL.md), temporary
+[public-source exception](phase2/closure/PUBLIC_VISIBILITY_PROPOSAL.md), actual
+retrospective coverage and remaining exit gates. It is not Phase 2 acceptance.

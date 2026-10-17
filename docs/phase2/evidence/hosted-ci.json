@@ -1,0 +1,74 @@
+{
+  "observed_at": "2026-10-17T10:27:48.156757+00:00",
+  "status": "EXTERNALLY_BLOCKED",
+  "pr": {
+    "baseRefName": "main",
+    "headRefOid": "aa96a69983332d2dafe149a12430d9d3deb3de86",
+    "mergeStateStatus": "UNSTABLE",
+    "mergedAt": null,
+    "number": 3,
+    "state": "OPEN",
+    "url": "https://github.com/haseeb1229/auvexo-alpha/pull/3"
+  },
+  "repository": {
+    "url": "https://github.com/haseeb1229/auvexo-alpha",
+    "visibility": "PRIVATE"
+  },
+  "main_sha": "16e63aeb9e7e1a97082d4a004142e0af163a4571",
+  "runs": [
+    {
+      "conclusion": "failure",
+      "databaseId": 39007043834,
+      "event": "pull_request",
+      "headSha": "aa96a69983332d2dafe149a12430d9d3deb3de86",
+      "status": "completed",
+      "url": "https://github.com/haseeb1229/auvexo-alpha/actions/runs/39007043834"
+    },
+    {
+      "conclusion": "failure",
+      "databaseId": 39007037704,
+      "event": "push",
+      "headSha": "aa96a69983332d2dafe149a12430d9d3deb3de86",
+      "status": "completed",
+      "url": "https://github.com/haseeb1229/auvexo-alpha/actions/runs/39007037704"
+    }
+  ],
+  "annotations": [
+    {
+      "check_id": 117373922593,
+      "annotations": [
+        {
+          "path": ".github",
+          "blob_href": "https://github.com/haseeb1229/auvexo-alpha/blob/aa96a69983332d2dafe149a12430d9d3deb3de86/.github",
+          "start_line": 1,
+          "start_column": null,
+          "end_line": 1,
+          "end_column": null,
+          "annotation_level": "failure",
+          "title": "",
+          "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+          "raw_details": ""
+        }
+      ]
+    },
+    {
+      "check_id": 117321500861,
+      "annotations": [
+        {
+          "path": ".github",
+          "blob_href": "https://github.com/haseeb1229/auvexo-alpha/blob/aa96a69983332d2dafe149a12430d9d3deb3de86/.github",
+          "start_line": 1,
+          "start_column": null,
+          "end_line": 1,
+          "end_column": null,
+          "annotation_level": "failure",
+          "title": "",
+          "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+          "raw_details": ""
+        }
+      ]
+    }
+  ],
+  "settings_changed": false,
+  "mandatory_spend_usd": 0
+}

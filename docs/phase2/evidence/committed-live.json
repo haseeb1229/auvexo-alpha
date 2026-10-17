@@ -1,0 +1,155 @@
+{
+  "implementation_commit": "aa96a69983332d2dafe149a12430d9d3deb3de86",
+  "manifests": [
+    {
+      "schema_version": "1.0",
+      "dataset_version": "6f64577bda900b4a587b0da505533f9ebcb8ac6d4a7b07b30c9c873ba00188f4",
+      "logical_key": "DS-02.BTCUSDT.1m.1792214820000.1792215179999",
+      "source": {
+        "schema_version": "1.0",
+        "source_id": "DS-02",
+        "provider": "BINANCE",
+        "family": "SPOT_REST",
+        "endpoint": "https://data-api.binance.vision",
+        "rights_version": "review.2026-10-16.v1"
+      },
+      "rights": {
+        "schema_version": "1.0",
+        "source_id": "DS-02",
+        "version": "review.2026-10-16.v1",
+        "reviewed_at": "2026-10-16T00:00:00Z",
+        "review_due": "2026-11-16T00:00:00Z",
+        "evidence_urls": [
+          "https://raw.githubusercontent.com/binance/binance-public-data/master/TERMS_AND_CONDITIONS.md",
+          "https://www.binance.com/en/about-legal/terms",
+          "https://raw.githubusercontent.com/binance/binance-spot-api-docs/master/faqs/market_data_only.md"
+        ],
+        "terms_hash": "bf4879710c904b991848972ec4818ba2cf9e4ce314c09adae84fa2750d3477f7",
+        "permitted_use": "PERSONAL_NONPRODUCTION_RESEARCH",
+        "redistribution": "NOT_AUTHORIZED",
+        "retention": "Private nonproduction research only; review before removal; no commercial/live-use entitlement"
+      },
+      "source_url": "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1m&startTime=1792214820000&endTime=1792215179999&limit=1000",
+      "source_hash": "e40a414d7109fd24cdcb857bad55c1d341f07b9d641c8a2ff557b3c32c5e9822",
+      "checksum_verified": false,
+      "raw_bytes": 1003,
+      "raw_relative_path": "bronze/e40a414d7109fd24cdcb857bad55c1d341f07b9d641c8a2ff557b3c32c5e9822.raw",
+      "parquet_hash": "fb3b1a595ddb207129c0e623f80f13bfc2776839efdf2207f1a96fdfd1bd2e94",
+      "parquet_bytes": 5328,
+      "relative_path": "partitions/binance.spot.BTCUSDT/6f64577bda900b4a587b0da505533f9ebcb8ac6d4a7b07b30c9c873ba00188f4.parquet",
+      "normalized_hash": "d34f283d0146a0ba8b04ff55f853d06601ef4ba1ad5685e783377b9f765dc9e2",
+      "parser_version": "spot.v1",
+      "code_revision": "aa96a69983332d2dafe149a12430d9d3deb3de86",
+      "code_hash": "13d892e68e783a249fdb6bbbf5e6115684058458bc368f42f339b41f457c9b36",
+      "parquet_writer": "polars.2.0.0.zstd3",
+      "created_at": "2026-10-17T05:33:52.317081Z",
+      "processed_at": "2026-10-17T05:33:52.318817Z",
+      "coverage": {
+        "schema_version": "1.0",
+        "instrument_id": "binance.spot.BTCUSDT",
+        "interval": "1m",
+        "requested_start": "2026-10-17T05:27:00Z",
+        "requested_end": "2026-10-17T05:33:00Z",
+        "earliest": "2026-10-17T05:27:00Z",
+        "latest_end": "2026-10-17T05:33:00Z",
+        "expected_rows": 6,
+        "observed_rows": 6,
+        "rejected_rows": 0,
+        "findings": [],
+        "status": "PASS"
+      },
+      "supersedes": null,
+      "changed_rows": 0,
+      "retention_profile": "REVIEW_BEFORE_REMOVAL_NO_AGE_CAP"
+    },
+    {
+      "schema_version": "1.0",
+      "dataset_version": "422cfde9a119deac817c3ad500ac0a6e984ef38e565b0429c1cfdaf39b515346",
+      "logical_key": "DS-02.ETHUSDT.1m.1792214820000.1792215179999",
+      "source": {
+        "schema_version": "1.0",
+        "source_id": "DS-02",
+        "provider": "BINANCE",
+        "family": "SPOT_REST",
+        "endpoint": "https://data-api.binance.vision",
+        "rights_version": "review.2026-10-16.v1"
+      },
+      "rights": {
+        "schema_version": "1.0",
+        "source_id": "DS-02",
+        "version": "review.2026-10-16.v1",
+        "reviewed_at": "2026-10-16T00:00:00Z",
+        "review_due": "2026-11-16T00:00:00Z",
+        "evidence_urls": [
+          "https://raw.githubusercontent.com/binance/binance-public-data/master/TERMS_AND_CONDITIONS.md",
+          "https://www.binance.com/en/about-legal/terms",
+          "https://raw.githubusercontent.com/binance/binance-spot-api-docs/master/faqs/market_data_only.md"
+        ],
+        "terms_hash": "bf4879710c904b991848972ec4818ba2cf9e4ce314c09adae84fa2750d3477f7",
+        "permitted_use": "PERSONAL_NONPRODUCTION_RESEARCH",
+        "redistribution": "NOT_AUTHORIZED",
+        "retention": "Private nonproduction research only; review before removal; no commercial/live-use entitlement"
+      },
+      "source_url": "https://data-api.binance.vision/api/v3/klines?symbol=ETHUSDT&interval=1m&startTime=1792214820000&endTime=1792215179999&limit=1000",
+      "source_hash": "5d0df762f778d10c4e2a985ba49d241ec587dfc299a3680052887c4b52890113",
+      "checksum_verified": false,
+      "raw_bytes": 972,
+      "raw_relative_path": "bronze/5d0df762f778d10c4e2a985ba49d241ec587dfc299a3680052887c4b52890113.raw",
+      "parquet_hash": "ba45765d68cebbfe3fe312125b9bbc94d7b5f5992b1f1c750abd2756cbcf199e",
+      "parquet_bytes": 5362,
+      "relative_path": "partitions/binance.spot.ETHUSDT/422cfde9a119deac817c3ad500ac0a6e984ef38e565b0429c1cfdaf39b515346.parquet",
+      "normalized_hash": "63e498e7af1a6eba33cb073c9d40f7156a57c2b2be2371518b5520064301c4cf",
+      "parser_version": "spot.v1",
+      "code_revision": "aa96a69983332d2dafe149a12430d9d3deb3de86",
+      "code_hash": "13d892e68e783a249fdb6bbbf5e6115684058458bc368f42f339b41f457c9b36",
+      "parquet_writer": "polars.2.0.0.zstd3",
+      "created_at": "2026-10-17T05:34:00.990675Z",
+      "processed_at": "2026-10-17T05:34:00.992296Z",
+      "coverage": {
+        "schema_version": "1.0",
+        "instrument_id": "binance.spot.ETHUSDT",
+        "interval": "1m",
+        "requested_start": "2026-10-17T05:27:00Z",
+        "requested_end": "2026-10-17T05:33:00Z",
+        "earliest": "2026-10-17T05:27:00Z",
+        "latest_end": "2026-10-17T05:33:00Z",
+        "expected_rows": 6,
+        "observed_rows": 6,
+        "rejected_rows": 0,
+        "findings": [],
+        "status": "PASS"
+      },
+      "supersedes": null,
+      "changed_rows": 0,
+      "retention_profile": "REVIEW_BEFORE_REMOVAL_NO_AGE_CAP"
+    }
+  ],
+  "events": [
+    {
+      "schema_version": "1.0",
+      "event_id": "bcd302fb-8679-4a5d-a936-9eccb5f301b1",
+      "feed_key": "DS-02.BTCUSDT.1m",
+      "observed_at": "2026-10-17T05:33:52.317081Z",
+      "state": "FRESH",
+      "reason": "CANDLES_PASS",
+      "requests": 1,
+      "network_bytes": 1003,
+      "dataset_version": "6f64577bda900b4a587b0da505533f9ebcb8ac6d4a7b07b30c9c873ba00188f4",
+      "blocked_until": null,
+      "quarantined_source_hash": null
+    },
+    {
+      "schema_version": "1.0",
+      "event_id": "379ca9df-b5dc-4037-9e50-1530158c9334",
+      "feed_key": "DS-02.ETHUSDT.1m",
+      "observed_at": "2026-10-17T05:34:00.990675Z",
+      "state": "FRESH",
+      "reason": "CANDLES_PASS",
+      "requests": 2,
+      "network_bytes": 1975,
+      "dataset_version": "422cfde9a119deac817c3ad500ac0a6e984ef38e565b0429c1cfdaf39b515346",
+      "blocked_until": null,
+      "quarantined_source_hash": null
+    }
+  ]
+}

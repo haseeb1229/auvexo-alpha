@@ -48,3 +48,9 @@ Accepted technical debt requires ID, owner, reason, impact and expiry/review poi
 accepted Phase 1 limitations are recorded in [handoff](../phase1/HANDOFF.md). Provisional designs and
 external gates are tracked separately in [open decisions](../OPEN_DECISIONS.md). Future debt
 records must include remediation and tests; security bypasses cannot be reclassified as debt.
+
+The current tested lock is accepted under the [dependency maturity exception](../amendments/DEPENDENCY_MATURITY.md).
+No automatic upgrade or cosmetic downgrade; revisit financial-critical libraries at adoption.
+[ADR-013](../adr/013-source-specific-acceptance.md) separates reviewed non-money engineering
+dependencies from operational activation evidence. Neither disposition bypasses ER-01 prompts
+or any financial/security/source gate.

@@ -1,0 +1,49 @@
+{
+  "status": "PASS",
+  "observed_at": "2026-10-17T14:52:13.407301+00:00",
+  "source_commit": "8eb92ea0a41cc0f43ec9003dcd63a6537262e156",
+  "clone": "clean-clone-a35cac2bdf88",
+  "application_loaded_from_clone": true,
+  "recovery_programs_from_clone": true,
+  "native_pg_and_private_credentials_shared": true,
+  "postgres": "17.11 loopback 55432",
+  "data_restore": {
+    "status": "PASS",
+    "schema": "0003_source_receipts",
+    "tables_compared": 8,
+    "manifests": 56,
+    "parquet_bytes": 2431856,
+    "raw_bytes": 1286102,
+    "dump_bytes": 48414,
+    "dump_sha256": "367fab495564280a1af6988ef5428af8ec131f5b13ab1d502fde5e770ad1cd47",
+    "restored_triggers": true,
+    "exact_source_to_parquet_replay": true,
+    "quarantined_payloads_verified": 0,
+    "elapsed_seconds": 125.506,
+    "retained_backup": "data-recovery-f4ec0f500a2d",
+    "limitation": "Same-disk DEV backup; not encrypted disaster recovery"
+  },
+  "foundation_restore": {
+    "status": "PASS",
+    "source": "auvexo_test_a953d3b4bccf",
+    "isolated_restore": "auvexo_restore_a953d3b4bccf",
+    "tables_compared": 3,
+    "synthetic_events": 1,
+    "migration_idempotent": true,
+    "destructive_downgrade_refused": true,
+    "restored_trigger_enforced": true,
+    "schema_drift_not_ready": true,
+    "elapsed_seconds": 24.613,
+    "backup_bytes": 18614,
+    "backup_sha256": "83c07f70da16222f023708a371eb9a437db8c61cbe89bfe5e46fe2e38a72203e"
+  },
+  "locked_export_unchanged": true,
+  "dependency_audit": "PASS; no known vulnerabilities",
+  "source_history_gitleaks": "PASS; no leaks",
+  "scan_logs": {
+    "source": "\n    \u00e2\u2014\u2039\n    \u00e2\u201d\u201a\u00e2\u2022\u00b2\n    \u00e2\u201d\u201a \u00e2\u2014\u2039\n    \u00e2\u2014\u2039 \u00e2\u2013\u2018\n    \u00e2\u2013\u2018    gitleaks\n\n7:52PM INF scanned ~1192845 bytes (1.19 MB) in 2.05s\n7:52PM INF no leaks found\n",
+    "history": "\n    \u00e2\u2014\u2039\n    \u00e2\u201d\u201a\u00e2\u2022\u00b2\n    \u00e2\u201d\u201a \u00e2\u2014\u2039\n    \u00e2\u2014\u2039 \u00e2\u2013\u2018\n    \u00e2\u2013\u2018    gitleaks\n\n7:52PM INF Unknown SCM platform. Use --platform to include links in findings. host=\n7:52PM INF 11 commits scanned.\n7:52PM INF scanned ~1206642 bytes (1.21 MB) in 2.56s\n7:52PM INF no leaks found\n"
+  },
+  "clean_tree": true,
+  "licensing": "No dependency/lock/license changes; existing notices retained; Binance derived coverage remains separately licensed"
+}

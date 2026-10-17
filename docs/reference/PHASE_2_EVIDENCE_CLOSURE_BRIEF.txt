@@ -1,0 +1,291 @@
+AUVEXO ALPHA — PHASE 2 EVIDENCE & CLOSURE SPRINT
+IMPLEMENTER: CODEX ASTRA 6 HIGH
+Founder/GitHub owner: haseeb1229
+Date: 2026-10-17 (Asia/Karachi)
+SCOPE: PHASE 2 ONLY. NO PHASE 3 IMPLEMENTATION OR TRADING.
+
+===============================================================
+A. EXACT AUTHORITATIVE BASELINE — READ FIRST
+===============================================================
+
+GitHub repo: https://github.com/haseeb1229/auvexo-alpha
+Expected main: 16e63aeb9e7e1a97082d4a004142e0af163a4571
+Expected branch: phase-2/trustworthy-data
+Expected Phase 2 head: 32ada1f35836246486fb1379c808d9119bbe9ce4
+Review PR: https://github.com/haseeb1229/auvexo-alpha/pull/3 (open/unmerged)
+
+The founder reports that they deliberately made the GitHub repository PUBLIC.
+An independent connector check on 2026-10-17 confirms PUBLIC. Do not assume
+prior PRIVATE status persists; do not change visibility yourself.
+
+Read actual repository documentation at the CURRENT branch/HEAD:
+- docs/PRODUCT_CONSTITUTION.md
+- docs/REQUIREMENTS_REGISTER.md
+- docs/ROADMAP.md
+- docs/ARCHITECTURE.md
+- docs/DATA_ARCHITECTURE.md
+- docs/DATA_SOURCE_REGISTER.md
+- docs/RISK_AND_CAPITAL_POLICY.md
+- docs/EXECUTION_AND_VENUE_POLICY.md
+- docs/SECURITY_BASELINE.md
+- docs/OPEN_DECISIONS.md
+- docs/RESEARCH_AND_VALIDATION.md
+- docs/engineering/ENGINEERING_RULES.md
+- docs/adr/README.md, especially ADR-012
+- docs/phase2/ACCEPTANCE_TESTS.md
+- docs/phase2/SOURCES_AND_RIGHTS.md
+- docs/phase2/QUALITY_AND_COVERAGE.md
+- docs/phase2/SETUP_AND_RECOVERY.md
+- docs/phase2/VERIFICATION.md
+- docs/phase2/HANDOFF.md
+- AGENTS.md and CLAUDE.md (must remain aligned)
+
+Inspect actual source, tests, migrations and stored evidence. Treat existing
+requirements/roadmap as authoritative. Do not invent different phases,
+shorter acceptance thresholds or silently revise decisions. If a true
+contradiction exists, cite file/section, preserve historical receipts and
+propose the narrowest change for founder decision.
+
+If remote refs moved, STOP and reconcile before editing. Do not force reset
+or overwrite uncommitted user work. Preserve reviewed history.
+
+===============================================================
+B. MAIN QUESTION — LAST SEVEN DAYS
+===============================================================
+
+The founder asks: "Can we use the LAST seven days so Phase 2 is done now?"
+
+Answer and implement the truthful distinction:
+
+1. Retrospective data test: obtain, when actually available and permitted,
+   official Binance BTCUSDT and ETHUSDT public spot candle archives / REST
+   for seven COMPLETE historical UTC dates: 2026-10-10 through 2026-10-16
+   inclusive. These dates refer to complete UTC days before October 17.
+   The desired seven-day set is not a claim of publication/availability.
+2. Validate provider rights, source endpoint and actual availability FIRST.
+   No alternate host/IP, prohibited scraping or purchased feed to evade
+   rate/access restrictions. Respect reviewed research-only source rights.
+3. Reuse the EXISTING bounded DS-01 history ingestion CLI/collector and
+   existing validations. Do not introduce a second collector or duplicate
+   parser just to make this exercise easier. Explicit periods; batch within
+   current <=12 periods/invocation. For each asset, use daily 1m archives
+   where available, with checksums, explicit units, OHLC/volume/clock checks.
+   Do not download unnecessary years/ticks/order-book data.
+4. For reference, seven COMPLETE UTC days contain 7*1440=10,080 1m
+   intervals per asset, if a complete 24x7 provider calendar applies.
+   Do not claim these rows exist until provider receipts prove it. Never
+   fill a gap with fabricated candles; log degraded/missing evidence.
+5. Test exact replay, re-import idempotence, source hashes, immutable
+   manifests, quarantine, parser correctness, point-in-time metadata,
+   storage quotas, coverage matrix, and isolated artifact/DB restore.
+   Include actual provider row counts and dates, not guessed totals.
+6. Do not claim original historical publication/first-seen time is known.
+   Preserve actual OCTOBER 2026 retrieval. Keep strict observed as-of
+   invariant. Do not quietly make old history available to simulated
+   historical decisions: this requires separate Phase 3 price-only
+   causal-close/lag simulation design with explicit limitations.
+7. Report a separately labeled outcome:
+       RETROSPECTIVE_7_DAY_DATA_COVERAGE = PASS/DEGRADED/BLOCKED
+   This is NEVER a replacement for:
+       SCHEDULED_7_DAY_COLLECTOR_RELIABILITY
+   That original gate remains open until seven genuine days occur.
+8. If the preferred archives are unavailable or rights prevent usage,
+   report UNKNOWN/BLOCKED, not a fabricated PASS. An explicitly scoped
+   public REST recovery may be tested if its use, timestamps, rate budgets
+   and different provider/source identities are honestly documented.
+
+===============================================================
+C. SEVEN GENUINE SCHEDULED DAYS — DO NOT FAKE THEM
+===============================================================
+
+Canonical docs/ROADMAP.md and docs/phase2/SETUP_AND_RECOVERY.md say:
+- Seven consecutive actual scheduled UTC days.
+- Each daily window 00:00–00:12 UTC = 05:00–05:12 Asia/Karachi.
+- BTC/ETH 1m public feed; >=11 fresh observations per symbol spanning
+  >=10 minutes, no heartbeat interval >120 seconds.
+- Laptop awake/online and local DB present.
+- Any missed day stays missed. A historical download DOES NOT prove
+  that Auvexo itself ran on a past day.
+
+Actions:
+1. Inspect existing qualification() implementation, append-only data
+   events, durable checkpoints, source rights, incident reporting and
+   the Windows Task Scheduler guidance.
+2. Determine whether the scheduled local task is ALREADY registered,
+   whether the founder previously approved it, and whether the
+   machine can actually stay awake/connected for the window.
+3. If not approved, prepare one safe minimal registration plan and
+   request owner approval BEFORE adding a persistent scheduled task.
+4. The task must run only public data operations, with correct Windows
+   working directory, one instance, bounded 12-minute run and process
+   lifetime, no secrets in argv, ignored restricted receipt/log files
+   and bounded retention. Do not touch Wayvro/Minhaj or other services.
+5. Verify scheduler action, local timezone, access rights, dry-run safe
+   mechanism and conflict/restart behavior. Do not pretend a local
+   chat agent remains alive for seven days.
+6. Collect and validate actual calendar evidence only when it occurs.
+   If the 2026-10-18 05:00 start is missed, restart qualification from
+   the first genuinely qualifying date, not by changing receipt dates.
+7. A DAILY 12-MINUTE COLLECTION gate is not 24/7 reliability proof.
+   Do not relabel it as always-on operation or broker readiness.
+
+===============================================================
+D. GITHUB PUBLIC STATUS, SECURITY & CI
+===============================================================
+
+As of review, PUBLIC is the CURRENT owner-chosen repository visibility,
+but docs/PRODUCT_CONSTITUTION.md, docs/SECURITY_BASELINE.md and AGENTS.md
+retain a PRIVATE-only baseline. This is a real policy/current-state
+conflict, not proof that previous handoff statements were originally false.
+
+Do not flip repo PUBLIC/PRIVATE without new explicit owner authorization.
+Do not change account billing, spending limits, tokens/permissions, or
+subscribe to anything without approval. Do not introduce secrets into
+public source, tests, issues, workflows, screenshots or history.
+
+1. Confirm current visibility in GitHub and inspect all source/history
+   Gitleaks results and any narrow public-identifier exception.
+2. Explain the implications of public source (risk policy/design is
+   visible to all). Recommend return to PRIVATE after the CI blocker
+   is resolved, but do NOT enforce it without owner consent.
+3. Prepare a narrow, reviewable governance exception or decision
+   proposal for the founder; DO NOT silently rewrite private-first
+   constitution/security rules. Preserve date-stamped evidence.
+4. Since owner has already chosen PUBLIC, attempt a SAFE rerun of
+   the EXISTING read-only GitHub hosted CI at the exact Phase 2 HEAD
+   if network/auth permissions permit. Prefer rerunning failed jobs
+   without a dummy commit or workflow modification. Inspect actual
+   job start/steps, test count, migrations, docs/audit and result.
+5. Verify workflow permissions remain read-only, actions pinned and
+   no arbitrary untrusted code is given a credentialed machine.
+6. If public status still does not release the billing blocker,
+   report CI=EXTERNALLY_BLOCKED with exact run link/annotation.
+   Do NOT report a passing historical Phase 1 CI run as Phase 2 CI.
+7. Regardless of CI, rerun the FULL suite, schema checks, strict
+   mypy, Ruff, data restore, provenance, secret scans and dependency
+   audit in a clean Windows clone at the CURRENT exact PR head.
+8. No self-hosted runner on the trading machine unless separately
+   authorized after explicit security review.
+
+===============================================================
+E. EXNESS DEMO SOURCE PREPARATION — NO ORDERS
+===============================================================
+
+The canonical Phase 2 scope includes Exness DEMO read-only BTC/ETH/XAU
+broker-specific specs and historical source qualification. It is not
+completed in the current PR.
+
+1. Re-evaluate docs/OPEN_DECISIONS.md, ADR-006, source and venue policies.
+2. Preserve a dedicated DEMO-only terminal/profile, verified genuine
+   account type, observed broker symbols, contract sizes, min/step lot,
+   tick values, spreads, sessions/financing and AVAILABLE history.
+3. Do not connect to a REAL account, do not submit ANY DEMO/REAL
+   order, and do not enable broker trading methods or execution paths.
+4. Use Windows-native process isolation and encrypted OS-bound secret
+   handling before storing/using any broker credentials. Do not assume
+   merely naming a script 'read-only' constrains MT5 SDK trading ability.
+5. Owner must approve DEMO onboarding before connecting. Ask for local
+   GUI login only; NEVER ask to paste password, session, account keys
+   or confidential account material into ChatGPT/Codex/PR/logs.
+6. If no verified owner approval and account attestation, keep DS-03
+   BLOCKED/UNKNOWN. No substitute with Binance spot candles.
+7. If SDK integration would be necessary, gate it behind approved
+   DEMO scope, current source terms, negative safety tests and isolated
+   adapter design. No Phase 5 order system implementation.
+
+===============================================================
+F. CODE & DOCUMENT CONSISTENCY AUDIT
+===============================================================
+
+Check actual source and docs; document exact evidence rather than
+inventing new architecture:
+- src/auvexo_alpha/infrastructure/spot_parser.py:
+  known 2025-01-01 archive millisecond/microsecond boundary;
+  strict complete/partial interval handling, size/path/zip/CSV limits.
+- src/auvexo_alpha/infrastructure/data_collection.py:
+  bounded allowlisted GET-only public polling, no execution API,
+  durable checkpoint, provider cooldown, failure/restart.
+- src/auvexo_alpha/infrastructure/data_store.py:
+  immutable source/normalized/Parquet hashes, quota, atomic staging,
+  accepted manifest append-only, reproducible replay.
+- src/auvexo_alpha/application/data_reporting.py:
+  seven-day qualification; actual event evidence required. Confirm
+  that qualifying FRESH events refer to real valid stored dataset
+  versions, not merely matching strings; strengthen guards/tests
+  only if there is a real integrity defect (do not fake an outcome).
+- docs/DATA_ARCHITECTURE.md and ADR-012:
+  no fixed 5/10-year RESEARCH horizon; storage horizon != model
+  experience != historical trading edge.
+- Phase 2 dataset coverage:
+  original March 2020 two missing/degraded hourly ranges remain
+  labelled DEGRADED; do not fabricate missing data.
+- Code quality: no dead/duplicate code, unused deps, unsafe
+  exceptions, secrets, dormant trading functions, type/test bypass.
+- Repo docs: Phase 2 handoff and prior evidence are snapshots;
+  current visibility/CI update should be a NEW dated receipt, not
+  retroactively edited into old proof.
+- Frontend/client and agentic future architecture remain unchanged;
+  do not begin Phase 3, Phase 4 risk, Phase 5 orders or Phase 7 UI.
+- Binance Vision dataset license is not GitHub repo MIT license.
+  Existing personal nonproduction research restrictions stay intact.
+
+Any confirmed issue: make the MINIMUM correction, write focused
+regression tests and new ADR/addendum only if justified. No unrelated
+refactor, microservices, Docker mandate, provider switching or paid API.
+
+===============================================================
+G. GIT WORKFLOW / DELIVERABLES
+===============================================================
+
+- Work only on the existing Phase 2 branch after checking actual refs;
+  PR #3 stays OPEN and UNMERGED pending independent full exit review.
+- Do not force-push, rewrite history, cherry-pick wholesale external
+  repositories, change Git identity or add AI co-author trailers.
+- Keep AGENTS.md and CLAUDE.md byte-identical.
+- Commit/push only tested scope-appropriate corrections and evidence,
+  with clean Git diff/status; explain why every changed file was needed.
+- Reuse the project native Windows Python/uv/PostgreSQL environment.
+  Docker/WSL is optional only with measured reason. Do not touch other
+  projects' containers, config, databases or caches.
+- Do not bypass payments/region restrictions, use prohibited scraping,
+  or infer access permissions from an HTTP response alone.
+- Do not change the canonical 10-phase roadmap or financial policy
+  without a documented owner-approved decision and an independently
+  reviewed superseding ADR. Present any desirable shortcut as a
+  separate proposal; don't implement it as a hidden policy change.
+- NO Phase 3 branch, strategy, PnL backtester, risk engine, agent
+  runtime, order transport or mobile/web frontend in this prompt.
+
+REQUIRED HANDOFF (ONE COMPLETE EVIDENCE-BASED REPORT)
+1. Current owner/repo visibility/main SHA/branch SHA/PR state.
+2. Exact source files, docs and requirements reviewed; any confirmed
+   inconsistencies and fixes, with factual file/line references.
+3. Past seven COMPLETE UTC days source download attempts and verified
+   receipts: dates/symbols/timeframes, request totals, rows,
+   checksums/hashes, gaps, quality, provenance, rights and storage.
+4. Clearly distinguish RETROSPECTIVE_DATA_COVERAGE from genuine
+   SCHEDULED_COLLECTOR_7_DAY result and explicitly count actual
+   completed dates, not planned dates.
+5. Task Scheduler registration state, owner approval, test and whether
+   seven-day observation started; no simulated time compressed proof.
+6. Hosted GitHub Actions run/job/step status at CURRENT reviewed tip,
+   acknowledging any account/billing blockers honestly.
+7. Final-head clean-clone Windows tools, real PostgreSQL, migration,
+   restore, exact replay, tests, Ruff/mypy, source/history secret
+   scans, dependency/license checks, timestamps, resource budgets.
+8. Exness DEMO prerequisites and actual verified/unverified symbol/
+   contract/history facts, without any account credentials in report.
+9. Dated public/private security exception proposal and owner choice;
+   no unauthorized repo-setting modifications.
+10. Remaining gates, exact next human approval/action, failures,
+    security/resource limitations, and reviewer evidence links.
+11. Explicit zero demo/real orders, zero live account credentials,
+    Binance live derivatives BLOCKED_BY_POLICY, no paywalls/purchases.
+12. Correct verdict: PHASE_2_CLOSURE_IN_PROGRESS unless ALL true
+    Phase 2 exit proofs have been completed. If blockers remain,
+    do NOT use PASS, merge PR #3 or start Phase 3.
+
+Do not claim continuous future AI work. A locally approved scheduler
+may collect future evidence on its own; this coding session reports
+only work actually completed now. Stop after the handoff. The founder
+will request an independent exact-SHA review before any next phase.
