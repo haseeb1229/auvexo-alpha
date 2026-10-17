@@ -1,0 +1,308 @@
+AUVEXO ALPHA — PHASE 3 RESUME: PROVIDER-OUTAGE DATA GATE RESOLUTION
+Target: Astra 6 High
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-18
+Scope: Resume the already-authorized Phase 3 only after resolving the March 24, 2023
+BTCUSDT Binance SPOT coverage stop scientifically. Do NOT start Phase 4.
+
+INDEPENDENT REVIEW DISPOSITION
+The prior stop was correct under the original preregistered continuous-coverage rule.
+Do NOT fill/fabricate candles and do NOT change alpha thresholds/parameters to make the study pass.
+
+New external evidence establishes that March 24, 2023 contains a genuine Binance SPOT
+venue outage, not merely an unexplained local missing-file condition:
+- Official Binance post: spot trading was temporarily disabled at 11:27 UTC and resumed
+  at 14:00 UTC on 2023-03-24:
+  https://www.binance.com/en/blog/from-our-ceo/6789340645608890113
+- Official completion announcement: trading resumed at 14:00 UTC:
+  https://www.binance.com/en/support/announcement/detail/813a31506e9f478ea8c1058b425df87a
+- Binance public-data issue #501 independently reports BTCUSDT 1h 13:00 UTC absent in BOTH
+  API and the monthly archive, with 12:00 followed by 14:00:
+  https://github.com/binance/binance-public-data/issues/501
+- Binance public-data issue #365 independently records a March 24 historical BTCUSDT gap
+  during the same outage period:
+  https://github.com/binance/binance-public-data/issues/365
+
+These sources are evidence for data-quality/venue-availability classification only.
+They are NOT strategy signals, alpha features, or permission to reconstruct missing prices.
+
+EXPECTED CURRENT STATE — VERIFY FIRST
+Remote:
+- main expected at normal Phase 2 merge:
+  26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3
+- merge parents expected:
+  16e63aeb9e7e1a97082d4a004142e0af163a4571
+  7b1d23d0fb26d41e5a8cf36159c9379615f2bb50
+- PR #3 merged normally.
+Local:
+- branch `phase-3/backtest-simple-alpha`, created from merge main.
+- committed HEAD expected merge SHA 26b20ca...
+- unfinished Phase 3 drafts are local/uncommitted/unpushed.
+- no Phase 3 PR yet.
+- current repo PUBLIC under bounded temporary exception.
+If anything differs, stop and report.
+
+A. PRESERVE THE UNCOMMITTED DRAFT BEFORE TOUCHING IT
+1. Inspect `git status`, full diff, untracked files and current local branch/ref.
+2. Save an owner-local ignored recovery snapshot under `.local/`:
+   - `git diff --binary` for tracked changes;
+   - inventory + SHA-256 of untracked Phase 3 draft files;
+   - current HEAD/status.
+3. Do NOT push the recovery snapshot/raw data.
+4. Do NOT discard/reset/stash over work without verifying the recovery snapshot.
+5. Keep unfinished drafts explicitly non-accepted until tests pass.
+
+B. VERIFY THE MARCH 2023 ROOT CAUSE FROM ACTUAL LOCAL SOURCE BYTES
+Before modifying the plan:
+1. Inspect the retained checksum-backed BTCUSDT-1h-2023-03 source archive already downloaded.
+2. Record sanitized field-level facts around 2023-03-24 10:00–15:00 UTC:
+   - open timestamps;
+   - close timestamps;
+   - row count;
+   - volume/trade count only as non-sensitive market facts;
+   - exact quality reason for the rejected row.
+3. Compare DS-01 monthly archive behavior with a bounded DS-02 public kline query for the same
+   narrow historical interval IF current source rights/endpoint permit it. This is diagnosis,
+   not fallback/replacement.
+4. If useful, inspect only a tightly bounded same-provider 1m/trade window around the halt to
+   establish data availability. Do NOT download another venue merely to fill the gap.
+5. Record the official Binance outage evidence above with retrieval date/hash/URL in a Phase 3
+   data-quality evidence record.
+6. Establish whether:
+   a) 13:00 is genuinely absent because venue trading was unavailable;
+   b) the 12:00 row exists but has a non-standard/truncated interval boundary;
+   c) the current parser's `TIMESTAMP_UNIT` label is semantically misleading for that row.
+7. Never rewrite the old raw archive/checksum or existing degraded manifest.
+
+C. GENERAL DATA-GAP POLICY — NO SPECIAL-CASE FAKE PASS
+Add a documented/tested Phase 3 research data-gap policy with categories similar to:
+- COMPLETE
+- PROVIDER_OUTAGE_CONFIRMED
+- UNKNOWN_GAP / BLOCKED
+
+Exact naming may follow existing style, but semantics must be strict.
+
+Rules:
+1. Unknown/unexplained gap remains BLOCKED and triggers the existing stop condition.
+2. A gap may become PROVIDER_OUTAGE_CONFIRMED only when:
+   - source/product/instrument identity is exact;
+   - the unavailable interval is bounded;
+   - official provider/venue evidence supports a trading halt/maintenance;
+   - canonical source bytes still show the gap;
+   - no alternate venue price is substituted;
+   - reviewer/URL/hash/timestamp evidence is stored.
+3. PROVIDER_OUTAGE_CONFIRMED is NOT `PASS` and NOT a candle.
+4. Never synthesize a flat candle, forward-fill OHLC, interpolate, copy another exchange,
+   or invent trades/volume.
+5. Derived datasets preserve the unavailable interval explicitly.
+6. Unknown later gaps still stop acquisition/research; do not automatically classify all gaps
+   as outages because one known outage exists.
+7. Apply this rule generally, not as a hard-coded `2023-03-24` exception.
+
+D. PRESERVE PREREGISTRATION — CREATE DATA PLAN V2, DO NOT OVERWRITE V1
+The original `docs/phase3/DATA_PLAN.md` and its hash are historical evidence.
+Do NOT edit it in place to pretend the new rule was always present.
+
+Create a versioned amendment / V2 that:
+- references the original data-plan hash;
+- records the exact reason: externally confirmed provider outage discovered during acquisition;
+- states that NO OOS/holdout was opened and no strategy results were inspected;
+- preserves the same two hypothesis families, parameter grids, allocation, stops/targets,
+  holding limits, costs, split intent and screening thresholds;
+- changes ONLY the data-availability treatment:
+  provider-confirmed venue outages are explicit unavailable intervals rather than unexplained
+  data defects, while unknown gaps remain BLOCKED;
+- is committed/frozen BEFORE resuming broad acquisition or empirical runs.
+
+This is a data-integrity protocol amendment, not post-hoc alpha tuning.
+
+E. OUTAGE-AWARE SIMULATION SEMANTICS
+Implement a typed venue-availability/unavailable interval for the research simulator.
+
+For a confirmed provider outage:
+1. No new entry, exit, cancel, target or stop FILL occurs while the venue is unavailable.
+2. An already-open simulated spot position remains economically open through the outage.
+3. Do not assume a protective stop magically filled while there were no executable venue trades.
+4. At the first valid tradable observation after resume:
+   - reconcile/open position using the first available market evidence;
+   - if a stop condition was crossed through the outage/gap, use a conservative/adverse
+     gap-through fill rule plus the preregistered slippage/cost model;
+   - if stop/target ordering is ambiguous, adverse ordering wins.
+5. Mark-to-market during the unavailable interval may carry the last observable mark ONLY as
+   `STALE/UNAVAILABLE`; it cannot authorize fills or create fresh evidence.
+6. Report outage exposure separately in experiment metrics/stress evidence.
+7. No future knowledge: do not block entries before an unplanned outage merely because the
+   historical simulator knows an outage is coming. The outage becomes effective only from
+   the first causally known unavailable point in the simulation data contract.
+8. Explicit scheduled maintenance known in advance would be a different future contract and
+   must use contemporaneous availability evidence; do not infer it here.
+
+F. FEATURE / LOOKBACK SAFETY ACROSS GAPS
+Do not let row-count indicators silently bridge missing wall-clock time.
+
+For all Phase 3 empirical features:
+- use timestamp-aware expected coverage;
+- any unavailable/unknown interval inside the required feature lookback makes that feature
+  UNAVAILABLE for a decision;
+- after the venue resumes, the feature naturally rewarms until its complete required
+  wall-clock lookback is available again;
+- with the current max 168h breakout lookback, this may require up to 168 hours of complete
+  post-outage observations before that feature can issue a new candidate;
+- no forward-fill to keep indicators warm.
+
+Add tests for 24h/72h/168h lookbacks crossing the outage.
+
+G. PARSER QUALITY-CODE SEMANTICS
+Inspect before changing.
+
+If the March 24 rejected row has valid millisecond units but fails only because its provider
+close timestamp does not match a normal full interval:
+- do NOT accept it as a normal complete 1h candle;
+- introduce a more accurate quality reason such as `TRUNCATED_INTERVAL` /
+  `INTERVAL_BOUNDARY` if consistent with existing domain style;
+- keep `TIMESTAMP_UNIT` for actual timestamp-unit violations;
+- add regression tests proving the distinction;
+- preserve historical old manifest/evidence exactly;
+- any reparse must create new lineage/correction evidence, never destructive replacement.
+
+If raw facts do NOT support this diagnosis, keep current classification and report the exact
+reason. Do not force a desired code change.
+
+H. RESUME PURPOSE-DRIVEN ACQUISITION
+Only after sections B–G and focused tests pass:
+1. Resume the original bounded Phase 3 data acquisition plan using the existing Phase 2 pipeline.
+2. Continue BTC planned ranges, then ETH planned ranges.
+3. Every new range still runs checksum/schema/timestamp/gap/rights/lineage checks.
+4. Provider-confirmed outages are retained as explicit unavailable intervals under the V2 rule.
+5. Unknown gaps stop again for reviewer disposition.
+6. Do not use alternate venues to make the dataset continuous.
+7. Do not access the sealed 2025 final OOS before preregistration/V2 freeze and required
+   training/validation infrastructure are complete.
+
+I. CONTINUE THE ORIGINAL PHASE 3 IMPLEMENTATION — NO SCOPE EXPANSION
+After coverage is scientifically admissible, continue the original authorized Phase 3 prompt:
+- typed data-use eligibility;
+- PRICE_CLOSE_PLUS_CAUSAL_LAG without weakening observed-as-of;
+- deterministic event-driven simulator;
+- hand-calculated independent reference fixtures;
+- append-only research ledger;
+- holdout consumption enforcement;
+- breakout and volatility-conditioned mean-reversion only;
+- walk-forward / purge / embargo / untouched OOS;
+- explicit cost/fill/latency/intrabar assumptions;
+- dependence-aware uncertainty;
+- counterfactual/rejected-candidate research book;
+- storage/performance benchmark;
+- honest NO EDGE / INCONCLUSIVE / CANDIDATE verdict.
+
+Do NOT change the frozen strategy parameter grids because of this outage.
+Do NOT add ML/RL/agents/news/macro/XAU/Exness.
+
+J. CURRENT SAFETY BOUNDARIES
+Remain unchanged:
+- no MetaTrader5 dependency or Exness connection;
+- zero DEMO/REAL orders;
+- execution_enabled remains impossible to enable;
+- all money actions denied;
+- Binance live derivatives BLOCKED_BY_POLICY;
+- no withdrawal;
+- no Phase 4;
+- no paid services;
+- no raw market archives committed;
+- no private/proprietary artifacts published while repo is PUBLIC;
+- AGENTS/CLAUDE byte-identical;
+- founder Git identity; no AI coauthor;
+- no force push/history rewrite.
+
+K. PHASE 2 SCHEDULE CONTINUES IN PARALLEL
+Do not alter the task:
+- 22:57 Pakistan warm-up
+- 23:00–23:12 Pakistan qualification
+- first eligible 2026-10-18
+At handoff report actual qualified dates only.
+Astra/ChatGPT need not be open.
+Do not count retrospective data.
+
+L. TESTING REQUIRED BEFORE ANY PHASE 3 PUSH
+Focused first:
+- raw outage classification tests;
+- unknown-gap remains BLOCKED;
+- confirmed-outage cannot become a candle/PASS;
+- no alternate-source substitution;
+- parser quality-code distinction if changed;
+- no fills during outage;
+- gap-through adverse stop behavior;
+- indicator lookback rewarm;
+- OOS remains sealed;
+- data-plan V1 immutable / V2 parent hash preserved.
+
+Then full Phase 3 and inherited suite:
+- Ruff format/check
+- strict mypy
+- full pytest
+- Hypothesis where useful
+- all prior execution-denial tests
+- no broker dependency/import
+- real PostgreSQL migration/append-only/race tests
+- backup/restore
+- exact replay of all research-used manifests
+- source/history secret scan
+- dependency audit
+- docs/link/requirements
+- clean Windows clone at final source SHA
+- exact-head hosted CI
+- git diff --check
+
+Do not suppress or weaken failures.
+
+M. GIT WORKFLOW
+The branch is currently local and unfinished.
+
+After the V2 data-plan amendment and code are coherent/passing:
+- commit in small coherent founder-authored commits;
+- push `phase-3/backtest-simple-alpha`;
+- open ONE Phase 3 PR to main;
+- do not merge;
+- no Phase 4 branch.
+
+Do not commit the `.local` recovery snapshot, raw provider archives, private experiment outputs
+or credentials.
+
+N. REQUIRED RESUMED PHASE 3 HANDOFF
+In addition to every item from the original Phase 3 handoff, explicitly include:
+
+1. Exact verification of merge/main/branch and recovery snapshot hash.
+2. March 2023 raw-row diagnosis around 10:00–15:00 UTC.
+3. Exact official provider outage evidence URLs/hash/retrieval time.
+4. DS-01 vs DS-02 narrow comparison results.
+5. Whether 12:00 is valid/truncated/rejected and why.
+6. Exact 13:00 absence evidence; never fabricated.
+7. Data-gap policy implementation and unknown-gap negative tests.
+8. Original DATA_PLAN hash + V2 hash + proof final OOS was unopened before amendment.
+9. Venue-unavailable simulator behavior and hand fixtures.
+10. No-fill-during-outage and adverse gap-through tests.
+11. Feature rewarm/lookback tests.
+12. Parser quality-code change (if any), with old evidence preserved.
+13. Resumed BTC/ETH acquisition inventory and all remaining unknown gaps.
+14. Exact train/validation/OOS boundaries and holdout-seal evidence.
+15. All original Phase 3 correctness/research/metrics requirements.
+16. Honest empirical verdict; NO EDGE/INCONCLUSIVE is valid.
+17. Current scheduled Phase 2 dates count.
+18. Exness/XAU/CFDs still blocked; zero broker connections/orders.
+19. Current repository visibility/public-exception status.
+20. Phase 3 PR exact final SHA/CI and request GPT-5.6 Sol independent review.
+
+STOP AGAIN if:
+- the raw source contradicts the documented outage explanation;
+- an unexplained gap appears;
+- V2 would require changing strategy/OOS thresholds after results;
+- OOS was actually inspected before the amendment;
+- a gap can only be "fixed" by fabrication/forward-fill/other venue;
+- execution or broker capability becomes necessary;
+- public Git would expose private/proprietary artifacts;
+- a material security/dependency/recovery test cannot pass.
+
+This authorization resolves only the provider-confirmed outage handling. It does not waive
+data quality. The correct research representation of a genuine exchange halt is "venue
+unavailable", not a fake continuous candle series.
