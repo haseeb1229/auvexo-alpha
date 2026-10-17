@@ -123,6 +123,31 @@ def test_ledger_hashes_duplicates_seal_and_immutable_artifacts(ledger):
     ledger.path(digest).write_bytes(b"tampered")
     with pytest.raises(ValueError, match="CORRUPT_RESEARCH_ARTIFACT"):
         ledger.record(study.study_id, "corrupt", "OOS", cfg, data)
+    with pytest.raises(ValueError, match="CORRUPT_RESEARCH_ARTIFACT"):
+        ledger.read_trial(study.study_id, "trial")
+
+
+def test_research_artifact_quota_pressure_and_trial_budget_refuse_before_publication(
+    ledger, monkeypatch
+):
+    study = synthetic_study().model_copy(update={"trial_budget": 1})
+    ledger.register(study)
+    cfg = study.configs[0].content_hash()
+    ledger.quota = 1
+    with pytest.raises(ValueError, match="STORAGE_PRESSURE"):
+        ledger.record(study.study_id, "quota", "TRAIN", cfg, b"{}")
+    assert not list(ledger.root.iterdir())
+    ledger.quota = 512 * 1024 * 1024
+    with monkeypatch.context() as patch:
+        patch.setattr(
+            "auvexo_alpha.infrastructure.research_ledger.pressure", lambda *args: "HARD_STOP"
+        )
+        with pytest.raises(ValueError, match="STORAGE_PRESSURE"):
+            ledger.record(study.study_id, "pressure", "TRAIN", cfg, b"{}")
+    assert not list(ledger.root.iterdir())
+    ledger.record(study.study_id, "first", "TRAIN", cfg, b"{}")
+    with pytest.raises(ValueError, match="TRIAL_BUDGET_EXHAUSTED"):
+        ledger.record(study.study_id, "second", "TRAIN", cfg, b"{}")
 
 
 def test_actual_role_denies_mutation_and_ingestion_or_policy_writes(ledger):

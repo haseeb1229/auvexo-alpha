@@ -140,3 +140,42 @@ def test_rejection_book_uses_observable_forward_paths_and_keeps_missing_unobserv
     assert "overlapping" in book[0].limitation
     missing = rejected_candidate(START, bars[0].instrument_id, "0" * 64, "RIGHTS_BLOCKED", None, 24)
     assert missing.outcome == "UNOBSERVABLE" and missing.available_price is None
+
+
+@pytest.mark.parametrize(
+    "amount", [1.0, True, Decimal("NaN"), Decimal("Infinity"), Decimal("-1"), Decimal(0)]
+)
+def test_simulator_rejects_inexact_nonfinite_or_nonpositive_initial_cash(amount):
+    with pytest.raises(ValueError):
+        simulate(prices(5), config(), POLICY, FREE, fitted(), initial_cash=amount)
+
+
+@pytest.mark.parametrize("family", ["BREAKOUT", "MEAN_REVERSION", "FIXED_RULE"])
+def test_strategy_features_decisions_and_rejections_obey_future_truncation(family):
+    bars = prices(240)
+    for i, bar in enumerate(bars):
+        price = 100 + 2 * (i % 40)
+        bars[i] = Candle.model_validate(
+            bar.model_dump()
+            | {
+                "open": str(price),
+                "close": str(price),
+                "high": str(price + 1),
+                "low": str(price - 1),
+            }
+        )
+    cutoff = bars[120].open_at
+    short = simulate(bars[:120], config(family), POLICY, FREE, fitted(), liquidate_at_end=False)
+    long = simulate(bars, config(family), POLICY, FREE, fitted(), liquidate_at_end=False)
+    assert tuple(d for d in short.decisions if d[0] < cutoff) == tuple(
+        d for d in long.decisions if d[0] < cutoff
+    )
+    assert tuple(f for f in short.fills if f.at < cutoff) == tuple(
+        f for f in long.fills if f.at < cutoff
+    )
+    assert tuple(r for r in short.rejections if r.decision_at < cutoff) == tuple(
+        r for r in long.rejections if r.decision_at < cutoff
+    )
+    assert tuple(p for p in short.equity if p.at < cutoff) == tuple(
+        p for p in long.equity if p.at < cutoff
+    )
