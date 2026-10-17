@@ -123,7 +123,12 @@ def main() -> int:
                         "events": [e.model_dump(mode="json") for e in store.events()],
                     }
                 else:
-                    result = qualification(store.events(), args.start_day, datetime.now(UTC))
+                    result = qualification(
+                        store.events(),
+                        args.start_day,
+                        datetime.now(UTC),
+                        store.verified_manifests(),
+                    )
             finally:
                 lease.execute(text("SELECT pg_advisory_unlock(20801403)"))
         rendered = json.dumps(result, indent=2) + "\n"

@@ -1,0 +1,32 @@
+﻿{
+    "observed_at":  "2026-10-17T14:31:20.7624395Z",
+    "status":  "REGISTERED_AND_INSPECTED",
+    "owner_approval":  "2026-10-17: Approve this task after verification",
+    "task_name":  "AuvexoAlpha-PublicData-Daily",
+    "task_state":  "Ready",
+    "action_executable":  "C:\\Users\\AR TRADERS\\Desktop\\Auvexo Alpha\\.venv\\Scripts\\python.exe",
+    "arguments":  "tools/run_daily_window.py --scheduled",
+    "working_directory":  "C:\\Users\\AR TRADERS\\Desktop\\Auvexo Alpha",
+    "identity":  "DESKTOP-GQ5153T\\AR TRADERS",
+    "logon_type":  "Interactive",
+    "run_level":  "Limited",
+    "timezone":  "Pakistan Standard Time",
+    "next_run_local":  "2026-10-18T04:57:00.0000000+05:00",
+    "next_run_utc":  "2026-10-17T23:57:00.0000000Z",
+    "multiple_instances":  "IgnoreNew",
+    "execution_limit":  "PT20M",
+    "wake_requested":  true,
+    "network_required":  true,
+    "ac_only":  true,
+    "stop_on_battery":  true,
+    "late_catchup":  false,
+    "retries":  0,
+    "dry_run":  "PASS; action plan inspected",
+    "preflight":  "PASS; 2026-10-17T14:28:45Z local verify only, no collection",
+    "log_acl":  "NT AUTHORITY\\SYSTEM Allow  FullControl\nDESKTOP-GQ5153T\\AR TRADERS Allow  FullControl",
+    "actual_scheduled_qualified_dates":  [
+
+                                         ],
+    "scheduled_collection_started":  false,
+    "limitation":  "Interactive owner must remain logged in; local DB must already run; S0 wake/network not guaranteed. No seven-day evidence exists."
+}

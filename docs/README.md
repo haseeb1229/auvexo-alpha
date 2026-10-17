@@ -42,3 +42,9 @@ installs no runtime dependencies; exact supported versions are a Phase 1 deliver
 [rights](phase2/SOURCES_AND_RIGHTS.md), [coverage](phase2/QUALITY_AND_COVERAGE.md),
 [setup/recovery](phase2/SETUP_AND_RECOVERY.md), [verification](phase2/VERIFICATION.md),
 and [handoff](phase2/HANDOFF.md).
+
+Current October 17 [evidence-closure handoff](phase2/closure/HANDOFF.md) supersedes
+those dated status snapshots, preserving their original receipts. It records the
+approved [daily task](phase2/closure/SCHEDULER_PROPOSAL.md), temporary
+[public-source exception](phase2/closure/PUBLIC_VISIBILITY_PROPOSAL.md), actual
+retrospective coverage and remaining exit gates. It is not Phase 2 acceptance.

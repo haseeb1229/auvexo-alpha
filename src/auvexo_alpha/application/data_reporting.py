@@ -58,20 +58,50 @@ def coverage_matrix(manifests: list[DatasetManifest]) -> list[dict[str, object]]
     return rows
 
 
-def qualification(events: list[IngestionEvent], start: date, now: datetime) -> dict[str, object]:
+def qualification(
+    events: list[IngestionEvent],
+    start: date,
+    now: datetime,
+    verified_manifests: list[DatasetManifest],
+) -> dict[str, object]:
+    """Qualify observations only against caller-verified stored artifacts, never IDs alone."""
+    by_version = {m.dataset_version: m for m in verified_manifests}
+
+    def verified(event: IngestionEvent) -> bool:
+        manifest = by_version.get(event.dataset_version or "")
+        if event.state != "FRESH" or manifest is None:
+            return False
+        coverage = manifest.coverage
+        return (
+            manifest.source.source_id == "DS-02"
+            and manifest.source.family == "SPOT_REST"
+            and coverage.interval == "1m"
+            and coverage.status == "PASS"
+            and coverage.observed_rows == coverage.expected_rows > 0
+            and not coverage.findings
+            and event.feed_key == "DS-02." + coverage.instrument_id.rsplit(".", 1)[-1] + ".1m"
+            and manifest.logical_key.startswith(event.feed_key + ".")
+            and event.observed_at == manifest.created_at
+            and manifest.created_at <= manifest.processed_at <= now
+            and timedelta(0) <= event.observed_at - coverage.requested_end <= timedelta(minutes=2)
+        )
+
     days = []
     for offset in range(7):
         day = start + timedelta(days=offset)
         midnight = datetime(day.year, day.month, day.day, tzinfo=UTC)
         # Scheduled public-data window: 00:00 through 00:12 UTC. At least ten minutes
         # of genuine per-symbol observations, no >120-second heartbeat gaps.
-        selected = [
-            e
-            for e in events
-            if midnight <= e.observed_at < midnight + timedelta(minutes=12)
-            and e.observed_at <= now
-            and e.feed_key.startswith("DS-02.")
-        ]
+        selected = sorted(
+            [
+                e
+                for e in events
+                if midnight <= e.observed_at < midnight + timedelta(minutes=12)
+                and e.observed_at <= now
+                and e.feed_key.startswith("DS-02.")
+            ],
+            key=lambda e: e.observed_at,
+        )
         good = True
         for symbol in ("BTCUSDT", "ETHUSDT"):
             feed = sorted(
@@ -81,7 +111,9 @@ def qualification(events: list[IngestionEvent], start: date, now: datetime) -> d
             good = (
                 good
                 and len(feed) >= 11
-                and all(e.state == "FRESH" and e.dataset_version for e in feed)
+                and len({e.event_id for e in feed}) == len(feed)
+                and len({e.dataset_version for e in feed}) == len(feed)
+                and all(verified(e) for e in feed)
             )
             if feed:
                 good = good and (feed[-1].observed_at - feed[0].observed_at).total_seconds() >= 600
@@ -94,6 +126,8 @@ def qualification(events: list[IngestionEvent], start: date, now: datetime) -> d
             dict(
                 day=day.isoformat(),
                 events=len(selected),
+                verified_events=sum(verified(e) for e in selected),
+                invalid_event_ids=[e.event_id for e in selected if not verified(e)],
                 status="PASS" if good and closed else "OPEN" if not closed else "INCOMPLETE",
                 first=selected[0].observed_at.isoformat() if selected else None,
                 last=selected[-1].observed_at.isoformat() if selected else None,

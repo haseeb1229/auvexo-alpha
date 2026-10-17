@@ -1,0 +1,20 @@
+{
+  "observed_at": "2026-10-17T14:34:27.576917+00:00",
+  "repository": {
+    "nameWithOwner": "haseeb1229/auvexo-alpha",
+    "url": "https://github.com/haseeb1229/auvexo-alpha",
+    "visibility": "PUBLIC"
+  },
+  "main": "16e63aeb9e7e1a97082d4a004142e0af163a4571",
+  "pull_request": {
+    "baseRefName": "main",
+    "headRefName": "phase-2/trustworthy-data",
+    "headRefOid": "32ada1f35836246486fb1379c808d9119bbe9ce4",
+    "mergedAt": null,
+    "state": "OPEN",
+    "url": "https://github.com/haseeb1229/auvexo-alpha/pull/3"
+  },
+  "visibility_changed_by_implementer": false,
+  "owner_temporary_public_source_exception": "APPROVED 2026-10-17; independent governance review required by 2026-10-24",
+  "billing_permissions_runners_changed": false
+}

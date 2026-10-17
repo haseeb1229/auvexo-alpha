@@ -57,3 +57,9 @@ Measure native Windows resources. Preserve every existing safety test.
 
 Independent Phase 2 review; seven-day observation and Exness external gates remain
 separate. Phase 3 must qualify the rights and history needed by each experiment.
+
+Closure clarification, 2026-10-17: retrospective archive downloads can qualify selected
+data coverage, never past operation of this collector. Strict observed as-of remains
+unchanged. Any later price-only close/lag simulation availability must be separately
+named and opt-in, retain actual receipt, and exclude macro/news vintage assumptions.
+This is a Phase 3 design prerequisite, not a simulation implementation or phase waiver.

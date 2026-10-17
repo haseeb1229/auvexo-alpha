@@ -1,5 +1,12 @@
 # Decision and external gate register
 
+Current 2026-10-17 [Phase 2 evidence closure](phase2/closure/HANDOFF.md): retrospective
+coverage passed, actual scheduled dates zero, Exness DEMO blocked. PUBLIC hosted CI
+rerun succeeded; PRIVATE allocation remains unproven. Owner approved a temporary
+[public-source exception](phase2/closure/PUBLIC_VISIBILITY_PROPOSAL.md), independent
+governance review due October 24, and the bounded local daily task after verification.
+Earlier dated entries below remain historical; frozen decisions are not silently waived.
+
 All statuses have an owner and decision point. Owner labels refer to future accountable
 roles, not additional people appointed in Phase 0. No ordinary engineering choice is sent
 to the founder merely to avoid making a decision.

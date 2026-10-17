@@ -1,0 +1,16 @@
+{
+  "status": "PASS",
+  "schema": "0003_source_receipts",
+  "tables_compared": 8,
+  "manifests": 56,
+  "parquet_bytes": 2431856,
+  "raw_bytes": 1286102,
+  "dump_bytes": 48414,
+  "dump_sha256": "5f9347feb104b13bc8974a67cdfc6aa299aeec68dc2f951c8c8703d04b5cffda",
+  "restored_triggers": true,
+  "exact_source_to_parquet_replay": true,
+  "quarantined_payloads_verified": 0,
+  "elapsed_seconds": 46.553,
+  "retained_backup": "data-recovery-ae80d492d003",
+  "limitation": "Same-disk DEV backup; not encrypted disaster recovery"
+}

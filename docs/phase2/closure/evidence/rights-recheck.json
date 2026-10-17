@@ -1,0 +1,15 @@
+{
+  "observed_at": "2026-10-17T14:34:32.185129+00:00",
+  "url": "https://raw.githubusercontent.com/binance/binance-public-data/master/TERMS_AND_CONDITIONS.md",
+  "sha256": "99c4921dbe023cd68c1a447775707d621453cc78aec6ac0bfe2e6c06a5114ee0",
+  "bytes": 9807,
+  "unchanged_since_original_review": false,
+  "previous_sha256": "dcf358e9d18f598a7a635fac80f6e643fa24a0e111a4d39bda47f1e246b31eb1",
+  "comparison": "Editorial spaces, capitalization, line wrap, punctuation and document-name correction in clause 12; version 1.0/date unchanged. No relaxation of reviewed research restrictions. Both complete snapshots retained privately.",
+  "existing_immutable_manifests": "Retain original reviewed terms snapshot; no retrospective metadata edit",
+  "new_ds01_review_version": "review.2026-10-17.v2",
+  "next_review": "2026-11-16",
+  "scope": "Personal nonproduction noncommercial research only, CC-BY-NC-SA-4.0 plus supplementary terms; no live proprietary/commercial execution or raw dataset redistribution",
+  "license_files_unchanged": true,
+  "dependencies_added": false
+}

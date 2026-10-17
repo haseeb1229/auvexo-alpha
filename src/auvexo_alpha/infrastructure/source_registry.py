@@ -14,11 +14,11 @@ REST = "https://raw.githubusercontent.com/binance/binance-spot-api-docs/master/f
 def rights(source_id: Literal["DS-01", "DS-02"]) -> SourceRights:
     return SourceRights(
         source_id=source_id,
-        version="review.2026-10-16.v1",
-        reviewed_at=datetime(2026, 10, 16, tzinfo=UTC),
+        version="review.2026-10-17.v2" if source_id == "DS-01" else "review.2026-10-16.v1",
+        reviewed_at=datetime(2026, 10, 17 if source_id == "DS-01" else 16, tzinfo=UTC),
         review_due=datetime(2026, 11, 16, tzinfo=UTC),
         evidence_urls=(TERMS, "https://www.binance.com/en/about-legal/terms", REST),
-        terms_hash="dcf358e9d18f598a7a635fac80f6e643fa24a0e111a4d39bda47f1e246b31eb1"
+        terms_hash="99c4921dbe023cd68c1a447775707d621453cc78aec6ac0bfe2e6c06a5114ee0"
         if source_id == "DS-01"
         else "bf4879710c904b991848972ec4818ba2cf9e4ce314c09adae84fa2750d3477f7",
         permitted_use="PERSONAL_NONPRODUCTION_RESEARCH",

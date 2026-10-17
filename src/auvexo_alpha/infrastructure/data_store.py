@@ -489,10 +489,14 @@ class DataStore:
                 count += 1
         return count
 
-    def reconcile(self) -> dict[str, int]:
+    def verified_manifests(self) -> list[DatasetManifest]:
         manifests = self.manifests()
         for manifest in manifests:
             self.verify(manifest)
+        return manifests
+
+    def reconcile(self) -> dict[str, int]:
+        manifests = self.verified_manifests()
         accepted = {self.path(m).resolve() for m in manifests}
         return {
             "verified_manifests": len(manifests),

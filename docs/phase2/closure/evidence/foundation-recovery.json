@@ -1,0 +1,14 @@
+{
+  "status": "PASS",
+  "source": "auvexo_test_e57724508a28",
+  "isolated_restore": "auvexo_restore_e57724508a28",
+  "tables_compared": 3,
+  "synthetic_events": 1,
+  "migration_idempotent": true,
+  "destructive_downgrade_refused": true,
+  "restored_trigger_enforced": true,
+  "schema_drift_not_ready": true,
+  "elapsed_seconds": 10.739,
+  "backup_bytes": 18615,
+  "backup_sha256": "74ade91c5001dac28968914fd0e4f4a9afff25d57d9fe39b94004142dbddcea8"
+}

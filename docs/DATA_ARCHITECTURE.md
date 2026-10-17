@@ -95,3 +95,12 @@ Accepted pilot hourly artifacts use review-before-removal retention within byte 
 no age-only deletion is implemented. Exact selected coverage and gaps live in the
 [coverage matrix](phase2/QUALITY_AND_COVERAGE.md). Actual receipt remains distinct from
 the unknown original publication/first-seen time; strict as-of queries use receipt.
+
+### Phase 2 closure clarification: historical simulation is a separate design gate
+
+Strict `read_as_of` preserves the actual 2026 receipt/processing boundary. A simulated
+2020 decision cannot consume a bar first retrieved in 2026 through that production
+observed-availability contract. Phase 3 must separately design an opt-in, explicitly
+named price-only historical close/lag assumption, preserving observed receipt fields
+and its causal limitations. It must not grant historical macro/news vintages a price
+close-time assumption. No simulation mode or relaxed as-of rule is implemented here.

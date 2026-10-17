@@ -3,13 +3,10 @@
 import argparse
 import json
 
-import uvicorn
 from pydantic import ValidationError
 
 from auvexo_alpha import __version__
-from auvexo_alpha.api.app import create_app
 from auvexo_alpha.config import load_settings
-from auvexo_alpha.infrastructure.database import DatabaseProbe, make_engine
 
 
 def main() -> int:
@@ -27,6 +24,10 @@ def main() -> int:
         print(json.dumps({"code": "INVALID_CONFIG", "execution_enabled": False}))
         return 2
     if args.command == "serve":
+        import uvicorn
+
+        from auvexo_alpha.api.app import create_app
+
         print(
             json.dumps(
                 {
@@ -51,6 +52,8 @@ def main() -> int:
             json.dumps({"status": "VALID", "mode": settings.mode.value, "execution_enabled": False})
         )
         return 0
+    from auvexo_alpha.infrastructure.database import DatabaseProbe, make_engine
+
     engine = make_engine(settings)
     try:
         ready = DatabaseProbe(engine).ready()

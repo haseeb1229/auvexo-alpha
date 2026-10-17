@@ -230,6 +230,13 @@ def test_false_complete_report_refused(store):
         )
 
 
+def test_verified_qualification_input_refuses_corrupt_artifact(store):
+    manifest = publish(store)
+    store.path(manifest).write_bytes(b"damaged accepted file")
+    with pytest.raises(ValueError, match="MANIFEST_FILE_MISMATCH"):
+        store.verified_manifests()
+
+
 def test_default_off_and_persistent_rate_limit(store):
     from threading import Event
 
