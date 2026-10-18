@@ -80,3 +80,25 @@ needs with lazy column pruning and batched canonical validation. No second numer
 representation, fixed-point parity risk or dependency was introduced. The first benchmark
 attempt failed only at the final Windows disk-space reporting call; its result was not
 reported PASS. The corrected complete rerun supplies the measurements above.
+
+## Legacy identity compatibility correction
+
+Independent review of `1f3f9c5ab40b667fd79573d5a99c81580964adb3` found that
+legacy `spot.v1` publication omitted the parser suffix from the dataset identity.
+Every supported parser now uses SHA-256 of ASCII `key + ":" + source_hash + ":" + parser_version`,
+restoring the historical Phase 2 formula while leaving `spot.v2` identities unchanged.
+No migration, historical manifest, source archive or Parquet artifact changes.
+
+Independent expected-hash tests cover both parser versions. Storage tests also verify
+legacy repeat-publication idempotence, immutable supersession, exact legacy replay and
+0004's source/parser uniqueness, including legacy payloads without a parser field.
+The expected `spot.v1` identity assertion failed on the reviewed source before correction.
+The corrected focused storage/outage suite passed 25 tests. A read-only retained audit
+verified all 70 legacy identities and all 78 `spot.v2` identities and artifact hashes.
+
+Final correction evidence belongs in the owner-local handoff and
+`.local/phase3-correction/`: full retained replay/isolated restore, all 30 previously
+consumed OOS trajectories compared byte-for-byte under corrected clean-clone source,
+unchanged trial/holdout metadata, final Windows clone and exact-new-head hosted CI.
+This verification must not append empirical trials, reopen a holdout, retune selection
+or overwrite prior artifacts. Any trajectory mismatch stops acceptance for reviewer disposition.

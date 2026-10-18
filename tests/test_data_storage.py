@@ -1,5 +1,6 @@
 """Real PostgreSQL privileges, concurrency, atomic failure and disk/manifest recovery."""
 
+import hashlib
 import json
 import os
 import subprocess
@@ -73,7 +74,7 @@ def store(tmp_path):
             admin.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(name)))
 
 
-def publish(store, key="sample", price="100", checkpoint=None):
+def publish(store, key="sample", price="100", checkpoint=None, parser_version="spot.v2"):
     start = NOW - timedelta(hours=2)
     raw = json.dumps(
         [row(start, price=price), row(start + timedelta(hours=1), price=price)]
@@ -90,7 +91,20 @@ def publish(store, key="sample", price="100", checkpoint=None):
         NOW,
         "synthetic-test",
         checkpoint,
+        parser_version=parser_version,
     )
+
+
+@pytest.mark.parametrize("parser_version", ["spot.v1", "spot.v2"])
+def test_dataset_identity_includes_exact_parser_version(store, parser_version):
+    key = "known.identity.fixture"
+    start = NOW - timedelta(hours=2)
+    raw = json.dumps([row(start), row(start + timedelta(hours=1))]).encode()
+    digest = hashlib.sha256(raw).hexdigest()
+    expected = hashlib.sha256(f"{key}:{digest}:{parser_version}".encode("ascii")).hexdigest()
+    manifest = publish(store, key=key, parser_version=parser_version)
+    assert manifest.source_hash == digest
+    assert manifest.dataset_version == expected
 
 
 def test_idempotent_correction_lineage_and_exact_replay(store):
@@ -140,14 +154,44 @@ def test_parser_revision_creates_new_lineage_without_overwriting_source(store):
     )
     old = store.publish(*args, parser_version="spot.v1")
     original = old.canonical_bytes()
+    original_raw = (store.root / old.raw_relative_path).read_bytes()
+    original_parquet = store.path(old).read_bytes()
+    assert store.publish(*args, parser_version="spot.v1") == old
+    assert len(store.manifests()) == 1
     new = store.publish(*args, parser_version="spot.v2")
     assert new.dataset_version != old.dataset_version
     assert new.source_hash == old.source_hash and new.supersedes == old.dataset_version
     assert new.changed_rows == 0
-    assert old.canonical_bytes() == original
+    assert store.manifests()[0].canonical_bytes() == original
+    assert (store.root / old.raw_relative_path).read_bytes() == original_raw
+    assert store.path(old).read_bytes() == original_parquet
     assert len(store.manifests()) == 2
     replay(store, old)
     replay(store, new)
+    assert parquet_bytes(read_bars(store.path(old))) == original_parquet
+
+    # Distinct primary keys cannot bypass 0004's same-source/parser uniqueness.
+    # Also exercise missing parser_version, the historical spot.v1 representation.
+    for manifest, omit_version in ((old, False), (new, False), (old, True)):
+        payload = manifest.model_dump(mode="json")
+        payload["dataset_version"] = hashlib.sha256(uuid4().bytes).hexdigest()
+        if omit_version:
+            del payload["parser_version"]
+        with pytest.raises(DBAPIError) as failure, store.engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO data_manifest VALUES (:v,:k,:s,:t,:prior,:h,:p)"),
+                {
+                    "v": payload["dataset_version"],
+                    "k": manifest.logical_key,
+                    "s": manifest.source_hash,
+                    "t": manifest.created_at,
+                    "prior": manifest.supersedes,
+                    "h": hashlib.sha256(json.dumps(payload).encode()).hexdigest(),
+                    "p": json.dumps(payload),
+                },
+            )
+        assert failure.value.orig.diag.constraint_name == "data_manifest_source_parser"
+    assert len(store.manifests()) == 2
 
 
 @pytest.mark.parametrize("stage", ["rename", "database"])

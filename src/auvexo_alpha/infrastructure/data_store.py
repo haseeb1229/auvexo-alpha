@@ -256,12 +256,7 @@ class DataStore:
             or actual.status != coverage.status
         ):
             raise ValueError("COVERAGE_MISMATCH")
-        identity = key + ":" + digest
-        version = sha(
-            (identity if parser_version == "spot.v1" else identity + ":" + parser_version).encode(
-                "ascii"
-            )
-        )
+        version = sha((key + ":" + digest + ":" + parser_version).encode("ascii"))
         with self.engine.begin() as conn:
             # One bounded local publisher protects both quota and correction/checkpoint races.
             conn.execute(text("SELECT pg_advisory_xact_lock(20801402)"))
