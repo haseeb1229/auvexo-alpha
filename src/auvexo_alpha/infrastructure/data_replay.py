@@ -34,6 +34,7 @@ def replay(store: DataStore, manifest: DatasetManifest) -> None:
             coverage.requested_end,
             manifest.created_at,
             manifest.source_url,
+            manifest.parser_version,
         )
     else:
         bars, report = parse_rest(
@@ -44,6 +45,7 @@ def replay(store: DataStore, manifest: DatasetManifest) -> None:
             coverage.requested_end,
             manifest.created_at,
             manifest.source_url,
+            manifest.parser_version,
         )
     bars = [
         Candle.model_validate(

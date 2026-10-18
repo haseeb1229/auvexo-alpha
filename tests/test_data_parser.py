@@ -134,6 +134,18 @@ def test_partial_and_close_semantics():
     values = row(NOW - timedelta(hours=1))
     values[6] = str(int(values[6]) + 1)
     with pytest.raises(ValueError, match="TIMESTAMP_UNIT"):
+        parse_row(
+            values,
+            "BTCUSDT",
+            "1h",
+            "MILLISECOND",
+            "DS-02",
+            "x",
+            "0" * 64,
+            NOW,
+            parser_version="spot.v1",
+        )
+    with pytest.raises(ValueError, match="INTERVAL_BOUNDARY"):
         parse_row(values, "BTCUSDT", "1h", "MILLISECOND", "DS-02", "x", "0" * 64, NOW)
 
 

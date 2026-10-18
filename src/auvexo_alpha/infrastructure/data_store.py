@@ -21,6 +21,7 @@ from auvexo_alpha.domain.market_data import (
     SourceRights,
     SpecSnapshot,
 )
+from auvexo_alpha.infrastructure.spot_parser import ParserVersion
 
 # Set before the first Polars import: no optional GPU, cloud or unbounded thread pool.
 os.environ["POLARS_MAX_THREADS"] = "2"
@@ -223,6 +224,7 @@ class DataStore:
         received: datetime,
         code_revision: str,
         checkpoint: str | None = None,
+        parser_version: ParserVersion = "spot.v2",
     ) -> DatasetManifest:
         rights.require_research(received)
         if not bars or source.source_id != rights.source_id:
@@ -254,7 +256,7 @@ class DataStore:
             or actual.status != coverage.status
         ):
             raise ValueError("COVERAGE_MISMATCH")
-        version = sha((key + ":" + digest + ":spot.v1").encode("ascii"))
+        version = sha((key + ":" + digest + ":" + parser_version).encode("ascii"))
         with self.engine.begin() as conn:
             # One bounded local publisher protects both quota and correction/checkpoint races.
             conn.execute(text("SELECT pg_advisory_xact_lock(20801402)"))
@@ -290,6 +292,7 @@ class DataStore:
             )
             manifest = DatasetManifest(
                 dataset_version=version,
+                parser_version=parser_version,
                 logical_key=key,
                 source=source,
                 rights=rights,

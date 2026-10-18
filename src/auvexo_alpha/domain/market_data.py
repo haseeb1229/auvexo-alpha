@@ -30,6 +30,8 @@ QualityCode = Literal[
     "PARTIAL",
     "STALE",
     "TIMESTAMP_UNIT",
+    "TRUNCATED_INTERVAL",
+    "INTERVAL_BOUNDARY",
     "IMPLAUSIBLE_TIME",
     "SPEC_UNIT",
     "CHECKSUM",
@@ -230,7 +232,7 @@ class DatasetManifest(Contract):
     parquet_bytes: Annotated[int, Field(gt=0)]
     relative_path: str = Field(pattern=r"^partitions/[a-zA-Z0-9_.-]+/[0-9a-f]{64}\.parquet$")
     normalized_hash: Digest
-    parser_version: Literal["spot.v1"] = "spot.v1"
+    parser_version: Literal["spot.v1", "spot.v2"] = "spot.v2"
     code_revision: Label
     code_hash: Digest
     parquet_writer: Literal["polars.2.0.0.zstd3"] = "polars.2.0.0.zstd3"

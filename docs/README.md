@@ -1,5 +1,13 @@
 # Project document index
 
+Current Phase 4 entry: Phase 3 correctness/research independently accepted at
+`bb69220818a519e122d2cd9b1cad75559c2fa244`; all four empirical outcomes INCONCLUSIVE,
+both OOS consumed, no CANDIDATE/CHAMPION. See [acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
+The owner authorizes documentation-only normal PR #4 merge, then Checkpoint A on
+`phase-4/strategy-risk-paper`: PAPER-only risk/lifecycle/durable simulation core.
+No persistent PAPER observation, Phase 5 or broker capability. Phase 2 B/C stays OPEN.
+Earlier entry wording and dated handoffs below are historical snapshots.
+
 Read the [current baseline correction handoff](amendments/BASELINE_CORRECTION_HANDOFF.md),
 [ADR-013](adr/013-source-specific-acceptance.md), [current schedule](amendments/SCHEDULER_2300.md),
 constitution/requirements and policies. Phases 0/1 are independently accepted; Phase 2

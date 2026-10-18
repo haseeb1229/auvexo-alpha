@@ -1,5 +1,13 @@
 # Roadmap and proof gates
 
+Current Phase 4 entry: Phase 3 correctness/research independently accepted at
+`bb69220818a519e122d2cd9b1cad75559c2fa244`; all four empirical outcomes INCONCLUSIVE,
+both OOS consumed, no CANDIDATE/CHAMPION. See [acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
+The owner authorizes documentation-only normal PR #4 merge, then Checkpoint A on
+`phase-4/strategy-risk-paper`: PAPER-only risk/lifecycle/durable simulation core.
+No persistent PAPER observation, Phase 5 or broker capability. Phase 2 B/C stays OPEN.
+Earlier entry wording and dated handoffs below are historical snapshots.
+
 Status: canonical phases 0-9 retained. [ADR-013](adr/013-source-specific-acceptance.md)
 defines the superseding acceptance model independently accepted at exact `bdae1a1` by the
 owner-supplied Phase 3 prompt; [acceptance record](reviews/PHASE_2_RESEARCH_ACCEPTANCE.md). Each phase still needs an authorized prompt and reviewer-accepted concrete dependencies.
@@ -15,9 +23,10 @@ the revised V2 brief; see [acceptance](reviews/PHASE_1_INDEPENDENT_ACCEPTANCE.md
 coverage passed; genuine scheduled days remain OPEN and Exness DEMO is blocked.
 PUBLIC hosted CI has now run successfully; private allocation is not proven resolved.
 The owner approved a temporary public-source exception, review due October 24 with
-independent governance review still required. PR #3 remains unmerged; macro-exit is
-not PASS. The owner-supplied Phase 3 prompt authorizes entry only after administrative recording
-and a normal exact-head PR #3 merge; no Phase 3 implementation occurs in this status commit. The [baseline amendment](amendments/BASELINE_CORRECTION_HANDOFF.md)
+independent governance review still required. PR #3 merged normally at the recorded exact SHA;
+full operational macro-exit is not PASS. Phase 3 research is authorized under its owner prompt
+and the [V2 provider-outage amendment](phase3/DATA_PLAN_V2.md); unknown gaps still stop work.
+The [baseline amendment](amendments/BASELINE_CORRECTION_HANDOFF.md)
 is the dated amendment delivery package; historical snapshots retain their original facts.
 
 ## Two acceptance dispositions

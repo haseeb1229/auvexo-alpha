@@ -97,7 +97,7 @@ def main() -> None:
                 conn.execute("UPDATE alembic_version SET version_num='unexpected_revision'")
             assert not DatabaseProbe(engine).ready()
             with psycopg.connect(dbname=target, **args) as conn:
-                conn.execute("UPDATE alembic_version SET version_num='0003_source_receipts'")
+                conn.execute("UPDATE alembic_version SET version_num='0004_research_ledger'")
             assert DatabaseProbe(engine).ready()
         finally:
             engine.dispose()

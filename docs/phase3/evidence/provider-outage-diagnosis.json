@@ -1,0 +1,158 @@
+{
+  "recorded_at": "2026-10-17T19:41:14.058379+00:00",
+  "status": "PROVIDER_OUTAGE_CONFIRMED_NOT_CANDLE_OR_PASS",
+  "scope": "Binance SPOT venue availability only; no strategy feature or price reconstruction",
+  "official_evidence": [
+    {
+      "url": "https://www.binance.com/en/blog/from-our-ceo/6789340645608890113",
+      "recorded_at": "2026-10-17T19:41:14.058379+00:00",
+      "representation": "VERIFIED_FACT_EXTRACT",
+      "facts": "Binance reports a spot-system incident on 2023-03-24: disabling began at 11:27 UTC; normal platform function was expected from 14:00 UTC. This is retrospective venue evidence, not an advance strategy signal.",
+      "sha256_of_utf8_fact_extract": "3b026d404f42223a09d1b7bdc678f4cfb1f65b7313a3de3ba61cb2e59d70deda",
+      "retrieval_method": "Official page content inspected through web tool. Direct local HTTP returned 202/empty body; its empty-body hash is NOT treated as provider-content evidence."
+    },
+    {
+      "url": "https://www.binance.com/en/support/announcement/detail/813a31506e9f478ea8c1058b425df87a",
+      "recorded_at": "2026-10-17T19:41:14.058379+00:00",
+      "representation": "VERIFIED_FACT_EXTRACT",
+      "facts": "The Binance completion notice, dated 2023-03-24, specifies 14:00 UTC for the resumption of spot trading after temporary maintenance. It was later clarified as spot-system maintenance.",
+      "sha256_of_utf8_fact_extract": "19ae3ccd4b748af3414b4bb163e5b5ed27779894a3854e6ec731d6598eccbaa3",
+      "retrieval_method": "Official page content inspected through web tool. Direct local HTTP returned 202/empty body; its empty-body hash is NOT treated as provider-content evidence."
+    }
+  ],
+  "independent_reports": [
+    {
+      "url": "https://github.com/binance/binance-public-data/issues/501",
+      "retrieved_at": "2026-10-17T19:31:33.055757+00:00",
+      "response_sha256": "385189450c780c25288e62fe6582c7a98d7717630619565c42023250278cf19e",
+      "response_bytes": 3381
+    },
+    {
+      "url": "https://github.com/binance/binance-public-data/issues/365",
+      "retrieved_at": "2026-10-17T19:31:33.836302+00:00",
+      "response_sha256": "aebe6c0b5e12c3b18d27457de241db65d0db932c6ee3ea248a641d2524296660",
+      "response_bytes": 5724
+    }
+  ],
+  "original_archive_dataset_version": "16617909638282144ab0d0804972589f4af4d616793cad809211068d9478eb54",
+  "original_manifest_hash": "2678d0e5dc1e7cd55a3156163b5fefd43b5efe2b171418040f2cd8c46f770da2",
+  "archive_source_sha256": "7f2afb8e0179a57ac31eab5205660298ba5eb77039ac2e21aef9b715ff3d06ce",
+  "archive_original_quality": "DEGRADED",
+  "archive_raw_rows": 743,
+  "archive_accepted_rows": 742,
+  "archive_narrow_facts": [
+    {
+      "open_raw": 1679652000000,
+      "close_raw": 1679655599999,
+      "open_utc": "2023-03-24T10:00:00+00:00",
+      "close_utc": "2023-03-24T10:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "3639.24610000",
+      "trades": 65628,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    },
+    {
+      "open_raw": 1679655600000,
+      "close_raw": 1679659199999,
+      "open_utc": "2023-03-24T11:00:00+00:00",
+      "close_utc": "2023-03-24T11:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "1267.41714000",
+      "trades": 25083,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    },
+    {
+      "open_raw": 1679659200000,
+      "close_raw": 1679661581646,
+      "open_utc": "2023-03-24T12:00:00+00:00",
+      "close_utc": "2023-03-24T12:39:41.646000+00:00",
+      "duration_ms": 2381647,
+      "volume": "0.00000000",
+      "trades": 0,
+      "current_parser_result": "TIMESTAMP_UNIT"
+    },
+    {
+      "open_raw": 1679666400000,
+      "close_raw": 1679669999999,
+      "open_utc": "2023-03-24T14:00:00+00:00",
+      "close_utc": "2023-03-24T14:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "8983.24018000",
+      "trades": 144497,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    },
+    {
+      "open_raw": 1679670000000,
+      "close_raw": 1679673599999,
+      "open_utc": "2023-03-24T15:00:00+00:00",
+      "close_utc": "2023-03-24T15:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "5198.28681000",
+      "trades": 92428,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    }
+  ],
+  "rest_url": "https://data-api.binance.vision/api/v3/klines?symbol=BTCUSDT&interval=1h&startTime=1679652000000&endTime=1679673599999&limit=10",
+  "rest_received_at": "2026-10-17T19:31:30.015834+00:00",
+  "rest_response_sha256": "70205730eef0eb328c45561ec54bcbeb43a1ee2ae7c2a928c0131f2ae8e6dc67",
+  "rest_requests": 1,
+  "rest_bytes": 881,
+  "rest_narrow_facts": [
+    {
+      "open_raw": 1679652000000,
+      "close_raw": 1679655599999,
+      "open_utc": "2023-03-24T10:00:00+00:00",
+      "close_utc": "2023-03-24T10:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "3639.24610000",
+      "trades": 65628,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    },
+    {
+      "open_raw": 1679655600000,
+      "close_raw": 1679659199999,
+      "open_utc": "2023-03-24T11:00:00+00:00",
+      "close_utc": "2023-03-24T11:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "1267.41714000",
+      "trades": 25083,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    },
+    {
+      "open_raw": 1679659200000,
+      "close_raw": 1679661581646,
+      "open_utc": "2023-03-24T12:00:00+00:00",
+      "close_utc": "2023-03-24T12:39:41.646000+00:00",
+      "duration_ms": 2381647,
+      "volume": "0.00000000",
+      "trades": 0,
+      "current_parser_result": "TIMESTAMP_UNIT"
+    },
+    {
+      "open_raw": 1679666400000,
+      "close_raw": 1679669999999,
+      "open_utc": "2023-03-24T14:00:00+00:00",
+      "close_utc": "2023-03-24T14:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "8983.24018000",
+      "trades": 144497,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    },
+    {
+      "open_raw": 1679670000000,
+      "close_raw": 1679673599999,
+      "open_utc": "2023-03-24T15:00:00+00:00",
+      "close_utc": "2023-03-24T15:59:59.999000+00:00",
+      "duration_ms": 3600000,
+      "volume": "5198.28681000",
+      "trades": 92428,
+      "current_parser_result": "NORMAL_FULL_INTERVAL"
+    }
+  ],
+  "comparison": "Archive/REST field-level facts identical; 13:00 absent in both. 12:00 exists, valid milliseconds, truncated close at 12:39:41.646 UTC, zero volume/trades; never accepted as a complete candle.",
+  "parser_resolution": "spot.v2 distinguishes TRUNCATED_INTERVAL / INTERVAL_BOUNDARY; spot.v1 retains original label for exact historical replay. Existing manifest unchanged.",
+  "source_diagnosis_sha256": "83edb30ac076a18c38183422e8f21c860948d1bb50dd3dfb06f90603a13e7c15",
+  "data_plan_v1_sha256": "82d189d51b01457e8141455d02addafcdbd690e8a73f4f4996eefcc7fbd2b8a4",
+  "oos_inspected_before_amendment": false,
+  "attribution": "Binance Vision; dataset-derived verification facts subject to CC-BY-NC-SA-4.0 and supplementary Vision terms, separate from repository code license."
+}

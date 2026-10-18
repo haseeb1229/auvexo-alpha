@@ -33,6 +33,9 @@ def main() -> None:
     )
     git = ["git", "-c", f"safe.directory={ROOT.as_posix()}"]
     commit = subprocess.check_output([*git, "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
+    branch = subprocess.check_output(
+        [*git, "branch", "--show-current"], cwd=ROOT, text=True
+    ).strip()
     started = time.monotonic()
     subprocess.run(
         [
@@ -41,7 +44,7 @@ def main() -> None:
             "--no-local",
             "--no-hardlinks",
             "--branch",
-            "phase-2/trustworthy-data",
+            branch,
             str(ROOT),
             str(target),
         ],

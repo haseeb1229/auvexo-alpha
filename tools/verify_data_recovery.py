@@ -13,6 +13,7 @@ from sqlalchemy import URL, create_engine, text
 
 from auvexo_alpha.infrastructure.data_replay import replay
 from auvexo_alpha.infrastructure.data_store import DataStore, file_hash
+from auvexo_alpha.infrastructure.research_ledger import ResearchLedger
 
 
 def main():
@@ -42,6 +43,9 @@ def main():
         "data_checkpoint",
         "data_source_review",
         "data_spec",
+        "research_study",
+        "research_event",
+        "research_trial",
     )
 
     def snapshot(database):
@@ -62,10 +66,16 @@ def main():
             if not lease.scalar(text("SELECT pg_try_advisory_lock(20801403)")):
                 raise RuntimeError("Stop collector before backup")
             lease.execute(text("SELECT pg_advisory_lock(20801402)"))
+            lease.execute(text("SELECT pg_advisory_lock(20801405)"))
+            lease.execute(text("SELECT pg_advisory_lock(20801406)"))
             try:
                 source.reconcile()
                 expected = snapshot("auvexo_dev")
                 manifests = source.manifests()
+                research_root = LOCAL / "research"
+                research = ResearchLedger(engine, research_root, LOCAL)
+                research_verified = research.verify()
+                shutil.copytree(research_root, directory / "research")
                 rejected = {
                     e.quarantined_source_hash for e in source.events() if e.quarantined_source_hash
                 }
@@ -89,6 +99,8 @@ def main():
                 dump = directory / "metadata.dump"
                 run_pg("pg_dump", "-Fc", "-f", str(dump), "auvexo_dev", env=pg_env)
             finally:
+                lease.execute(text("SELECT pg_advisory_unlock(20801406)"))
+                lease.execute(text("SELECT pg_advisory_unlock(20801405)"))
                 lease.execute(text("SELECT pg_advisory_unlock(20801402)"))
                 lease.execute(text("SELECT pg_advisory_unlock(20801403)"))
         run_pg(
@@ -108,6 +120,9 @@ def main():
             assert result["verified_manifests"] == len(manifests)
             for manifest in manifests:
                 replay(restored, manifest)
+            assert ResearchLedger(restored_engine, directory / "research", LOCAL).verify() == (
+                research_verified
+            )
             for digest in rejected:
                 assert file_hash(restored.root / "quarantine" / (digest + ".raw")) == digest
             for table in (
@@ -116,6 +131,9 @@ def main():
                 "data_checkpoint",
                 "data_source_review",
                 "data_spec",
+                "research_study",
+                "research_trial",
+                "research_event",
             ):
                 with psycopg.connect(dbname=target, **args) as conn:
                     try:
@@ -130,7 +148,7 @@ def main():
     engine.dispose()
     report = dict(
         status="PASS",
-        schema="0003_source_receipts",
+        schema="0004_research_ledger",
         tables_compared=len(tables),
         manifests=len(manifests),
         parquet_bytes=sum(m.parquet_bytes for m in manifests),
@@ -140,6 +158,7 @@ def main():
         restored_triggers=True,
         exact_source_to_parquet_replay=True,
         quarantined_payloads_verified=len(rejected),
+        research_artifacts=research_verified,
         elapsed_seconds=round(time.monotonic() - started, 3),
         retained_backup=directory.name,
         limitation="Same-disk DEV backup; not encrypted disaster recovery",
