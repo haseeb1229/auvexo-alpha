@@ -102,3 +102,5 @@ No parent/Phase 1 child requirement or financial numerical target is removed.
 
 Phase 3 refines the same parent IDs through [stable child requirements](phase3/ACCEPTANCE_TESTS.md),
 under [ADR-014](adr/014-nonproduction-research.md). No Phase 1/2 safety proof is retired.
+
+Phase 4 Checkpoint A refines existing parents through [frozen child requirements](phase4/ACCEPTANCE_TESTS.md) under [ADR-015](adr/015-paper-risk-core.md). No persistent observation or operational acceptance is inferred.

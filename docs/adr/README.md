@@ -24,3 +24,5 @@ records require their named proof gate. None is evidence of an implemented contr
 | [ADR-014](014-nonproduction-research.md) | ACCEPTED/FROZEN at bb692208 | Deterministic nonproduction spot research and immutable trial ledger |
 
 Exact versions, capital decisions and deferred triggers live in [open decisions](../OPEN_DECISIONS.md).
+
+| [ADR-015](015-paper-risk-core.md) | FROZEN checkpoint design; implementation review pending | Isolated deterministic PAPER risk/lifecycle/durable core |
