@@ -1,6 +1,6 @@
 # ADR-014: deterministic nonproduction spot research
 
-Status: Phase 3 implementation decision; independent review pending
+Status: ACCEPTED/FROZEN; independently accepted at bb69220818a519e122d2cd9b1cad75559c2fa244
 Date: 2026-10-17
 Requirements: R-005, R-006, R-007, R-014, R-015, R-022, R-025
 
@@ -58,6 +58,8 @@ clean Windows clone and exact-head hosted CI. Preserve every existing execution 
 
 ## Review point
 
-GPT-5.6 Sol independent exact-final-SHA review before Phase 3 merge or any Phase 4 prompt.
-Phase 3 PR remains unmerged; scheduled data task unchanged, DS-03 blocked and all money
-actions denied. Public exception review remains due 2026-10-24; no visibility change here.
+GPT-5.6 Sol acceptance at exact bb69220818a519e122d2cd9b1cad75559c2fa244 is
+recorded in the [acceptance record](../reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
+The owner authorizes normal administrative merge and Phase 4 Checkpoint A only.
+Scheduled data task unchanged, DS-03 blocked and all money actions denied.
+Public exception review remains due 2026-10-24; no visibility change here.

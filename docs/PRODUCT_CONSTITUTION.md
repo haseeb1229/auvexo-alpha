@@ -40,10 +40,13 @@ Core operation cannot depend on paid APIs, paid cloud LLMs, a GPU or a free clou
 The supplied 16 GB laptop and approximately 300 GB free disk are planning constraints,
 not measured capacity. Aim for <=120 GB managed footprint with a 150 GB hard quota.
 
-Phase 0 delivered documents only. Current authorized Phase 3 scope is deterministic
-backtest correctness and generic BTC/ETH SPOT personal nonproduction research after the
-accepted normal Phase 2 merge. No Phase 4, broker account/credentials, DEMO/REAL order,
-risk authorizer, permit issuer, runtime agents, frontend, paid signup or speculative infrastructure.
+Phase 0 delivered documents only. Phase 3 correctness/research is independently accepted
+at bb69220818a519e122d2cd9b1cad75559c2fa244; four empirical outcomes INCONCLUSIVE and
+no tradable champion. The owner authorizes Phase 4 Checkpoint A's deterministic
+PAPER-only engineering after normal PR #4 administrative merge; see the
+[acceptance record](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md). No persistent PAPER
+observation, Phase 5, broker account/credentials/transport, DEMO/REAL orders, live permit
+issuer, runtime agents, frontend or paid service. All money modes remain denied.
 
 Decision meanings: FROZEN means an accepted design requiring a superseding ADR to change;
 PROVISIONAL means a selected direction with a named validation gate; DEFERRED means no

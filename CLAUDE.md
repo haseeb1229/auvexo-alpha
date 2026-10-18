@@ -6,16 +6,17 @@ Exact-source confirmed venue outages remain DEGRADED and explicitly unavailable,
 Any new unexplained gap stops again. No OOS read before the verified selection/consumption gate.
 Prior stop evidence remains in .local/PHASE_3_BLOCKED_HANDOFF.md; no Phase 3 acceptance inferred.
 
-Current authorized scope: Phase 3 deterministic backtest correctness and generic simple
-BTC/ETH Binance SPOT personal NONPRODUCTION research only. Read docs/reference/PHASE_3_BRIEF.txt,
-docs/phase3/ACCEPTANCE_TESTS.md, docs/phase3/DATA_PLAN.md and ADR-014.
-ADR-013 / DS-01/02 source-specific research accepted at bdae1a1978ecfe26c201074fe12e81f2c654a4af.
-Acceptance-only commit 7b1d23d0fb26d41e5a8cf36159c9379615f2bb50 normally merged PR #3 at
-26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3. See docs/reviews/PHASE_2_RESEARCH_ACCEPTANCE.md.
-Current branch phase-3/backtest-simple-alpha; its PR must remain unmerged for independent review.
-Full Phase 2 operational acceptance remains OPEN; seven genuine dates and DS-03 are not waived.
-Do not modify/retime/delete the public-data daily task. No Phase 4, Exness/XAU/CFD research,
-order transport, risk authorizer, permit issuer, runtime AI or frontend.
+Phase 3 independently accepted at bb69220818a519e122d2cd9b1cad75559c2fa244;
+all four results INCONCLUSIVE, both OOS holdouts consumed forever, no CANDIDATE/CHAMPION.
+See docs/reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md. Owner authorizes documentation-only
+acceptance, checked normal PR #4 merge, then phase-4/strategy-risk-paper from main.
+Current authorized scope: Phase 4 Checkpoint A deterministic PAPER-only risk/lifecycle/
+durable journal and reconciliation engineering. Separate non-promotable TEST_ONLY fixtures
+only; no Phase 3 promotion. Freeze child requirements before executable implementation.
+Phase 4 PR stays unmerged for exact-final-SHA independent review. No persistent PAPER task,
+14-day observation counter, Phase 5, broker transport, live permit issuer, runtime AI or frontend.
+Full Phase 2 operational acceptance stays OPEN; seven genuine dates and DS-03 not waived.
+Do not modify/retime/delete the public-data daily task. Exness/XAU/CFD research blocked.
 Broker SDKs, account access and credentials remain prohibited.
 Execution remains impossible to enable in all modes; all money actions denied.
 Only complete or V2 source-proven outage-aware, rights-valid, hash-verified,

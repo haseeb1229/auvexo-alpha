@@ -1,10 +1,12 @@
 # Roadmap and proof gates
 
-Current Phase 3 entry: accepted Phase 2 research scope recorded at `7b1d23d0fb26d41e5a8cf36159c9379615f2bb50`,
-normally merged PR #3 at `26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3` with expected parents.
-Phase 3 is authorized on its new branch; full Phase 2 operational status remains OPEN.
-See [Phase 3 requirements](phase3/ACCEPTANCE_TESTS.md) and [data plan](phase3/DATA_PLAN.md).
-Earlier administrative entry wording below records the acceptance transition, not current PR status.
+Current Phase 4 entry: Phase 3 correctness/research independently accepted at
+`bb69220818a519e122d2cd9b1cad75559c2fa244`; all four empirical outcomes INCONCLUSIVE,
+both OOS consumed, no CANDIDATE/CHAMPION. See [acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
+The owner authorizes documentation-only normal PR #4 merge, then Checkpoint A on
+`phase-4/strategy-risk-paper`: PAPER-only risk/lifecycle/durable simulation core.
+No persistent PAPER observation, Phase 5 or broker capability. Phase 2 B/C stays OPEN.
+Earlier entry wording and dated handoffs below are historical snapshots.
 
 Status: canonical phases 0-9 retained. [ADR-013](adr/013-source-specific-acceptance.md)
 defines the superseding acceptance model independently accepted at exact `bdae1a1` by the

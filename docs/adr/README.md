@@ -21,6 +21,6 @@ records require their named proof gate. None is evidence of an implemented contr
 
 | [ADR-013](013-source-specific-acceptance.md) | FROZEN; independently accepted at bdae1a1 | Source-specific engineering acceptance; full operational gates retained; 23:00 Pakistan schedule |
 
-| [ADR-014](014-nonproduction-research.md) | Phase 3 implementation decision; independent review pending | Deterministic nonproduction spot research and immutable trial ledger |
+| [ADR-014](014-nonproduction-research.md) | ACCEPTED/FROZEN at bb692208 | Deterministic nonproduction spot research and immutable trial ledger |
 
 Exact versions, capital decisions and deferred triggers live in [open decisions](../OPEN_DECISIONS.md).
