@@ -1,6 +1,6 @@
 # ADR-015: deterministic isolated PAPER safety core
 
-Status: FROZEN checkpoint requirements/design; independent implementation review pending
+Status: ACCEPTED/FROZEN for Checkpoint A engineering at e3f39e0397e1846c37febcebc246ea91c9f2eb78; full Phase 4 OPEN
 Date: 2026-10-18
 Requirements: R-002, R-003, R-004, R-006, R-008, R-021, R-022-A, R-022-B, R-022-C, R-022-D, R-022-E, R-023, R-024, R-025
 

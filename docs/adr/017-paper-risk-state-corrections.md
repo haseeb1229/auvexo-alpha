@@ -1,6 +1,6 @@
 # ADR-017: PAPER position identity, contradictory truth and latched loss
 
-Status: FROZEN clarification; local implementation verified, independent review pending
+Status: ACCEPTED/FROZEN for Checkpoint A engineering at e3f39e0397e1846c37febcebc246ea91c9f2eb78; full Phase 4 OPEN
 Date: 2026-10-19
 Requirements: R-002-P4-01, R-022-P4-02, R-022-P4-03, R-021-P4-01, R-021-P4-02, R-022-P4-04
 

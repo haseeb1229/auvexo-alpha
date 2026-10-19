@@ -25,18 +25,18 @@ records require their named proof gate. None is evidence of an implemented contr
 
 Exact versions, capital decisions and deferred triggers live in [open decisions](../OPEN_DECISIONS.md).
 
-| [ADR-015](015-paper-risk-core.md) | FROZEN checkpoint design; implementation review pending | Isolated deterministic PAPER risk/lifecycle/durable core |
+| [ADR-015](015-paper-risk-core.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Isolated deterministic PAPER risk/lifecycle/durable core |
 
-| [ADR-016](016-paper-direct-login.md) | FROZEN; local proof, independent review pending | Direct least-privilege PAPER LOGIN binding, no admin pool |
+| [ADR-016](016-paper-direct-login.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Direct least-privilege PAPER LOGIN binding, no admin pool |
 
-| [ADR-017](017-paper-risk-state-corrections.md) | FROZEN; local proof, independent review pending | New-position OPEN identity, contradictory truth and latched marked loss |
+| [ADR-017](017-paper-risk-state-corrections.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | New-position OPEN identity, contradictory truth and latched marked loss |
 
-| [ADR-018](018-paper-observed-mark-freshness.md) | FROZEN; local proof, independent review pending | Retained observed valuation with separate current freshness |
+| [ADR-018](018-paper-observed-mark-freshness.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Retained observed valuation with separate current freshness |
 
-| [ADR-019](019-paper-lifecycle-filesystem.md) | FROZEN; local proof, independent review pending | Production initial history and isolated pytest cache permissions |
+| [ADR-019](019-paper-lifecycle-filesystem.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Production initial history and isolated pytest cache permissions |
 
-| [ADR-020](020-paper-transaction-performance.md) | FROZEN; local proof, independent review pending | Same-transaction verified history and bounded checkout roundtrips; performance interpretation superseded by ADR-022 |
+| [ADR-020](020-paper-transaction-performance.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Same-transaction verified history and bounded checkout roundtrips; performance interpretation superseded by ADR-022 |
 
-| [ADR-021](021-paper-monotonic-safety-projection.md) | FROZEN; local proof, independent review pending | Monotonic safety projection across pending truth and loss denial; performance interpretation superseded by ADR-022 |
+| [ADR-021](021-paper-monotonic-safety-projection.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Monotonic safety projection across pending truth and loss denial; performance interpretation superseded by ADR-022 |
 
-| [ADR-022](022-paper-performance-slo.md) | FROZEN owner-authorized amendment; independent review pending | Percentile transaction SLO and qualified research-throttle semantics; no benchmark rerun |
+| [ADR-022](022-paper-performance-slo.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Percentile transaction SLO and qualified research-throttle semantics; no benchmark rerun |

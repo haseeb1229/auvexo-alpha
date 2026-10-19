@@ -1,10 +1,15 @@
 # Phase 4 Checkpoint A implementation handoff
 
-Disposition: Checkpoint A independent acceptance remains OPEN. The owner-authorized
-[ADR-022 amendment](../adr/022-paper-performance-slo.md) qualifies the preserved final
-benchmark under percentile/throttle semantics, with concurrent stress explicitly marked
-THROTTLE_REQUIRED. Local verification is recorded below; exact-new-SHA independent
-review remains required. No merge, persistent observation or later phase follows from performance qualification.
+Disposition: **Checkpoint A engineering independently ACCEPTED/PASS** at exact source
+`e3f39e0397e1846c37febcebc246ea91c9f2eb78` by GPT-5.6 Sol; see the
+[acceptance record](../reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md).
+ADR-015 through ADR-022 are ACCEPTED/FROZEN for this scope. The accepted
+[ADR-022 amendment](../adr/022-paper-performance-slo.md) retains the 272.4386 ms
+concurrent stress tail as THROTTLE_REQUIRED evidence; no benchmark rerun.
+Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
+replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
+its counter is zero. Only documentation-only acceptance/CI and verified normal PR #5
+merge are authorized now; Checkpoint B harness implementation follows only from merged main.
 
 ## Implemented scope and preserved safety
 
@@ -97,8 +102,10 @@ benchmark's original primary-only `transaction_max` flag is not the amended over
 
 The fifth-resume corrected/optimized source remained uncommitted at the preserved
 aggregate `cc17c0d7b2f2e55148bd8e0d683c42027dbdc4639ee505c9bd3609cebb29b69c`.
-Reviewed committed baseline: `c0a470bbf9530ccd89d82df6e96811df2ed20cda`.
-Its existing review vehicle is PR #5, which must remain OPEN/UNMERGED.
+Earlier reviewed committed baseline: `c0a470bbf9530ccd89d82df6e96811df2ed20cda`.
+Accepted engineering source: `e3f39e0397e1846c37febcebc246ea91c9f2eb78`.
+PR #5 is now authorized for a documentation-only acceptance child, exact-head
+administrative CI and checked normal merge; no merge has yet been recorded here.
 
 | Historical verification | Recorded result | Limit |
 | --- | --- | --- |
@@ -135,11 +142,20 @@ Same-disk restores do not establish encrypted off-device disaster recovery.
 
 ## Remaining gates and boundaries
 
-After all mandatory final verification passes, use coherent founder commits and a normal
-push on the same Phase 4 branch. Keep the existing PR #5 open and unmerged. Exact-final
-Windows clone and hosted push/PR runs AND jobs must complete successfully with passing
-logs at the new SHA. Request GPT-5.6 Sol exact-new-SHA acceptance review, including the
-formal amendment and preserved stress tails. No independent acceptance is recorded here.
+The supplied independent review inspected exact-head push run 39318662478/job
+118286676477 (1273 passed in 81.69 s) and PR run 39318668094/job 118286698079
+(1273 passed in 82.86 s), both completed/success. Source/hosted-CI inspections are
+independent evidence; owner-machine Windows clone, recovery, ACL and timing receipts
+were supporting evidence and were not all independently re-enacted. This limitation
+and the complete accepted scope are recorded in the acceptance document.
+
+The next authorized steps are a documentation-only acceptance commit and exact-head
+push/PR administrative CI, then normal PR #5 merge with verified parents. Only after
+that merge may `phase-4/paper-observation` implement the Checkpoint B harness from
+resulting main under the owner brief, freezing its ADR and requirements first.
+Its new PR remains unmerged for independent exact-SHA review. No persistent task
+registration, observation START or >=14-day counter start is authorized. Full Phase 4
+operational acceptance remains OPEN; the implementing agent does not award it.
 
 DEV remains at reviewed 0004; unmerged 0005 is exercised only in isolated verification.
 The schema-aware foundation diagnostic remains NOT_READY on unmigrated DEV.

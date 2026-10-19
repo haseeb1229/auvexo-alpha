@@ -1,6 +1,6 @@
 # ADR-016: direct least-privilege PAPER database identity
 
-Status: FROZEN requirement; local implementation verified, independent review pending
+Status: ACCEPTED/FROZEN for Checkpoint A engineering at e3f39e0397e1846c37febcebc246ea91c9f2eb78; full Phase 4 OPEN
 Date: 2026-10-18
 Requirements: R-002, R-022-D, R-022-G, R-023, R-025, R-026
 

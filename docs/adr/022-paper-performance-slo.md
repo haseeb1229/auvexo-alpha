@@ -1,6 +1,6 @@
 # ADR-022: Checkpoint A transaction SLO semantics and research-throttle qualification
 
-Status: FROZEN owner-authorized amendment before evaluator implementation; independent review pending
+Status: ACCEPTED/FROZEN for Checkpoint A engineering at e3f39e0397e1846c37febcebc246ea91c9f2eb78; full Phase 4 OPEN
 Date: 2026-10-20
 Requirements: R-024-P4-01, R-025-P4-01; parents R-015, R-024/027
 

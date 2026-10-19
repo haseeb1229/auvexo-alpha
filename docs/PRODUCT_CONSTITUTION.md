@@ -42,11 +42,15 @@ not measured capacity. Aim for <=120 GB managed footprint with a 150 GB hard quo
 
 Phase 0 delivered documents only. Phase 3 correctness/research is independently accepted
 at bb69220818a519e122d2cd9b1cad75559c2fa244; four empirical outcomes INCONCLUSIVE and
-no tradable champion. The owner authorizes Phase 4 Checkpoint A's deterministic
-PAPER-only engineering after normal PR #4 administrative merge; see the
-[acceptance record](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md). No persistent PAPER
-observation, Phase 5, broker account/credentials/transport, DEMO/REAL orders, live permit
-issuer, runtime agents, frontend or paid service. All money modes remain denied.
+no tradable champion. Phase 4 Checkpoint A engineering is independently accepted at
+e3f39e0397e1846c37febcebc246ea91c9f2eb78; see its
+[acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md).
+Full Phase 4 remains OPEN for >=14 actual-feed PAPER calendar days and replay/ledger proof.
+After the authorized documentation-only acceptance/CI and verified normal PR #5 merge,
+only Checkpoint B harness implementation may begin under its separate scoped brief.
+Persistent PAPER observation/14-day counting has not started and requires separate START
+authorization after review. No Phase 5, broker account/credentials/transport, DEMO/REAL orders,
+live permit issuer, runtime agents, frontend or paid service. All money modes remain denied.
 
 Decision meanings: FROZEN means an accepted design requiring a superseding ADR to change;
 PROVISIONAL means a selected direction with a named validation gate; DEFERRED means no

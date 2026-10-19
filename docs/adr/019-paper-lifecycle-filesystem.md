@@ -1,6 +1,6 @@
 # ADR-019: production lifecycle history and isolated pytest cache
 
-Status: FROZEN clarification; local implementation verified, independent review pending
+Status: ACCEPTED/FROZEN for Checkpoint A engineering at e3f39e0397e1846c37febcebc246ea91c9f2eb78; full Phase 4 OPEN
 Date: 2026-10-19
 Requirements: R-006-P4-01/02, R-023-P4-01, R-025-P4-01
 

@@ -4,8 +4,13 @@ Status: FROZEN boundaries; Phase 1 stack pinned and exercised in
 [toolchain evidence](phase1/TOOLCHAIN.md). [Implemented subset](phase1/IMPLEMENTATION.md)
 records the historical foundation. The [Phase 2 data subset](phase2/IMPLEMENTATION.md)
 adds bounded public data collection and immutable research storage. Phase 4 Checkpoint A implements the isolated virtual PAPER subset under
-[ADR-015](adr/015-paper-risk-core.md); broker gateway and money authority remain future
-architecture. Implementation evidence must be reviewed before operational acceptance.
+[ADR-015](adr/015-paper-risk-core.md), independently accepted for Checkpoint A at
+`e3f39e0397e1846c37febcebc246ea91c9f2eb78`; see the
+[acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md).
+Full Phase 4 actual-feed observation remains OPEN and has not started. Only after the
+authorized normal PR #5 merge may Checkpoint B harness implementation begin; persistent
+observation START requires separate review/owner authority. Broker gateway and money
+authority remain future architecture.
 
 Use a modular monolith with a separate bounded research worker and a separate Windows
 MT5 gateway process. This is process isolation for safety and resource limits, not a

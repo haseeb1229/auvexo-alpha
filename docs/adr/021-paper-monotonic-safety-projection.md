@@ -1,6 +1,6 @@
 # ADR-021: monotonic transaction-local PAPER safety projection
 
-Status: FROZEN fifth-resume clarification before correction; proof pending
+Status: ACCEPTED/FROZEN for Checkpoint A engineering at e3f39e0397e1846c37febcebc246ea91c9f2eb78; full Phase 4 OPEN
 Date: 2026-10-19
 Requirements: R-021-P4-02, R-022-P4-02/03/04, R-023-P4-01, R-024-P4-01
 

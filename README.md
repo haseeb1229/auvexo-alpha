@@ -10,13 +10,17 @@ Phases 0/1 and source-specific Phase 2 research engineering are independently ac
 PR #3 normally merged at `26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3`; full Phase 2
 operational status stays OPEN (scheduled days and DS-03 Exness qualification).
 Phase 3 correctness/research independently accepted at `bb692208`; all four outcomes
-INCONCLUSIVE; no champion. The owner authorizes Phase 4 Checkpoint A after normal PR #4
-merge: virtual PAPER engineering only, no persistent observation or Phase 5.
-See [independent acceptance](docs/reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
-The [Checkpoint A handoff](docs/phase4/HANDOFF.md) records current local proof and
-the formal [ADR-022 performance amendment](docs/adr/022-paper-performance-slo.md).
-The preserved benchmark qualifies with an explicit concurrent research-throttle trigger;
-its 272.4386 ms stress tail remains visible. No benchmark rerun or phase acceptance is inferred.
+INCONCLUSIVE; no champion. Phase 4 Checkpoint A engineering is independently
+ACCEPTED/PASS at `e3f39e0397e1846c37febcebc246ea91c9f2eb78`; see its
+[acceptance record](docs/reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md) and
+[handoff](docs/phase4/HANDOFF.md). ADR-015 through ADR-022 are ACCEPTED/FROZEN for
+this scope. The 272.4386 ms concurrent stress tail remains THROTTLE_REQUIRED evidence;
+no benchmark rerun is authorized.
+Full Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days. Observation
+has not started; its counter is zero. The owner authorizes documentation-only
+acceptance/CI and normal PR #5 merge, then Checkpoint B harness implementation from
+verified merged main in `phase-4/paper-observation`. Persistent task registration,
+observation START, Phase 5 and broker/money capability remain unauthorized.
 Foundation execution remains disabled in every mode; all money actions denied.
 
 Start with [Phase 3 acceptance requirements](docs/phase3/ACCEPTANCE_TESTS.md),
@@ -39,4 +43,6 @@ git diff --check
 ```
 
 These checks validate repository documents, not future trading safety or profitability.
-Independent exact-head review is required before merge or a new phase prompt.
+The accepted engineering source and documentation-only administrative child follow
+the checked merge sequence in the acceptance record. Checkpoint B needs independent
+exact-SHA review and separate owner START authorization before observation begins.

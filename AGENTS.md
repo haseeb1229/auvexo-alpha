@@ -37,12 +37,21 @@ Performance-governance finalization under docs/reference/PHASE_4_PERFORMANCE_GOV
 and ADR-022 supersedes only the hard-MAX performance interpretation. Qualified transaction
 P95<=100 ms/P99<=250 ms; concurrent stress requires throttling and successful subsequent
 qualification. Preserve all old tails/receipts and evaluate the one final receipt without rerun.
-Complete all final verification, exact-final clone and coherent hosted CI before review; no merge.
-Current authorized scope: Phase 4 Checkpoint A deterministic PAPER-only risk/lifecycle/
-durable journal and reconciliation engineering. Separate non-promotable TEST_ONLY fixtures
-only; no Phase 3 promotion. Freeze child requirements before executable implementation.
-Phase 4 PR stays unmerged for exact-final-SHA independent review. No persistent PAPER task,
-14-day observation counter, Phase 5, broker transport, live permit issuer, runtime AI or frontend.
+The reviewed final source completed verification and is accepted as recorded below.
+Phase 4 Checkpoint A engineering independently ACCEPTED/PASS at
+e3f39e0397e1846c37febcebc246ea91c9f2eb78; ADR-015 through ADR-022 ACCEPTED/FROZEN.
+See docs/reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md and the owner-authorized
+docs/reference/PHASE_4_CHECKPOINT_B_BRIEF.txt. Full Phase 4 remains OPEN pending >=14
+actual-feed PAPER calendar days, replay evidence and zero unexplained ledger mismatches.
+Current authority is documentation-only acceptance on PR #5, exact-head administrative CI,
+then verified NORMAL MERGE with expected parents. Only AFTER that merge may Checkpoint B
+observation-harness implementation begin from merged main on phase-4/paper-observation.
+Freeze its ADR/requirements before executable implementation; its new PR remains unmerged
+for exact-SHA independent review. No persistent observation task registration/START and no
+14-day counter start; observation dates/counter remain ZERO until separate owner START
+following Checkpoint B review. Separate non-promotable ENGINEERING_ONLY fixtures only;
+no Phase 3 promotion, production candidate/champion, Phase 5, broker transport, live permit
+issuer, runtime AI or frontend. No broker account/session/trading credentials or money action.
 Full Phase 2 operational acceptance stays OPEN; seven genuine dates and DS-03 not waived.
 Do not modify/retime/delete the public-data daily task. Exness/XAU/CFD research blocked.
 Broker SDKs, account access and credentials remain prohibited.

@@ -1,21 +1,23 @@
 # Project document index
 
-Current Phase 4 engineering checkpoint: Phase 3 independently accepted at
-`bb69220818a519e122d2cd9b1cad75559c2fa244`; documentation-only acceptance commit
-`5a3c03f58dbcc351c85ac799800fed74c01ebce3`, normal PR #4 merge
-`b24c42bc07dcd9bc1b62b04d32cc92f047116125` with verified parents. Four empirical
-outcomes remain INCONCLUSIVE, both OOS consumed, no champion. See
-[acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md),
-[frozen requirements](phase4/ACCEPTANCE_TESTS.md) and [ADR-015](adr/015-paper-risk-core.md).
-Only virtual PAPER core engineering is authorized on `phase-4/strategy-risk-paper`.
-See the [Checkpoint A implementation handoff](phase4/HANDOFF.md) and the formal
-[ADR-022 performance amendment](adr/022-paper-performance-slo.md). The preserved final
-benchmark qualifies under percentile/throttle semantics, with concurrent stress marked
-THROTTLE_REQUIRED and the 272.4386 ms tail retained; no benchmark rerun is authorized.
-Local verification is recorded in the handoff; exact-new-SHA independent acceptance remains OPEN.
-Persistent observation and Phase 5 remain closed; Phase 2 B/C remains OPEN.
-October 18 and 19 are INCOMPLETE; genuine qualified scheduled dates remain zero.
-The repository remains PUBLIC; exception review remains due 2026-10-24.
+Phase 4 Checkpoint A engineering is independently ACCEPTED/PASS at
+`e3f39e0397e1846c37febcebc246ea91c9f2eb78` by GPT-5.6 Sol. See the
+[acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md) and
+[current handoff](phase4/HANDOFF.md). ADR-015 through ADR-022 are ACCEPTED/FROZEN
+for this engineering scope. ADR-022 retains the 272.4386 ms concurrent stress tail
+as THROTTLE_REQUIRED evidence; no benchmark rerun is authorized.
+
+Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
+replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
+its counter remains zero. The owner authorizes documentation-only acceptance/CI,
+then a verified normal PR #5 merge, and only afterward Checkpoint B harness
+implementation from merged main in `phase-4/paper-observation`. No persistent task
+registration/START, Phase 5, broker or money authority follows from this acceptance.
+
+Phase 2 B/C remains OPEN: October 18/19 INCOMPLETE, genuine qualified scheduled dates
+zero, DS-03/Exness blocked. Phase 3 remains independently accepted at bb692208 with
+four INCONCLUSIVE outcomes, both OOS holdouts consumed and no candidate/champion.
+PUBLIC exception review remains due 2026-10-24; repository settings are unchanged.
 Earlier dated wording below describes historical entry/acceptance transitions.
 
 Read the [current baseline correction handoff](amendments/BASELINE_CORRECTION_HANDOFF.md),

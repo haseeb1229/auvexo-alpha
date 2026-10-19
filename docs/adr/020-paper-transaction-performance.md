@@ -1,6 +1,6 @@
 # ADR-020: bounded PAPER authorization roundtrips
 
-Status: FROZEN performance-remediation clarification; proof pending
+Status: ACCEPTED/FROZEN for Checkpoint A engineering at e3f39e0397e1846c37febcebc246ea91c9f2eb78; full Phase 4 OPEN
 Date: 2026-10-19
 Requirements: R-022-P4-03, R-023-P4-01, R-024-P4-01, R-025-P4-01
 

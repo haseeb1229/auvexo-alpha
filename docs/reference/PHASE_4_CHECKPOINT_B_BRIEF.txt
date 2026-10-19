@@ -1,0 +1,775 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A ACCEPTANCE + NORMAL MERGE
+AND CHECKPOINT B ACTUAL-FEED PAPER OBSERVATION HARNESS
+Target: Codex
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-20
+
+IMPORTANT
+This is ONE scoped continuation prompt.
+
+It has two sequential purposes:
+1) record GPT-5.6 Sol's independent acceptance of Phase 4 Checkpoint A at exact reviewed source
+   `e3f39e0397e1846c37febcebc246ea91c9f2eb78`, perform a documentation-only acceptance commit,
+   and normally merge PR #5 after exact-head administrative CI passes; then
+2) from the resulting main, build/freeze the Phase 4 Checkpoint B actual-feed PAPER observation
+   harness in a NEW branch/PR for independent review.
+
+DO NOT start the persistent observation task or the >=14-calendar-day counter in this prompt.
+DO NOT start Phase 5.
+DO NOT connect Exness/MT5 or any broker.
+DO NOT place DEMO/REAL orders.
+DO NOT enable any money mode.
+
+===============================================================================
+0. INDEPENDENT REVIEW VERDICT / ENTRY AUTHORITY
+===============================================================================
+
+GPT-5.6 Sol independently reviewed GitHub exact head:
+`e3f39e0397e1846c37febcebc246ea91c9f2eb78`
+
+Independently verified remote state:
+- repository: `haseeb1229/auvexo-alpha`
+- visibility: PUBLIC
+- default branch: main
+- main: `b24c42bc07dcd9bc1b62b04d32cc92f047116125`
+- branch: `phase-4/strategy-risk-paper`
+- PR #5: OPEN, mergeable, non-draft, UNMERGED
+- PR #5 head: `e3f39e0397e1846c37febcebc246ea91c9f2eb78`
+- PR is 5 commits ahead / 0 behind main
+- all 5 commits are straight-line founder-authored commits by
+  Muhammad Haseeb <abdulhaseeb1229@gmail.com>
+- no AI coauthor/generated-by trailer; no force/history rewrite
+
+Exact-head hosted CI independently verified:
+- push run 39318662478 / job 118286676477: completed/success
+  actual log: 1273 passed in 81.69 s
+- pull_request run 39318668094 / job 118286698079: completed/success
+  actual log: 1273 passed in 82.86 s
+- mypy: no issues in 46 source files
+- docs checker: PASS, 256 files / 83 Markdown / 431 links / 22 ADRs
+- aligned AGENTS/CLAUDE + high-signal scan: PASS
+- pip-audit: no known vulnerabilities
+- clean diff: PASS
+- AGENTS.md and CLAUDE.md byte-identical
+
+The final commit is one child of c0a470bb and does not change:
+- tools/benchmark_paper.py
+- uv.lock
+- migrations 0001-0005
+
+GPT-5.6 Sol ACCEPTS PHASE 4 CHECKPOINT A engineering at source e3f39e0.
+
+Accepted Checkpoint A scope:
+- deterministic PAPER-only risk kernel;
+- immutable typed intents;
+- Decimal risk/exposure math;
+- atomic account reservations;
+- durable outbox/journal;
+- UNKNOWN/no-blind-retry;
+- independent virtual truth + reconciliation;
+- direct least-privilege PostgreSQL LOGIN isolation;
+- OPEN/new-position safety;
+- rejection+fill contradiction handling;
+- daily-loss latch / explicit owner resume;
+- stale-mark truth vs freshness separation;
+- production lifecycle complete-history enforcement;
+- non-promotable fixture registry;
+- monotonic pending-truth reconciliation projection;
+- bounded performance implementation and ADR-022 performance governance;
+- isolated same-disk recovery engineering.
+
+ADR-022 is accepted as the formal owner-authorized amendment:
+- transaction P95 target remains <=100 ms;
+- qualified/throttled transaction P99 <=250 ms;
+- concurrent research stress may be THROTTLE_REQUIRED;
+- subsequent throttled phase must pass;
+- MAX remains visible/investigated;
+- no outlier filtering;
+- the preserved 272.4386 ms stress tail remains visible;
+- no benchmark rerun is permitted.
+
+This is NOT full canonical Phase 4 completion.
+Canonical Phase 4 still requires >=14 calendar days of PAPER operation on actual feeds,
+journal/replay evidence and zero unexplained ledger mismatches.
+
+Supporting owner-machine evidence in the handoff:
+- 589 deterministic evaluator cases;
+- 180 real PostgreSQL correctness;
+- 111 direct-LOGIN security;
+- 1273 full inherited tests;
+- foundation/PAPER/data-research restores;
+- exact-final Windows clean clone;
+- source/history scans.
+
+Global gates remain:
+- Phase 2 full operational status OPEN;
+- Oct18 INCOMPLETE/MISSED_START;
+- Oct19 INCOMPLETE;
+- genuine Phase 2 scheduled qualification dates = 0 at reviewed handoff;
+- DS-03 / Exness BLOCKED;
+- all four Phase 3 outcomes INCONCLUSIVE;
+- both OOS holdouts consumed;
+- no production CANDIDATE/CHAMPION;
+- broker capability absent;
+- live capital = 0;
+- DEMO/REAL broker orders = 0;
+- Binance live derivatives BLOCKED_BY_POLICY;
+- repository PUBLIC under temporary exception; review due 2026-10-24.
+
+If PR/head/main/repository state differs before work starts: STOP.
+
+===============================================================================
+1. DOCUMENTATION-ONLY CHECKPOINT A ACCEPTANCE COMMIT
+===============================================================================
+
+Before merge create:
+`docs/reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md`
+
+Record:
+- exact accepted source e3f39e0...
+- base main b24c42bc...
+- PR #5
+- exact CI run/job IDs
+- correctness/security/recovery engineering PASS
+- ADR-022 accepted
+- 272.4386 ms concurrent stress tail retained as THROTTLE_REQUIRED evidence
+- no benchmark rerun
+- Checkpoint A PASS
+- full Phase 4 OPEN pending >=14 actual-feed PAPER calendar days
+- Phase 2 B/C still OPEN
+- Phase 3 four results INCONCLUSIVE
+- no candidate/champion
+- no broker/order/money permission
+- PUBLIC governance review due 2026-10-24
+- owner-local vs independently re-enacted evidence limitation
+
+Update current status/navigation only:
+- ADR-015 through ADR-022 index/status => ACCEPTED/FROZEN for Checkpoint A at e3f39e0
+- ROADMAP current header => Checkpoint A independently accepted; observation not started
+- phase4/HANDOFF current disposition => accepted engineering baseline; observation gate open
+- OPEN_DECISIONS/docs navigation as needed
+- AGENTS.md and CLAUDE.md identically => exact accepted source + only Checkpoint B implementation authorized
+
+Do NOT rewrite historical STOP briefs/handoffs.
+Do NOT change benchmark evidence.
+Do NOT change runtime code/tests/migrations/workflow/lockfile/dependencies.
+
+If executable changes are required for the acceptance commit: STOP.
+
+Run:
+- docs/link/requirements
+- AGENTS/CLAUDE equality
+- secret/high-signal scan
+- git diff --check
+
+Founder-authored docs-only commit, no AI trailers.
+Push it to the same PR #5.
+Require exact-new-head push + PR CI runs AND jobs completed/success with passing logs.
+Verify diff from e3f39e0 is documentation only.
+
+===============================================================================
+2. NORMAL MERGE PR #5
+===============================================================================
+
+Only after Section 1 passes:
+- main must still be b24c42bc...
+- PR #5 must remain mergeable/unmerged
+- PR head must be exactly the docs-only child of e3f39e0
+
+NORMAL MERGE using merge commit.
+NO squash.
+NO rebase.
+NO force/history rewrite.
+
+Verify:
+- PR #5 merged=true
+- merge commit has exactly two parents:
+  1) prior main b24c42bc...
+  2) exact PR #5 acceptance/admin head
+- remote main points to merge commit
+- accepted source code content unchanged apart from docs-only status
+- no Phase 5 branch/work
+
+Record merge SHA.
+
+===============================================================================
+3. CREATE CHECKPOINT B BRANCH — OBSERVATION MUST NOT START
+===============================================================================
+
+Create from verified post-merge main:
+`phase-4/paper-observation`
+
+This remains canonical Phase 4.
+Do NOT renumber roadmap.
+Do NOT start/install a persistent PAPER observation task.
+Do NOT start a 14-day counter.
+
+Freeze before executable implementation:
+- next ADR after ADR-022, expected ADR-023:
+  `Phase 4 actual-feed PAPER observation qualification`
+- `docs/phase4/OBSERVATION_ACCEPTANCE.md`
+- `docs/phase4/OBSERVATION_RUNBOOK.md`
+
+===============================================================================
+4. CHECKPOINT B PURPOSE
+===============================================================================
+
+Build the harness required for the canonical Phase 4 real-environment proof:
+>=14 calendar days of PAPER operation on actual accepted feeds,
+all engineering fixture proposals journaled,
+replay reproduces decisions,
+zero unexplained ledger mismatches.
+
+Non-scope:
+- no alpha discovery/retune
+- no production candidate/champion
+- no Phase 3 strategy promotion
+- no Exness/MT5
+- no broker SDK/account/session/credential
+- no exchange trading key
+- no DEMO/REAL order
+- no live permit
+- no withdrawal
+- no Phase 5
+- no UI project
+- no paid service/runtime AI
+
+Operational readiness may pass without a tradable champion.
+Capital authorization cannot.
+
+Production strategy registry stays EMPTY.
+Observation uses only separate:
+`PAPER_QUALIFICATION_FIXTURE`
+with `ENGINEERING_ONLY` evidence and impossible promotion.
+
+===============================================================================
+5. ACTUAL FEED / RIGHTS
+===============================================================================
+
+Allowed Checkpoint B actual feed:
+existing qualified DS-02 Binance SPOT market-data-only source:
+- public market host only
+- no API key
+- BTCUSDT SPOT
+- ETHUSDT SPOT
+- finalized 1-minute bars
+- reuse existing Phase 2 source adapter/contracts/manifests; do not create a duplicate HTTP stack
+
+Current source-rights record:
+- reviewed 2026-10-16
+- next runtime review due 2026-11-16
+- noncommercial personal/internal use
+- no redistribution entitlement
+- no live/execution entitlement inferred
+
+Observation use classification:
+ENGINEERING_ONLY / personal nonproduction PAPER engineering.
+Never PROMOTION_ELIGIBLE.
+Never execution-feed qualification.
+Never Exness/CFD/XAU qualification.
+Never Binance execution entitlement.
+
+Every run:
+- verify rights review remains current
+- bind source/product/instrument/parser/rights/version hashes
+- fail closed on expiry/revocation/unknown restrictions
+- no silent source/venue switch
+- no DS-01 archive substitution
+- no historical backfill
+
+===============================================================================
+6. CAUSAL ACTUAL-FEED MODEL
+===============================================================================
+
+Only newly received/finalized DS-02 1m bars during observation window count.
+
+Preserve:
+- provider/exchange event time
+- first-seen/received time
+- processing time
+- manifest/dataset/version/hash
+- positive causal availability
+- no lookahead
+- no forward fill/synthetic bar
+- no alternate venue
+
+A proposal after bar N becomes available may only receive a simulated PAPER fill from a later
+independently observed valid event/bar. Never use future information from bar N or N+1 before it
+is observed.
+
+Actual feed supplies marks.
+All fills remain explicitly SIMULATED PAPER truth.
+
+Stale/unknown/gap:
+- deny new/increased exposure
+- preserve existing virtual position truth
+- reconcile
+- record reason
+- never fabricate feed/fill
+- incomplete evidence cannot qualify a day
+
+===============================================================================
+7. NON-ALPHA OBSERVATION FIXTURE
+===============================================================================
+
+Create versioned:
+`paper.observation.fixture.v1`
+
+Requirements:
+- PAPER only
+- ENGINEERING_ONLY
+- physically separate fixture registry
+- impossible SHADOW/DEMO/LIVE promotion
+- no Phase 3 strategy imported
+- production registry remains empty
+- deterministic cadence independent of price direction
+- long/flat only
+- no implicit pyramiding/netting
+- explicit OPEN and position-bound reduction/close
+- low configured risk <=0.05% virtual equity per intent
+- ALL existing Phase 4 policy caps remain unchanged and dominate
+
+Do not change canonical provisional policy values.
+
+Every valid fixture proposal, approved or denied, is journaled.
+P&L is operational evidence only.
+Profit/loss cannot qualify or disqualify the observation.
+
+Virtual fills:
+- later observed actual-feed truth only
+- explicit versioned fees/spread/slippage/gap assumptions
+- labeled SIMULATED
+- no claim of broker/exchange executable-fill realism
+
+===============================================================================
+8. PERSISTENT OBSERVATION DATABASE DESIGN
+===============================================================================
+
+Do not use ephemeral TEST/RESTORE DB as 14-day evidence store.
+
+Design dedicated local persistent namespace, e.g.:
+`auvexo_paperobs_<20hex>`
+
+Use accepted direct least-privilege model:
+- runtime LOGIN
+- owner-command LOGIN
+- independent truth LOGIN
+- scoped NOLOGIN groups
+- NOSUPERUSER / NOCREATEDB / NOCREATEROLE / NOREPLICATION / NOBYPASSRLS
+- no path to auvexo_admin
+
+Admin is provisioning/migration only.
+No admin-backed runtime pool.
+No SET ROLE from admin.
+No credential fallback.
+
+If `paper_identity.py` needs observation-DB namespace support, extend it only with full
+real-PostgreSQL security regression.
+
+Credentials local/ignored/redacted.
+Apply migration 0005 to observation DB only.
+Do NOT migrate normal DEV DB for this work.
+Do not edit merged migrations after PR #5 merge.
+
+===============================================================================
+9. FREEZE FUTURE DAILY SCHEDULE — DO NOT REGISTER
+===============================================================================
+
+Candidate future observation window:
+21:00:00–22:00:00 Asia/Karachi
+(16:00–17:00 UTC)
+
+Reason:
+crypto feed is 24/7 and this leaves >45 minutes before Phase 2 protected time.
+
+Future task name:
+`AuvexoAlpha-Paper-Observation`
+
+DO NOT register/start it in this prompt.
+
+Task definition must later prove:
+- limited interactive owner identity
+- no highest privileges
+- no Windows password storage where existing safe convention supports it
+- no wake/power-plan mutation
+- one instance
+- no catch-up/backfill
+- refuse start >15 seconds late
+- bounded stop after window/grace
+- missed/offline/sleep date => INCOMPLETE
+- never overlap Phase 2 22:45–23:20 protected interval
+
+Do not modify:
+`AuvexoAlpha-PublicData-Daily`.
+
+===============================================================================
+10. QUALIFYING DAILY RECEIPT
+===============================================================================
+
+Freeze one-day PASS requirements before code.
+
+Schedule:
+- on-time future registered task/window
+- one qualifying run maximum per Pakistan calendar date
+- no manual late credit/backfill
+
+Actual feed:
+- rights current
+- exact BTCUSDT + ETHUSDT SPOT
+- newly received finalized 1m bars
+- >=50 valid paired observations per symbol
+- >=50-minute valid span
+- no unexplained gap >120 seconds
+- exact manifest/hash/parser/source bindings
+- stale/duplicate/wrong-source/wrong-symbol rejected
+
+PAPER:
+- writer fencing valid
+- startup reconciliation before exposure
+- no unresolved UNKNOWN at daily close
+- no unexplained ledger/order/position mismatch
+- no duplicate logical intent
+- no reservation oversubscription
+- no privilege drift
+- every proposal/decision/fill journaled
+- final replay reproduces decision/intent/journal hashes
+- no financial mutation without truth
+
+Daily append-only receipt includes:
+- Git/config/policy/spec/rights/source hashes
+- schedule/start/end
+- first/last observation
+- counts/gaps
+- proposals/decisions/authorizations/denials/reservations/outbox/fills
+- truth cursor
+- journal tail/hash
+- positions/kill/reconciliation state
+- replay result
+- resource snapshot
+- PASS/INCOMPLETE + reasons
+- no secrets/raw dataset dump
+
+Valid risk denials are expected safety behavior and do not fail a day.
+Insufficient feed/rights/reconciliation/replay/security evidence makes the day INCOMPLETE.
+
+===============================================================================
+11. 14-CALENDAR-DAY EXIT RULE
+===============================================================================
+
+Parent requires >=14 calendar days; do not invent retrospective credit.
+
+Freeze:
+- >=14 DISTINCT genuine qualifying local calendar dates
+- first-to-last elapsed coverage >=14 calendar days
+- only post-authorization scheduled dates count
+- missed/incomplete dates do not count and extend observation
+- no archive/history/fixture-only day credit
+- Phase 2 collection dates do not automatically count as Phase 4 PAPER days
+
+Exit requires:
+- 14 qualifying dates
+- zero unexplained ledger mismatches
+- exact replay for all qualified decision traces
+- zero unresolved UNKNOWN outcomes at closure
+- all fixture proposals/denials/fills journaled
+- production registry still empty/no fake champion
+- no alpha/profitability claim
+- no broker/money capability
+
+===============================================================================
+12. RESTART / RECOVERY
+===============================================================================
+
+Future daily process starts fresh and therefore exercises restart/reconciliation.
+
+Startup order:
+1. direct-login identity
+2. schema/version
+3. writer acquire/fence
+4. authoritative truth reconciliation
+5. rights/source readiness
+6. host resource readiness
+7. only then new fixture exposure
+
+End:
+- stop new exposure before window close
+- reconcile known truth
+- append receipt
+- clean shutdown
+
+If feed truth unavailable for an expected close:
+- do not fabricate close
+- preserve position/reservation
+- day can be INCOMPLETE
+- next day reconciliation-only before exposure
+
+UNKNOWN retains capacity.
+No blind resend.
+No automatic K2/K3/K4/suspension reset.
+
+===============================================================================
+13. RESOURCE RULES
+===============================================================================
+
+Observation has priority over optional research.
+
+Do not inject research stress into the observation.
+
+Preserve canonical host rules:
+- available RAM <3 GB or CPU >80% for 60 s => throttle/pause optional research
+- RAM <1.5 GB or operational health degraded => pause new PAPER entries
+- record reason honestly
+
+Do not rerun Checkpoint A timing benchmark.
+No HFT/broker latency claim.
+
+===============================================================================
+14. IMPLEMENTATION
+===============================================================================
+
+Prefer reuse.
+
+Implement:
+- typed observation config
+- application runner/orchestrator
+- reuse DS-02 adapter/contracts
+- deterministic fixture proposal scheduler
+- source->market snapshot mapping
+- causal simulated virtual fill path
+- daily receipt evaluator
+- immutable date ledger/counter
+- persistent observation DB provisioning
+- future Windows task definition/setup helper
+- replay verifier
+- observation recovery/runbook
+
+Do NOT add:
+- duplicate DS-02 client stack
+- broker transport
+- websocket unless an accepted contract genuinely requires it
+- trading keys
+- UI
+- cloud/paid service
+- runtime LLM
+- alpha logic
+
+Prefer no dependency additions.
+
+===============================================================================
+15. ADVERSARIAL TESTS
+===============================================================================
+
+Scheduling/date:
+- exact start
+- >15 s late refused
+- duplicate same-date cannot count twice
+- missed/offline day incomplete
+- no historical backfill
+- UTC/local boundary
+- future timestamp refusal
+- 14-date ledger cannot be forged
+
+Feed:
+- wrong source/symbol/product
+- stale/duplicate/out-of-order
+- gap >120 s
+- insufficient paired count/span
+- rights expired/blocked
+- manifest/hash/parser mismatch
+- no archive substitution
+
+Causality:
+- no future-bar proposal/fill
+- fill requires later observed truth
+- receipt timestamps retained
+
+Fixture:
+- non-promotable
+- cannot enter production registry
+- no Phase 3 strategy import
+- no SHADOW/DEMO/LIVE path
+
+Risk/reconciliation:
+- startup reconciliation
+- duplicate intent
+- reservation race
+- stale mark
+- pending truth
+- loss latch
+- REJECTED+fill contradiction
+- UNKNOWN/no blind resend
+- crash boundaries
+- no financial rewind
+- owner-resume rules
+
+Persistent DB/security:
+- direct identities across commit/rollback/error/pool reuse/reconnect
+- no admin
+- wrong/revoked identity denied
+- cross-foundation/research/schema write denied
+- credentials redacted
+- observation namespace cannot broaden grants
+
+Receipts/replay:
+- append-only
+- mutation/corruption detected
+- missing fields fail
+- replay mismatch fails day
+- counter derives only from immutable qualified receipts
+
+Task definition:
+- exact task/schedule/version
+- limited owner/no highest privilege
+- no Phase 2 overlap
+- no wake/power mutation
+- no catch-up
+- single instance
+- bounded runtime
+
+===============================================================================
+16. PHASE 2 COEXISTENCE
+===============================================================================
+
+Phase 2 remains:
+- warm-up 22:57 Pakistan
+- qualification 23:00–23:12
+- 7 genuine dates required
+- Oct18/Oct19 INCOMPLETE
+- reviewed count = 0
+
+Do not change that task.
+
+Future Phase 4 observation ends by 22:00.
+Preserve no-heavy-work 22:45–23:20.
+
+If this implementation work reaches that interval, pause heavy PG/recovery work.
+After real Phase 2 windows, inspect read-only; no catch-up/manual credit.
+
+===============================================================================
+17. PUBLIC GOVERNANCE
+===============================================================================
+
+Repo is PUBLIC under temporary exception; review due 2026-10-24.
+Do NOT change visibility/settings here.
+
+Public Git may contain generic sanitized framework code only.
+Do not commit raw observations, raw market archives, DB dumps, credentials,
+owner machine identifiers, proprietary alpha or broker/session details.
+
+Daily actual-feed evidence remains ignored/local/redacted.
+
+Observation runbook must flag:
+before Phase 5 broker credentials/sessions or proprietary-alpha work:
+- return PRIVATE, OR
+- independently accept an owner-approved permanent-public superseding ADR.
+
+The Oct24 review date is a governance gate, not automatic approval.
+
+===============================================================================
+18. VERIFICATION — NO OBSERVATION START
+===============================================================================
+
+Before commit:
+- focused observation tests
+- real-PG observation DB/security
+- full existing PAPER correctness PG
+- full direct-login security
+- full inherited pytest, no skips
+- Ruff
+- strict mypy
+- docs/link/requirements
+- AGENTS/CLAUDE equality
+- provisioning/migration idempotence
+- observation DB recovery/replay
+- affected foundation/PAPER/data-research recovery
+- secret/high-signal scans
+- hash-required dependency audit
+- git diff --check
+
+Do NOT rerun Checkpoint A acceptance benchmark.
+
+A clearly labeled DS-02 preflight is allowed only if:
+- it is NON-COUNTING
+- creates zero observation-day credit
+- does not install/start persistent task
+
+===============================================================================
+19. GIT WORKFLOW
+===============================================================================
+
+Branch:
+`phase-4/paper-observation`
+
+Small founder-authored commits.
+No AI trailers.
+No force/history rewrite.
+
+Open exactly one new PR to main (expected #6 if sequential).
+Keep it OPEN/UNMERGED.
+Exact-final Windows clean clone.
+Exact-head push + PR runs AND jobs success with passing logs.
+
+Do not create Phase 5 branch.
+
+===============================================================================
+20. REQUIRED CHECKPOINT B HANDOFF
+===============================================================================
+
+Return:
+1. Checkpoint A acceptance-only commit SHA
+2. PR #5 administrative exact-head CI IDs
+3. PR #5 normal merge SHA + verified parents
+4. post-merge main SHA
+5. Checkpoint B branch/final SHA/PR/clean tree
+6. ADR-023 + observation-acceptance hashes
+7. source rights/use classification
+8. proof production registry empty + fixture non-promotable
+9. persistent DB/direct-login architecture
+10. candidate schedule 21:00–22:00 Pakistan
+11. explicit task NOT registered/started
+12. daily qualification criteria + anti-backfill proof
+13. causal actual-feed/fill model
+14. receipt/replay design
+15. adversarial test results
+16. DB/security results
+17. full PAPER regression counts
+18. full suite/statics/docs/recovery/scans/audit
+19. exact-final Windows clone
+20. exact-head CI run/job IDs/log disposition
+21. current genuine Phase 2 count
+22. repo visibility + Oct24 governance status
+23. no candidate/champion
+24. observation_days = 0
+25. no persistent task installed
+26. no Phase 5 / Exness / MT5 / broker / DEMO/REAL orders
+27. request GPT-5.6 Sol exact-final-SHA review BEFORE task registration/start
+
+===============================================================================
+21. STOP CONDITIONS
+===============================================================================
+
+STOP if:
+- PR #5/main/head differs unexpectedly
+- acceptance commit needs executable changes
+- normal merge cannot be verified
+- DS-02 current rights do not support stated nonproduction internal engineering
+- broker/account key becomes necessary
+- archive/backfill would be needed to qualify a day
+- fixture can enter production promotion
+- positive causal ordering cannot be proven
+- observation DB cannot preserve direct least privilege
+- date ledger can backfill/double-count
+- replay can pass with mismatch/UNKNOWN
+- existing PAPER correctness/security regresses
+- Phase 2 task must be changed
+- public Git would expose private/proprietary material
+- material security/recovery/dependency/CI gate fails
+
+FINAL GOAL:
+- formally close and normally merge Checkpoint A
+- build/freeze the reviewed machinery for the >=14-calendar-day actual-feed PAPER observation
+- keep observation counter at ZERO until GPT-5.6 Sol reviews Checkpoint B exact SHA and the owner
+  gives a separate explicit START authorization
+
+Do not treat harness implementation as the 14-day observation itself.
