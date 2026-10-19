@@ -98,7 +98,7 @@ def main() -> None:
             [str(python), "-m", "ruff", "format", "--check", "src", "tests", "tools", "migrations"],
             [str(python), "-m", "ruff", "check", "src", "tests", "tools", "migrations"],
             [str(python), "-m", "mypy"],
-            [str(python), "-m", "pytest", "-q"],
+            [str(python), "tools/run_tests.py", "-q"],
             [str(python), "tools/secret_scan.py"],
             ["node", "tools/check-docs.mjs"],
             ["git", "diff", "--exit-code"],

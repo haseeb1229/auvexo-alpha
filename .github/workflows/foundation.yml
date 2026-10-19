@@ -1,7 +1,7 @@
 name: foundation
 on:
   push:
-    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data, phase-3/backtest-simple-alpha]
+    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data, phase-3/backtest-simple-alpha, phase-4/strategy-risk-paper]
   pull_request:
     branches: [main]
 permissions:
@@ -40,7 +40,7 @@ jobs:
       - run: uv run --frozen ruff format --check src tests tools migrations
       - run: uv run --frozen ruff check src tests tools migrations
       - run: uv run --frozen mypy
-      - run: uv run --frozen pytest
+      - run: uv run --frozen python tools/run_tests.py
         env:
           TEST_PG_DATA_WRITER_PASSWORD: ci-synthetic-data-only-not-a-secret-123
           TEST_PG_ADMIN_PASSWORD: ci-synthetic-ephemeral-only

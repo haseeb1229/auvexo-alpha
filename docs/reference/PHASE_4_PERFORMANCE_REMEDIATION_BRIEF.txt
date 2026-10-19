@@ -1,0 +1,168 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A PERFORMANCE REMEDIATION
+Targeted final blocker only
+Target: Astra 6 High / Claude Code
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-19
+
+ENTRY
+Reviewed exact source:
+c0a470bbf9530ccd89d82df6e96811df2ed20cda
+
+PR #5 expected OPEN/UNMERGED, base:
+b24c42bc07dcd9bc1b62b04d32cc92f047116125
+
+Independent disposition:
+- correctness/security/recovery engineering PASS at reviewed source;
+- hosted CI conflict RESOLVED: exact-head push and PR runs/jobs are now completed/success;
+- full Checkpoint A remains OPEN only because the frozen <=100 ms full-transaction target was missed;
+- PR #5 must remain unmerged during this remediation.
+
+VERIFY FIRST
+Expected branch `phase-4/strategy-risk-paper`, head c0a470bb..., clean committed tree,
+PR #5 OPEN/mergeable/unmerged, repository currently PUBLIC.
+If anything differs unexpectedly, STOP.
+
+A. PRESERVE BASELINE
+Create ignored local entry evidence with reviewed benchmark receipt/hash, benchmark script hash,
+frozen R-024-P4-01/performance-doc hashes, machine/software/resource snapshot and prior evidence refs.
+Do not alter historical benchmark evidence.
+
+B. FROZEN TARGET / WORKLOAD
+Do NOT change merely to pass:
+- full reservation/risk transaction <=100 ms target;
+- kernel/query targets;
+- queue depth 32;
+- two DB workers;
+- 5x burst;
+- primary sample counts;
+- three synthetic instruments;
+- research-concurrent / research-throttled phases;
+- locks, atomic reservation/outbox, reconciliation, least-privilege attestation, fail-closed behavior.
+
+Do not replace max with p95, remove outliers, reduce concurrency/samples, disable competitor or rerun
+until lucky.
+
+C. ONE PRE-OPTIMIZATION REPRODUCTION
+Outside 22:45–23:20 Pakistan, run exact existing benchmark once.
+Record all primary and wave p50/p95/p99/max, sample/admission/backpressure counts, resources and
+machine power/obvious competing-heavy-process state.
+This is diagnostic, not acceptance if source changes later.
+
+D. PROFILE THE AUTHORIZATION TRANSACTION
+Profile `PaperStore.authorize` / reservation transaction using isolated synthetic DB only.
+Break wall time down into:
+- connection checkout + identity attestation;
+- account/transaction lock acquisition;
+- reads and duplicate/idempotency checks;
+- kernel calculation;
+- reservation/intent/authorization/outbox/journal writes;
+- flush/commit;
+- repeated serialization/hash or privilege checks;
+- query/index/plan costs.
+
+Identify the actual tail source before optimizing.
+
+E. ALLOWED OPTIMIZATION
+Only correctness-neutral changes, for example:
+- remove redundant reads inside the same already-serialized/hash-bound transaction;
+- consolidate safe DB roundtrips;
+- improve proven index/query paths;
+- avoid repeated serialization/hash work after exact in-transaction verification;
+- reuse safe already-attested state only if checkout security invariant remains intact;
+- prepared/batched SQL preserving identical atomicity/constraints.
+
+NOT allowed:
+- weaken locks;
+- move reservation/outbox outside atomic transaction;
+- reduce security attestation below accepted invariant;
+- skip duplicate/UNKNOWN/kill/reconciliation checks;
+- optimistic/asynchronous authorization;
+- cache mutable account/risk state across transactions;
+- weaken Decimal math/durability/isolation;
+- change risk/performance limits or benchmark workload.
+
+F. SAFETY REGRESSION
+For each optimization group prove unchanged:
+authorization/denial outputs, reservation/journal/outbox consistency, race protection,
+UNKNOWN/no-resend, lifecycle/security boundaries, stale-mark/daily-loss/OPEN/rejection-fill
+invariants and crash atomicity.
+
+G. ONE FINAL DECLARED ACCEPTANCE BENCHMARK
+After coherent code + focused tests, run the exact frozen benchmark once.
+Report for both phases:
+- kernel p50/p95/p99/max;
+- primary transaction p50/p95/p99/max;
+- indexed query p50/p95/p99/max;
+- 2-worker baseline wave p50/p95/p99/max;
+- 5x burst transaction p50/p95/p99/max;
+- offered/admitted/backpressured/drained;
+- sample/resource counts.
+
+Acceptance for this remediation:
+the existing frozen benchmark must report transaction target satisfied and no measured reservation
+transaction in its primary/bounded admitted transaction sets may exceed the existing <=100 ms target.
+
+Do not hide a miss behind median/p95.
+
+If any transaction target still misses:
+STOP. Do not tune workload/target. Return profile and evidence for reviewer disposition.
+Do not merge PR #5.
+
+H. FULL RE-VERIFICATION IF PERFORMANCE PASSES
+Because source changes:
+- all real PG correctness;
+- direct-login security;
+- full inherited pytest;
+- Ruff;
+- strict mypy;
+- docs/links/requirements;
+- AGENTS/CLAUDE equality;
+- affected recovery;
+- source/history redacted Gitleaks;
+- high-signal scan;
+- hash-required dependency audit;
+- git diff --check;
+- exact-final Windows clean clone.
+
+Historical c0a470bb results do not substitute for new-source final proof.
+
+I. PHASE 2 WINDOW
+No heavy profiling/benchmark/DB stress 22:45–23:20 Pakistan.
+Oct-19 collector has priority.
+After window inspect qualification read-only; no manual catch-up/backfill.
+Do not modify scheduler.
+
+J. GIT / CI
+Only if frozen performance target and required local verification pass:
+- small founder-authored commit(s);
+- no AI coauthor/banner;
+- no force push/history rewrite;
+- push same Phase 4 branch;
+- keep PR #5 OPEN/UNMERGED;
+- require exact-new-head push + PR runs AND jobs completed/success with passing logs;
+- do not merge.
+
+K. HANDOFF
+Return:
+1. c0a470bb baseline and new exact SHA;
+2. pre-optimization reproduction;
+3. profile breakdown / bottleneck;
+4. exact correctness-neutral optimization;
+5. focused safety regressions;
+6. final frozen benchmark full primary/wave metrics/resources;
+7. explicit <=100 ms PASS or STOP/MISS;
+8. new PG/security/full-suite counts;
+9. recovery/scans/audit;
+10. Windows clean clone;
+11. exact-head push/PR CI IDs/jobs/log disposition;
+12. Oct-19 genuine scheduled result/date count;
+13. repository visibility;
+14. PR #5 still unmerged;
+15. no persistent PAPER observation, Phase 5, Exness/broker/order work;
+16. request GPT-5.6 Sol exact-new-SHA review.
+
+STOP if target remains missed, optimization requires weakening safety, benchmark must change to pass,
+new material invariant/security/recovery failure appears, or exact-new-head CI is not coherent.
+
+This prompt authorizes performance remediation only.

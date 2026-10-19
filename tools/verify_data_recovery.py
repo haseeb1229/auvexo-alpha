@@ -148,7 +148,7 @@ def main():
     engine.dispose()
     report = dict(
         status="PASS",
-        schema="0004_research_ledger",
+        schema=expected[tables.index("alembic_version")][0][0],
         tables_compared=len(tables),
         manifests=len(manifests),
         parquet_bytes=sum(m.parquet_bytes for m in manifests),

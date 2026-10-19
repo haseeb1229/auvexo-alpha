@@ -10,7 +10,7 @@ import pytest
 from pydantic import SecretStr
 
 from auvexo_alpha.config import Settings
-from auvexo_alpha.infrastructure.database import DatabaseProbe, make_engine
+from auvexo_alpha.infrastructure.database import SCHEMA_REVISION, DatabaseProbe, make_engine
 
 pytestmark = pytest.mark.integration
 
@@ -35,8 +35,7 @@ def test_r025_p1_actual_postgres_schema_and_defaults() -> None:
     with psycopg.connect(**connection_args()) as conn:
         assert conn.execute("SHOW server_version").fetchone()[0].startswith("17.")
         assert (
-            conn.execute("SELECT version_num FROM alembic_version").fetchone()[0]
-            == "0004_research_ledger"
+            conn.execute("SELECT version_num FROM alembic_version").fetchone()[0] == SCHEMA_REVISION
         )
         assert conn.execute(
             "SELECT execution_enabled,binance_live_derivatives FROM foundation_policy"

@@ -1,0 +1,297 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A SECURITY-STOP RESUME
+Least-privilege PostgreSQL role binding correction
+Target: Astra 6 High / Claude Code
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-18
+
+OWNER AUTHORIZATION
+The owner explicitly authorizes correction of the Phase 4 PAPER PostgreSQL role-binding defect
+identified in the blocked handoff, followed by re-running the already-authorized Phase 4
+Checkpoint A verification.
+
+This is NOT authorization to weaken the failing test, bypass least privilege, start the
+persistent >=14-day PAPER observation, connect Exness, add broker SDK/account credentials,
+place DEMO/REAL orders, merge Phase 4, or begin Phase 5.
+
+INDEPENDENT CURRENT-STATE CHECK
+GitHub independently shows:
+- main = b24c42bc07dcd9bc1b62b04d32cc92f047116125
+- PR #4 is MERGED normally.
+- merge parents are 26b20ca5... and 5a3c03f5...
+- Phase 3 acceptance commit 5a3c03f5 is founder-authored and directly parented by
+  accepted source bb692208...
+- ADR-014 is ACCEPTED/FROZEN on main.
+- repository remains PUBLIC.
+- no remote `phase-4/strategy-risk-paper` branch exists yet.
+
+Owner-local blocked handoff reports:
+- local branch `phase-4/strategy-risk-paper`
+- local committed documentation/requirements freeze HEAD:
+  037afa282daf03eb1d03a1d9a272e5c40bf094a7
+- runtime Phase 4 work is UNCOMMITTED and working tree DIRTY
+- no Phase 4 push/PR exists
+- the PostgreSQL security stop occurred before the remaining hard PG, recovery, performance,
+  full-suite and final CI gates.
+
+Do not manufacture a remote ref for 037afa before local state is verified.
+If the local branch/HEAD/stopped-source inventory differs from the blocked handoff, STOP and report.
+
+BLOCKER TO FIX
+The existing PAPER helper establishes `SET ROLE` over a connection/session that is authenticated
+as `auvexo_admin`. After transaction rollback and pooled reuse, observed state became:
+- requested current_user: auvexo_paper
+- after rollback/reuse: current_user = auvexo_admin
+- rolsuper = true
+
+That is a real privilege-escalation/fail-open condition for the verification/runtime binding.
+Do not change the test to accept it.
+
+A. PRESERVE THE EXACT STOPPED STATE FIRST
+Before editing:
+1. Verify local branch, HEAD 037afa..., `git status`, full tracked diff and untracked Phase 4 files.
+2. Verify `.local/phase4/stopped-source-inventory.json` and its aggregate SHA-256:
+   f5e69f9f18ba2ef2f85ca4663d2ef00971c64c25f7c0cda3955748228bfde2f0
+   if still present.
+3. Create/update an ignored recovery package under `.local/phase4/security-resume/` containing:
+   - HEAD/ref/status;
+   - `git diff --binary`;
+   - untracked file inventory + SHA-256;
+   - blocker diagnostic hashes.
+4. Never commit `.local` or credentials.
+5. Do not reset/discard/stash over the dirty work until recovery is verified.
+
+B. SECURITY DESIGN DECISION — NO SUPERUSER-BACKED RUNTIME POOL
+Preferred/required security property:
+the runtime/test PAPER Engine must authenticate directly as a dedicated least-privilege LOGIN
+identity. Do not rely on an `auvexo_admin` pool plus connection/check-out `SET ROLE` as the
+steady-state runtime security boundary.
+
+Recommended structure:
+- keep the scoped `auvexo_paper` role as a NOLOGIN privilege/group role if consistent with
+  the uncommitted 0005 design;
+- provision a separate local LOGIN identity such as `auvexo_paper_worker` (exact naming may
+  follow repository conventions);
+- LOGIN role attributes must be explicitly least privilege:
+  NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOREPLICATION, NOBYPASSRLS;
+- it may inherit only the intended PAPER group/scoped grants;
+- it must connect directly with its own local credential;
+- `session_user` and `current_user` must never be `auvexo_admin` in the PAPER runtime engine;
+- no code path may silently fall back to admin credentials if PAPER credentials are missing,
+  expired, invalid, rolled back or pooled.
+
+Admin identity is allowed only for bounded local provisioning/migration/test-fixture setup,
+never as the injected PaperStore/PAPER service runtime engine.
+
+Do not put service passwords in migrations, Git, argv, logs or model/chat.
+Reuse the repository's existing ignored local protected-secret pattern/ACL mechanism rather
+than inventing broker-grade secret infrastructure.
+
+If an equally strong design is found, it must prove the same invariant:
+rollback/reset/pool reuse/reconnect can only fail CLOSED to an unprivileged identity and can
+never reveal a superuser-capable session to PAPER runtime code.
+
+C. 0005 MIGRATION / ROLE PROVISIONING
+Migration 0005 is still uncommitted/unmerged and has run only in isolated TEST databases, so it
+may be corrected if the role model itself needs adjustment. Do NOT edit merged migrations 0001-0004.
+
+Rules:
+- migration owns schema/group-role/grant structure, not plaintext login secrets;
+- local provisioning helper owns the dedicated LOGIN credential lifecycle;
+- repeated provisioning must be idempotent and verify role attributes/grants;
+- cleanup for uniquely-created test LOGIN roles must be deterministic because PostgreSQL roles
+  are cluster-global;
+- do not mutate DEV schema/data as part of this correction unless the existing authorized runbook
+  explicitly requires a safe later DEV migration after all isolated gates pass;
+- preserve the handoff fact that globally created NOLOGIN roles may already exist from isolated
+  migration runs; inspect and reconcile rather than blindly recreate/drop unrelated roles.
+
+D. FIX `tools/paper_local.py:engine_for` / EQUIVALENT
+The final runtime engine factory must:
+- use the dedicated least-privilege LOGIN connection parameters directly;
+- never create a pooled engine authenticated as `auvexo_admin` for PAPER runtime;
+- never depend on a one-time `SET ROLE` callback that rollback can undo;
+- fail closed if the dedicated identity is unavailable or attributes/grants are wrong;
+- validate target database/host/port using existing local boundaries;
+- avoid credential leakage in repr/errors/logs;
+- use pool/reset behavior that does not restore elevated rights because there are no elevated
+  rights in the session to restore.
+
+If `SET ROLE` is still used anywhere for a NOLOGIN group, the authenticated `session_user`
+must itself be non-superuser/least-privilege so `RESET ROLE`/rollback cannot escalate above
+the permitted PAPER boundary.
+
+E. SECURITY REGRESSION TEST MATRIX — MUST PASS BEFORE OTHER WORK
+Re-run/extend the failing real PostgreSQL test first.
+
+For PAPER runtime identity prove, on real PostgreSQL:
+1. initial fresh connect;
+2. inside a normal transaction;
+3. after successful COMMIT;
+4. after explicit ROLLBACK;
+5. after an expected SQL permission error and rollback;
+6. after pool check-in/check-out reuse;
+7. after engine dispose + reconnect;
+8. after multiple sequential transactions;
+9. under concurrent connections if pool supports them.
+
+At every point assert:
+- authenticated/runtime identity is the expected dedicated PAPER LOGIN (or equally safe
+  non-admin identity);
+- `rolsuper = false`;
+- no CREATEDB/CREATEROLE/REPLICATION/BYPASSRLS;
+- no membership/path to `auvexo_admin`;
+- no `SET ROLE auvexo_admin`;
+- no `SET SESSION AUTHORIZATION` escalation;
+- no foundation-policy writes;
+- no research study/trial/event writes;
+- no migration/schema-owner capability;
+- no arbitrary schema/table creation;
+- only explicitly granted PAPER operations succeed.
+
+Do not simply assert role names: prove effective permissions with positive allowed operations
+and negative forbidden operations.
+
+Keep the existing immutable UPDATE/DELETE/TRUNCATE CASCADE attacks.
+Do not weaken the strengthened TRUNCATE CASCADE test.
+
+F. DATABASE-CREDENTIAL/POOL NEGATIVE TESTS
+Add fail-closed tests for:
+- missing PAPER credential;
+- wrong password;
+- wrong DB/role;
+- revoked login;
+- revoked group membership/grant;
+- connection recycled after rollback;
+- pool stale connection;
+- provisioning not performed;
+- role accidentally marked superuser/create-role/create-db/bypass-RLS;
+- admin credential accidentally supplied to PAPER factory.
+
+The last case must explicitly refuse startup rather than "work".
+
+G. ONLY AFTER THE SECURITY GATE PASSES — RESUME ORIGINAL CHECKPOINT A
+Then run all previously prepared real PostgreSQL gates that were blocked:
+- thread/process atomic reservation races;
+- logical intent/outbox dedupe;
+- UNKNOWN retention/no blind retry;
+- partial/late fill;
+- cancel/fill race;
+- close/reduce-only/over-close prevention;
+- mark/reconciliation;
+- writer fencing;
+- kill/day/edge/revocation state;
+- independent virtual truth vs local journal mismatch;
+- privilege isolation across all PaperStore operations.
+
+Any new material security/correctness failure => STOP again and return evidence.
+Do not continue merely because this one role bug is fixed.
+
+H. FULL VERIFICATION AFTER PG GATES
+If hard PostgreSQL gates pass:
+- full inherited pytest;
+- Ruff format/check;
+- strict mypy;
+- docs/link/requirements;
+- AGENTS/CLAUDE byte equality;
+- all inherited all-mode money/execution denial/no-broker tests;
+- isolated PAPER backup/restore;
+- foundation/data/research recovery regressions;
+- migration idempotence and destructive-downgrade refusal;
+- performance p50/p95/p99/resource/burst measurements defined by Checkpoint A;
+- source + full-history redacted Gitleaks/high-signal scan;
+- unchanged hash-locked dependency audit;
+- `git diff --check`;
+- final Windows clean clone from the eventual committed Phase 4 source SHA;
+- exact-final hosted CI after push.
+
+Do not infer old 95 tests or the failed PG attempt as final qualification.
+
+I. PHASE 2 DAILY TASK PRIORITY
+Do not modify the existing daily collector or its qualification logic.
+
+Current schedule:
+- 22:57 Pakistan warm-up
+- 23:00–23:12 qualification
+
+Preserve the Checkpoint A no-heavy-work protection:
+avoid migrations, destructive DB work, heavy benchmarks and stress suites from
+22:45–23:20 Pakistan time.
+If the correction/resume reaches that interval, pause heavy work and let the existing
+collector/PostgreSQL have priority. Resume after the protected window.
+Re-check the actual qualified-date count after the window; never assume it passed.
+
+J. SCOPE / SAFETY BOUNDARIES UNCHANGED
+- All four Phase 3 results remain INCONCLUSIVE.
+- No CANDIDATE/CHAMPION.
+- Test releases remain non-promotable PAPER_QUALIFICATION_FIXTURE / ENGINEERING_ONLY.
+- No persistent 14-day PAPER observation.
+- No new Windows PAPER scheduled task.
+- No Phase 5.
+- No Exness/MetaTrader5/broker SDK/account/credentials/transport.
+- Zero DEMO/REAL orders.
+- No LiveTradingPermit issuer/signing key.
+- Real capital/live order count remain zero.
+- Foundation money execution remains impossible.
+- Binance live derivatives BLOCKED_BY_POLICY.
+- No withdrawals.
+- No runtime AI/rich frontend.
+- No paid service.
+- Repo remains PUBLIC unless owner separately authorizes visibility change.
+- Public exception review remains due 2026-10-24.
+- No private raw data/OOS/DB dumps/local credentials in Git.
+
+K. GIT WORKFLOW AFTER ALL REQUIRED GATES PASS
+Do not push the currently dirty runtime draft merely to save progress.
+
+After coherent implementation + required local gates:
+1. review full diff against frozen 037afa requirements;
+2. ensure no unrelated change;
+3. commit in small founder-authored commits;
+4. no AI coauthor/generated banners;
+5. no force push/history rewrite;
+6. push `phase-4/strategy-risk-paper`;
+7. open ONE Phase 4 PR to main;
+8. keep it OPEN/UNMERGED;
+9. run exact-head push + PR hosted CI;
+10. do not create Phase 5 branch.
+
+L. REQUIRED RESUMED HANDOFF
+Return a consolidated Phase 4 Checkpoint A handoff including:
+1. exact preserved blocked-state hash and recovery snapshot;
+2. root cause and final role architecture;
+3. exact LOGIN/group role attributes and effective grants, with secrets redacted;
+4. proof runtime pool never authenticates as admin;
+5. identity/privilege results across connect/commit/rollback/error/pool reuse/reconnect;
+6. all cross-foundation/research/schema privilege negatives;
+7. focused security test count;
+8. all real PG race/outbox/UNKNOWN/reconciliation/kill-state results;
+9. full test count and static/doc checks;
+10. migrations/roles/constraints and whether DEV remained unchanged;
+11. isolated backup/restore and recovery results;
+12. actual benchmark p50/p95/p99/resources/sample counts;
+13. scans/dependency audit;
+14. exact commits, Phase 4 PR, final SHA and clean tree;
+15. Windows clean-clone exact-final result;
+16. exact-head hosted push/PR CI run+job IDs;
+17. actual Phase 2 qualified scheduled dates after the current window;
+18. PUBLIC/private governance status;
+19. confirmation no Phase 3 result was promoted;
+20. confirmation persistent 14-day PAPER observation has NOT begun;
+21. confirmation Exness/broker/orders/Phase 5 remain absent;
+22. explicit request for GPT-5.6 Sol exact-final-SHA review.
+
+STOP CONDITIONS
+STOP again if:
+- local branch/stopped-state evidence differs unexpectedly;
+- the fix still uses an admin-authenticated PAPER runtime pool;
+- any rollback/pool/reconnect exposes admin/superuser capability;
+- privilege negative tests can cross foundation/research/schema boundaries;
+- atomic reservation/dedupe/reconciliation invariant fails;
+- UNKNOWN can blind-resend;
+- a kill/reduce-only action can over-close/reverse;
+- any material recovery/security/dependency/CI gate fails;
+- current PUBLIC Git would expose private/proprietary material.
+
+This authorization is specifically to correct the least-privilege role binding and resume
+the already-authorized Phase 4 Checkpoint A verification. It is not Phase 4 acceptance.

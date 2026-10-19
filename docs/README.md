@@ -1,12 +1,24 @@
 # Project document index
 
-Current Phase 4 entry: Phase 3 correctness/research independently accepted at
-`bb69220818a519e122d2cd9b1cad75559c2fa244`; all four empirical outcomes INCONCLUSIVE,
-both OOS consumed, no CANDIDATE/CHAMPION. See [acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
-The owner authorizes documentation-only normal PR #4 merge, then Checkpoint A on
-`phase-4/strategy-risk-paper`: PAPER-only risk/lifecycle/durable simulation core.
-No persistent PAPER observation, Phase 5 or broker capability. Phase 2 B/C stays OPEN.
-Earlier entry wording and dated handoffs below are historical snapshots.
+Phase 4 Checkpoint A engineering is independently ACCEPTED/PASS at
+`e3f39e0397e1846c37febcebc246ea91c9f2eb78` by GPT-5.6 Sol. See the
+[acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md) and
+[current handoff](phase4/HANDOFF.md). ADR-015 through ADR-022 are ACCEPTED/FROZEN
+for this engineering scope. ADR-022 retains the 272.4386 ms concurrent stress tail
+as THROTTLE_REQUIRED evidence; no benchmark rerun is authorized.
+
+Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
+replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
+its counter remains zero. The owner authorizes documentation-only acceptance/CI,
+then a verified normal PR #5 merge, and only afterward Checkpoint B harness
+implementation from merged main in `phase-4/paper-observation`. No persistent task
+registration/START, Phase 5, broker or money authority follows from this acceptance.
+
+Phase 2 B/C remains OPEN: October 18/19 INCOMPLETE, genuine qualified scheduled dates
+zero, DS-03/Exness blocked. Phase 3 remains independently accepted at bb692208 with
+four INCONCLUSIVE outcomes, both OOS holdouts consumed and no candidate/champion.
+PUBLIC exception review remains due 2026-10-24; repository settings are unchanged.
+Earlier dated wording below describes historical entry/acceptance transitions.
 
 Read the [current baseline correction handoff](amendments/BASELINE_CORRECTION_HANDOFF.md),
 [ADR-013](adr/013-source-specific-acceptance.md), [current schedule](amendments/SCHEDULER_2300.md),
@@ -35,7 +47,7 @@ Phase 3 implementation follows the authorized normal merge/new branch, not this 
 | [Client and UX direction](CLIENT_AND_UX_DIRECTION.md) | Future terminal, mobile, desktop and voice boundaries |
 | [Roadmap](ROADMAP.md) | Phases 0-9 and explicit proof/exit gates |
 | [Open decisions](OPEN_DECISIONS.md) | Status, owner and closure point for every open gate |
-| [ADR index](adr/README.md) | Decisions 001-013 with individual dates/statuses |
+| [ADR index](adr/README.md) | Decisions 001-022 with individual dates/statuses |
 | [Self-review](PHASE_0_SELF_REVIEW.md) | Consistency findings and resolutions |
 | [Verification evidence](validation/PHASE_0_CHECKS.md) | Commands, results and limitations |
 | [Handoff template](HANDOFF_TEMPLATE.md) | Required future phase delivery fields |

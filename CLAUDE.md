@@ -10,11 +10,48 @@ Phase 3 independently accepted at bb69220818a519e122d2cd9b1cad75559c2fa244;
 all four results INCONCLUSIVE, both OOS holdouts consumed forever, no CANDIDATE/CHAMPION.
 See docs/reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md. Owner authorizes documentation-only
 acceptance, checked normal PR #4 merge, then phase-4/strategy-risk-paper from main.
-Current authorized scope: Phase 4 Checkpoint A deterministic PAPER-only risk/lifecycle/
-durable journal and reconciliation engineering. Separate non-promotable TEST_ONLY fixtures
-only; no Phase 3 promotion. Freeze child requirements before executable implementation.
-Phase 4 PR stays unmerged for exact-final-SHA independent review. No persistent PAPER task,
-14-day observation counter, Phase 5, broker transport, live permit issuer, runtime AI or frontend.
+Security-stop resume explicitly authorized by the owner under
+docs/reference/PHASE_4_SECURITY_RESUME_BRIEF.txt and ADR-016. Preserve exact stopped
+inventory/recovery before edits. Replace admin-authenticated PAPER pools with dedicated
+least-privilege LOGIN identities; security-first real PostgreSQL verification before
+other Checkpoint A work. Any new material security/correctness failure stops again.
+No heavy DB/migration/benchmark/stress work 22:45-23:20 Pakistan.
+Second resume under docs/reference/PHASE_4_SECOND_RESUME_BRIEF.txt authorizes the three
+reported correctness fixes and direct-LOGIN completion before security-first verification.
+See ADR-017; preserve frozen requirements and both stopped-state recovery packages.
+Third resume under docs/reference/PHASE_4_THIRD_RESUME_BRIEF.txt and ADR-018 authorizes
+stale-mark replay correction with the financial guard intact. Its superseding sequence is
+failed stale-mark test, all hard PG correctness, then full direct-LOGIN security rerun.
+Collector reporting PermissionError remains separate; no silent permissions correction.
+Fourth resume under docs/reference/PHASE_4_FOURTH_RESUME_BRIEF.txt and ADR-019 authorizes
+production lifecycle-history correction and the exact proven pytest cache ACL/harness fix.
+Preserve all stopped packages. Its order is focused lifecycle, filesystem/quota and data/research
+recovery, all PG correctness, full direct-LOGIN security, then full inherited verification.
+No broad ACL change, quota exclusion or ignored PermissionError. Visibility changes prohibited.
+Fifth resume under docs/reference/PHASE_4_FIFTH_RESUME_BRIEF.txt and ADR-021 authorizes
+monotonic transaction-local reconciliation correction and retained performance draft validation.
+Focused real-PG correction first, prior correctness/security and profiling next, then ONE final
+unchanged acceptance benchmark. Any admitted transaction above 100 ms stops for formal budget
+disposition; no lucky rerun. Preserve collector priority and inspect qualification only afterward.
+Performance-governance finalization under docs/reference/PHASE_4_PERFORMANCE_GOVERNANCE_BRIEF.txt
+and ADR-022 supersedes only the hard-MAX performance interpretation. Qualified transaction
+P95<=100 ms/P99<=250 ms; concurrent stress requires throttling and successful subsequent
+qualification. Preserve all old tails/receipts and evaluate the one final receipt without rerun.
+The reviewed final source completed verification and is accepted as recorded below.
+Phase 4 Checkpoint A engineering independently ACCEPTED/PASS at
+e3f39e0397e1846c37febcebc246ea91c9f2eb78; ADR-015 through ADR-022 ACCEPTED/FROZEN.
+See docs/reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md and the owner-authorized
+docs/reference/PHASE_4_CHECKPOINT_B_BRIEF.txt. Full Phase 4 remains OPEN pending >=14
+actual-feed PAPER calendar days, replay evidence and zero unexplained ledger mismatches.
+Current authority is documentation-only acceptance on PR #5, exact-head administrative CI,
+then verified NORMAL MERGE with expected parents. Only AFTER that merge may Checkpoint B
+observation-harness implementation begin from merged main on phase-4/paper-observation.
+Freeze its ADR/requirements before executable implementation; its new PR remains unmerged
+for exact-SHA independent review. No persistent observation task registration/START and no
+14-day counter start; observation dates/counter remain ZERO until separate owner START
+following Checkpoint B review. Separate non-promotable ENGINEERING_ONLY fixtures only;
+no Phase 3 promotion, production candidate/champion, Phase 5, broker transport, live permit
+issuer, runtime AI or frontend. No broker account/session/trading credentials or money action.
 Full Phase 2 operational acceptance stays OPEN; seven genuine dates and DS-03 not waived.
 Do not modify/retime/delete the public-data daily task. Exness/XAU/CFD research blocked.
 Broker SDKs, account access and credentials remain prohibited.

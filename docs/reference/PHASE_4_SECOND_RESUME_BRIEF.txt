@@ -1,0 +1,351 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A SECOND RESUME
+Correct three material risk-state defects + execute least-privilege proof
+Target: Astra 6 High / Claude Code
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-18
+
+OWNER / REVIEWER DISPOSITION
+The owner explicitly authorizes correcting ALL THREE material correctness defects discovered
+during the prior authorized security resume, completing the already-drafted direct-login
+least-privilege correction, and then resuming Phase 4 Checkpoint A verification.
+
+This is a targeted continuation of the already-authorized canonical Phase 4 Checkpoint A.
+It is NOT Phase 4 acceptance, NOT permission for persistent >=14-day PAPER observation,
+NOT Phase 5, and NOT permission for broker/account/credential/order capability.
+
+The three discovered defects are accepted as real merge-blocking defects unless direct source
+inspection disproves the exact trace. Do not weaken requirements/tests to make them disappear.
+
+INDEPENDENT REMOTE STATE
+GitHub independently remains:
+- repository haseeb1229/auvexo-alpha, PUBLIC
+- main = b24c42bc07dcd9bc1b62b04d32cc92f047116125
+- PR #4 MERGED normally
+- no remote `phase-4/strategy-risk-paper` branch exists yet
+
+LOCAL STOPPED STATE FROM THE NEW HANDOFF — VERIFY FIRST
+Expected:
+- local branch `phase-4/strategy-risk-paper`
+- committed HEAD `037afa282daf03eb1d03a1d9a272e5c40bf094a7`
+- working tree DIRTY
+- Phase 4 executable/security changes UNCOMMITTED
+- no Phase 4 push/PR
+- original stopped aggregate:
+  f5e69f9f18ba2ef2f85ca4663d2ef00971c64c25f7c0cda3955748228bfde2f0
+- second correctness-stop aggregate:
+  045013eaeaf3d9837eab992030cc66d0e961cd4ae5a463d157b0b470ee243b1e
+- frozen `docs/phase4/ACCEPTANCE_TESTS.md` hash:
+  051da385ebc22f1c5eb98933c876a2338b7e4005f23913e8ffd0ffa070cf1d1a
+
+If local branch/HEAD/inventory does not match preserved evidence, STOP and report.
+Do not reset, rewrite or push merely to get to a clean state.
+
+A. PRESERVE THE SECOND STOP BEFORE EDITING
+Create a new ignored recovery snapshot under `.local/phase4/` before any correction:
+- current HEAD/branch/status
+- tracked binary diff
+- all untracked Phase 4 file hashes
+- current aggregate
+- references/hashes to both prior recovery packages
+- the three source-trace findings below
+Never commit `.local`, passwords, raw DB dumps or private evidence.
+
+B. DEFECT 1 — OPEN MUST NOT MUTATE EXISTING EXPOSURE WITHOUT FULL AUTHORIZATION
+Observed defect:
+an OPEN intent may carry `position_ref`, reuse an existing position, add old quantity and replace
+the old stop with the new intent's stop. Cross-instrument reuse and intent UUID collision paths were
+also identified.
+
+Required safety semantics:
+
+1. A plain `OPEN` represents NEW exposure only.
+   - It MUST NOT accept/reference an existing position.
+   - `position_ref` for OPEN must be rejected at the earliest typed validation/risk boundary.
+   - PAPER store/truth must independently refuse an OPEN that tries to resolve to an existing ref.
+2. Do NOT silently implement pyramiding/netting/amend-stop semantics under OPEN.
+3. If the current Phase 4 action vocabulary already has an explicitly authorized reduce/close
+   action, only that action may reference an existing position under its documented rules.
+4. Do NOT invent a new ADD/AMEND action in this correction unless the frozen requirements already
+   define one. If not defined, defer it.
+5. An existing position's instrument/product/bucket, quantity, entry, multiplier/spec binding,
+   stop/protection must never be overwritten by another OPEN.
+6. An OPEN creates a new account-scoped position reference derived from its own immutable intent.
+   Add/verify DB uniqueness for the account + intent UUID / generated position identity so reuse of
+   the same UUID under a new logical key cannot create/collide with another position.
+7. Cross-account and cross-instrument position-reference use must fail closed.
+8. Authorization must bind the exact action and exact new exposure. No later store operation may
+   change risk-bearing fields outside that authorization.
+
+Regression tests MUST include:
+- OPEN + existing same-instrument position_ref => denied, no mutation;
+- OPEN + cross-instrument ref => denied;
+- OPEN + cross-account ref => denied;
+- repeated intent UUID with different logical key => denied by deterministic/domain + DB protection;
+- old position bytes/row values unchanged after every refused attack;
+- two legitimate independent OPEN intents create distinct position identities;
+- no stop replacement/instrument overwrite is possible;
+- concurrent collision attempts fail atomically.
+
+Do not "fix" the example by merely recalculating the new stop risk while retaining implicit merge.
+The minimal Checkpoint-A-safe behavior is: OPEN cannot mutate an existing position.
+
+C. DEFECT 2 — REJECTED + ANY FILL IS CONTRADICTORY/UNKNOWN, NEVER CLEAN REJECTION
+Observed defect:
+an order can have a partial FILL and STATUS REJECTED, remain REJECTED, become terminal and release
+residual reservation while an actual position remains. Reconciliation may then report success.
+
+Preserve the inherited invariant:
+REJECTED means no execution. Any nonzero fill/deal plus REJECTED is contradictory truth.
+
+Required semantics:
+1. FILL > 0 + REJECTED in either arrival order MUST NOT settle as REJECTED.
+2. Enter a typed contradictory/UNKNOWN/quarantined state consistent with existing contracts.
+   Prefer reuse of canonical UNKNOWN plus a deterministic reason code if no separate
+   CONTRADICTORY state is already frozen.
+3. Pause new exposure for the affected PAPER account.
+4. Never blind resend.
+5. Actual filled quantity remains authoritative exposure.
+6. Do not release the unproven residual merely because a REJECTED status arrived.
+7. Capacity accounting while contradictory must be conservative:
+   actual confirmed filled exposure + reservation for unproven possible residual must never be
+   less than the original authorized worst-case exposure.
+8. Reconciliation can release residual reservation ONLY after independent authoritative virtual
+   truth proves terminal outcome and proves no further fill is possible.
+9. Reconciliation MUST NOT return healthy/success while rejection/fill contradiction remains.
+10. A later authoritative correction is append-only; never erase contradictory history.
+11. The order must not be eligible for a new logical retry until the contradiction is resolved
+    and a separately authorized new intent is created.
+
+Regression/fault tests:
+- FILL .004 -> REJECTED for authorized .010;
+- REJECTED -> later FILL .004;
+- duplicate fill before/after rejection;
+- partial fill + cancel/expire distinctions if those are already canonical;
+- lost response/restart during contradiction;
+- residual reservation remains safe;
+- actual .004 position exposure remains in risk;
+- reconcile refuses green while contradiction unresolved;
+- authoritative resolution releases only proven residual;
+- no duplicate logical order/resend.
+
+D. DEFECT 3 — DAILY LOSS BREACH MUST LATCH ACROSS UTC DAY ROLLOVER
+Observed defect:
+daily marked loss can exceed the policy cap while K0 remains; midnight rollover then resets
+day-start equity and a new OPEN can pass without explicit owner resume.
+
+Required semantics:
+1. Daily-loss breach detection is not dependent on the arrival of another OPEN proposal.
+   Reconciliation/mark processing must deterministically evaluate the active policy.
+2. When daily marked loss breaches the frozen threshold, persist K2 and a cause/event.
+3. The loss-breach/kill state is LATCHED.
+4. UTC rollover may update the new day's accounting baseline, but MUST NOT clear:
+   - K2/PAUSE state,
+   - breach event/history,
+   - explicit owner-resume requirement.
+5. Process restart, reconnect, fresh mark or date change MUST NOT auto-return to K0.
+6. New/increased exposure remains denied while latched.
+7. Owner PAPER resume must use the already-frozen explicit audited command path.
+8. Same-day resume while daily loss remains breached must be denied.
+9. After a legitimate new UTC day, baseline accounting may restart, but K2 remains until explicit
+   owner resume plus fresh/reconciled healthy state.
+10. Owner resume must not clear unrelated UNKNOWN, mismatch, drawdown or other kill causes.
+11. High-water/drawdown history is not reset by day rollover.
+12. Deposits/virtual adjustments cannot be a loss-reset workaround.
+
+Regression tests:
+- mark alone triggers daily breach/K2 without a new candidate;
+- breach one second before midnight;
+- exact midnight rollover;
+- one second after midnight;
+- restart/reconnect/pool reload after rollover;
+- no OPEN until owner resume;
+- same-day owner resume denied while breach active;
+- next-day explicit owner resume only after reconciled healthy prerequisites;
+- drawdown/UNKNOWN cause remains if daily cause becomes eligible to clear;
+- no day-roll race allows one OPEN between baseline reset and kill-state evaluation;
+- concurrent mark/roll/open path is serialized/fail-closed.
+
+E. STATE-TRANSITION ORDER / TRANSACTIONALITY
+Review all three fixes as one atomic risk-system concern.
+For every transaction altering position exposure/protection, reservation, execution/order state,
+or daily-loss/kill state, the risk-bearing mutation and durable journal/state transition must
+commit consistently.
+
+Test crash/failure boundaries so no state exists where:
+- position mutated but authorization/reservation did not cover it;
+- residual reservation released before contradiction resolution;
+- day baseline rolled while breach latch was lost;
+- OPEN authorization is consumed twice;
+- writer fencing is bypassed.
+
+Use real PostgreSQL transaction/race tests, not only unit mocks.
+
+F. KEEP THE DIRECT-LOGIN SECURITY CORRECTION
+The drafted least-privilege architecture is directionally accepted for execution/testing:
+three direct per-isolated-database LOGIN identities for runtime, owner PAPER commands and independent
+virtual truth, each belonging only to its scoped NOLOGIN group and all:
+NOSUPERUSER, NOCREATEDB, NOCREATEROLE, NOREPLICATION, NOBYPASSRLS.
+
+No admin-backed runtime pool.
+No one-time SET ROLE callback from auvexo_admin.
+No admin credential fallback.
+
+Before running it:
+- align the known TEMP descriptive-code test mismatch without weakening refusal semantics;
+- inspect the complete draft diff to ensure the direct-login implementation did not broaden grants.
+
+G. SECURITY-FIRST REAL POSTGRESQL GATE
+After B-F code/tests are coherent, execute the prepared security runner FIRST.
+The 76 collected security cases must be executed, not merely collected.
+
+Prove identities across connect, transaction, commit, rollback, permission-error rollback,
+pool reuse, dispose/reconnect, sequential use and concurrent connections.
+
+Prove:
+- no identity becomes auvexo_admin;
+- rolsuper/createdb/createrole/replication/bypassrls all false;
+- no path to admin;
+- no foundation/research/schema cross-write;
+- no arbitrary schema/table/TEMP/role creation;
+- no privilege delegation;
+- only exact scoped PAPER operations succeed;
+- invalid/missing/revoked/elevated credentials/roles fail closed;
+- admin credential supplied to PAPER runtime is explicitly refused.
+
+Keep immutable UPDATE/DELETE/TRUNCATE CASCADE attacks.
+Any material security failure => STOP again.
+
+H. THEN RUN ALL HARD PAPER POSTGRESQL CORRECTNESS GATES
+Only after security PASS:
+- OPEN/reference/intent UUID collision attacks;
+- thread/process atomic reservation races;
+- aggregate/bucket/daily/drawdown limits;
+- logical intent + outbox dedupe;
+- partial/rejected contradiction in both orderings;
+- UNKNOWN reservation/no blind retry;
+- late fill;
+- cancel/fill race;
+- independent truth mismatch;
+- mark-driven daily loss;
+- UTC rollover latch;
+- explicit owner PAPER resume negatives/positives;
+- reduce-only/over-close/reversal;
+- writer fencing/stale epoch;
+- kill/day/edge/revocation;
+- corrupt journal / DB failure.
+
+Any new material invariant failure => STOP.
+
+I. DO NOT CHANGE FROZEN PHASE 4 REQUIREMENTS TO FIT CODE
+Do not weaken or silently rewrite `docs/phase4/ACCEPTANCE_TESTS.md`.
+If clarification is required, preserve the frozen file/hash and use a dated explanatory
+ADR/design amendment that only clarifies an already-required invariant.
+No strategy/risk numerical threshold change is authorized.
+
+J. FULL CHECKPOINT-A VERIFICATION AFTER HARD GATES
+If security + PG correctness pass:
+- full inherited pytest;
+- Ruff format/check;
+- strict mypy;
+- docs/link/requirements;
+- AGENTS/CLAUDE byte equality;
+- inherited all-mode money/execution denial/no-broker tests;
+- migration 0005 idempotence and destructive-downgrade refusal;
+- isolated foundation/data/research/PAPER backup + restore;
+- append-only trigger/hash/count verification;
+- performance p50/p95/p99/resource/burst measurements from original Checkpoint A;
+- research-worker-concurrent then throttled benchmark where specified;
+- full-source + full-history redacted Gitleaks;
+- high-signal scan;
+- unchanged hash-locked dependency audit;
+- git diff --check;
+- exact-final Windows clean clone after commit;
+- exact-final hosted push + PR CI.
+
+K. PHASE 2 SCHEDULE — VERIFY THE NOW-COMPLETED FIRST WINDOW READ-ONLY
+The prior stop happened while the first eligible scheduled window was active.
+Before heavy DB work resumes:
+1. read-only/sanitized inspect the Windows task result, wrapper summary and qualification evidence
+   for 2026-10-18;
+2. do not manually rerun/catch up/backfill;
+3. if it genuinely qualifies, record the date exactly once;
+4. if it failed/missed, preserve failure and count honestly;
+5. do not alter scheduler time/configuration.
+
+Current schedule remains 22:57 Pakistan warm-up; 23:00-23:12 qualification.
+For subsequent days preserve no-heavy-work 22:45-23:20 Pakistan.
+
+L. SCOPE / SAFETY BOUNDARIES
+Unchanged:
+- Phase 3 four outcomes INCONCLUSIVE.
+- No CANDIDATE/CHAMPION.
+- TEST/PAPER fixtures non-promotable.
+- No persistent 14-day PAPER observation or counter.
+- No Phase 5.
+- No Exness/MT5/broker SDK/account/credential/transport.
+- Zero DEMO/REAL broker orders.
+- No LiveTradingPermit issuer/signing key.
+- Live/real capital and order count zero.
+- Foundation money execution remains impossible.
+- Binance live derivatives BLOCKED_BY_POLICY.
+- No withdrawals.
+- No runtime AI/rich frontend/paid service.
+- Repository remains PUBLIC under bounded exception; governance review due 2026-10-24.
+- No private/raw/OOS/DB dump/credential material in Git.
+
+M. COMMIT / PUSH ONLY AFTER REQUIRED LOCAL GATES PASS
+Do not push dirty work just to save it.
+After coherent fixes and all required pre-push gates:
+- inspect complete diff against frozen requirements;
+- small founder-authored commits;
+- no AI coauthor/generated banner;
+- no force push/history rewrite;
+- push `phase-4/strategy-risk-paper`;
+- open exactly one Phase 4 PR to main;
+- keep it UNMERGED;
+- exact-head push + PR CI;
+- no Phase 5 branch.
+
+N. REQUIRED NEXT HANDOFF
+Produce one consolidated Checkpoint-A handoff containing:
+1. both prior stopped-state/recovery hashes and new recovery snapshot;
+2. exact source traces and fixes for all 3 correctness defects;
+3. tests proving OPEN cannot mutate old position/risk;
+4. account+intent UUID/position identity collision proof;
+5. rejected+fill contradiction state/reservation/reconciliation proof in both event orders;
+6. UTC daily-loss latch + rollover + owner-resume proofs;
+7. crash/transaction atomicity proofs;
+8. direct-login security architecture and effective grants;
+9. executed security results, not collection only;
+10. full real-PG race/UNKNOWN/reconciliation/kill results;
+11. full inherited test count/static/docs checks;
+12. migration/privilege/recovery results;
+13. benchmark p50/p95/p99/resources/sample counts;
+14. source/history secret scan + dependency audit;
+15. exact founder commits, Phase 4 PR, final SHA, clean tree;
+16. Windows clean-clone exact-final evidence;
+17. exact-final hosted CI run/job IDs;
+18. actual 2026-10-18 scheduled qualification result and genuine date count;
+19. repository visibility/governance status;
+20. no Phase 3 result promoted;
+21. persistent 14-day PAPER observation NOT begun;
+22. Exness/broker/orders/Phase 5 absent;
+23. request GPT-5.6 Sol exact-final-SHA review.
+
+STOP CONDITIONS
+STOP again if:
+- local preserved state unexpectedly differs;
+- OPEN can still alter an existing position/risk field without total reauthorization;
+- intent UUID/position identity collision remains possible;
+- any fill can coexist with clean REJECTED terminal state;
+- contradictory truth can release unsafe capacity or reconcile green;
+- daily-loss kill state can clear automatically at UTC rollover/restart;
+- direct-login security proof exposes admin/elevated rights;
+- reservation race/UNKNOWN/reconciliation/writer/kill invariant fails;
+- material migration/recovery/security/dependency/CI gate fails;
+- public Git would expose private/proprietary material.
+
+This authorization covers correction of the three newly discovered material defects plus completion
+of the already-drafted role-binding fix and the original Phase 4 Checkpoint A verification.
+It does not authorize Phase 4 acceptance, persistent observation, broker connectivity or Phase 5.

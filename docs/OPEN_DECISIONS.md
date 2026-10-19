@@ -1,10 +1,24 @@
 # Decision and external gate register
 
-Current Phase 3 entry: accepted Phase 2 research scope recorded at `7b1d23d0fb26d41e5a8cf36159c9379615f2bb50`,
-normally merged PR #3 at `26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3` with expected parents.
-Phase 3 is authorized on its new branch; full Phase 2 operational status remains OPEN.
-See [Phase 3 requirements](phase3/ACCEPTANCE_TESTS.md) and [data plan](phase3/DATA_PLAN.md).
-Earlier administrative entry wording below records the acceptance transition, not current PR status.
+Phase 4 Checkpoint A engineering is independently ACCEPTED/PASS at
+`e3f39e0397e1846c37febcebc246ea91c9f2eb78` by GPT-5.6 Sol. See the
+[acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md) and
+[current handoff](phase4/HANDOFF.md). ADR-015 through ADR-022 are ACCEPTED/FROZEN
+for this engineering scope. ADR-022 retains the 272.4386 ms concurrent stress tail
+as THROTTLE_REQUIRED evidence; no benchmark rerun is authorized.
+
+Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
+replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
+its counter remains zero. The owner authorizes documentation-only acceptance/CI,
+then a verified normal PR #5 merge, and only afterward Checkpoint B harness
+implementation from merged main in `phase-4/paper-observation`. No persistent task
+registration/START, Phase 5, broker or money authority follows from this acceptance.
+
+Phase 2 B/C remains OPEN: October 18/19 INCOMPLETE, genuine qualified scheduled dates
+zero, DS-03/Exness blocked. Phase 3 remains independently accepted at bb692208 with
+four INCONCLUSIVE outcomes, both OOS holdouts consumed and no candidate/champion.
+PUBLIC exception review remains due 2026-10-24; repository settings are unchanged.
+Earlier dated wording below describes historical entry/acceptance transitions.
 
 Dated 2026-10-17 [Phase 2 evidence closure](phase2/closure/HANDOFF.md): retrospective
 coverage passed, actual scheduled dates zero, Exness DEMO blocked. PUBLIC hosted CI
