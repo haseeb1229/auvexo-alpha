@@ -14,7 +14,7 @@ from psycopg import sql
 from pydantic import SecretStr
 
 from auvexo_alpha.config import Settings
-from auvexo_alpha.infrastructure.database import DatabaseProbe, make_engine
+from auvexo_alpha.infrastructure.database import SCHEMA_REVISION, DatabaseProbe, make_engine
 
 
 def main() -> None:
@@ -97,7 +97,7 @@ def main() -> None:
                 conn.execute("UPDATE alembic_version SET version_num='unexpected_revision'")
             assert not DatabaseProbe(engine).ready()
             with psycopg.connect(dbname=target, **args) as conn:
-                conn.execute("UPDATE alembic_version SET version_num='0004_research_ledger'")
+                conn.execute("UPDATE alembic_version SET version_num=%s", (SCHEMA_REVISION,))
             assert DatabaseProbe(engine).ready()
         finally:
             engine.dispose()
