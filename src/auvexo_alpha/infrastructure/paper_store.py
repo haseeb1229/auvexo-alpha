@@ -86,6 +86,27 @@ class ObservedMark:
         )
 
 
+@dataclass
+class _VerifiedJournal:
+    """Verified history owned by one locked account transaction, never a store cache."""
+
+    connection: Connection
+    transaction: object
+    account_ref: str
+    rows: list[dict[str, Any]]
+
+    def for_scope(self, conn: Connection, account_ref: str) -> list[dict[str, Any]]:
+        if (
+            conn is not self.connection
+            or account_ref != self.account_ref
+            or not conn.in_transaction()
+            or conn.in_nested_transaction()
+            or conn.get_transaction() is not self.transaction
+        ):
+            raise ValueError("PAPER_JOURNAL_CONTEXT_SCOPE_DENIED")
+        return self.rows
+
+
 def bounded_amount(value: Decimal, *, ceiling: bool = False) -> Decimal:
     """Explicit conservative 18-place projection; exact fill facts remain preserved."""
     return value.quantize(
@@ -151,8 +172,14 @@ class PaperStore:
         data: object,
         now: datetime,
         intent_hash: str | None = None,
+        *,
+        history: _VerifiedJournal | None = None,
     ) -> None:
-        rows = cls._journal(conn, account_ref)
+        rows = (
+            history.for_scope(conn, account_ref)
+            if history is not None
+            else cls._journal(conn, account_ref)
+        )
         identity = str(uuid4())
         encoded = canonical_payload(
             {
@@ -181,9 +208,29 @@ class PaperStore:
                 "at": utc_time(now),
             },
         )
+        if history is not None:
+            envelope = json.loads(encoded)
+            rows.append(
+                {
+                    "event_id": identity,
+                    "account_ref": account_ref,
+                    "intent_hash": intent_hash,
+                    "kind": kind,
+                    "content_hash": digest(encoded),
+                    "payload": encoded,
+                    "recorded_at": utc_time(now),
+                    "data": envelope["data"],
+                }
+            )
 
     @classmethod
-    def _account(cls, conn: Connection, row: dict[str, Any]) -> PaperAccountSnapshot:
+    def _account(
+        cls,
+        conn: Connection,
+        row: dict[str, Any],
+        *,
+        history: _VerifiedJournal | None = None,
+    ) -> PaperAccountSnapshot:
         account = PaperAccountSnapshot.model_validate_json(str(row["payload"]))
         if (account.epoch, account.kill.value, account.reconciled) != (
             row["writer_epoch"],
@@ -191,7 +238,11 @@ class PaperStore:
             row["reconciled"],
         ):
             raise ValueError("CORRUPT_PAPER_ACCOUNT")
-        history = cls._journal(conn, account.account_ref)
+        rows = (
+            history.for_scope(conn, account.account_ref)
+            if history is not None
+            else cls._journal(conn, account.account_ref)
+        )
         projection_events = {
             "INITIALIZED",
             "WRITER_ACQUIRED_PAUSE_NEW",
@@ -207,7 +258,7 @@ class PaperStore:
         latest = next(
             (
                 event["data"]["account"]
-                for event in reversed(history)
+                for event in reversed(rows)
                 if event["kind"] in projection_events
             ),
             None,
@@ -334,8 +385,18 @@ class PaperStore:
             return self._reservations(conn, account_ref)
 
     @classmethod
-    def _reservations(cls, conn: Connection, account_ref: str) -> tuple[PaperReservation, ...]:
-        history = cls._journal(conn, account_ref)
+    def _reservations(
+        cls,
+        conn: Connection,
+        account_ref: str,
+        *,
+        history: _VerifiedJournal | None = None,
+    ) -> tuple[PaperReservation, ...]:
+        rows = (
+            history.for_scope(conn, account_ref)
+            if history is not None
+            else cls._journal(conn, account_ref)
+        )
         result = []
         for row in conn.execute(
             text(
@@ -346,7 +407,7 @@ class PaperStore:
             {"a": account_ref},
         ).mappings():
             reservation = PaperReservation.model_validate_json(str(row["payload"]))
-            events = [e for e in history if e["intent_hash"] == row["intent_hash"]]
+            events = [e for e in rows if e["intent_hash"] == row["intent_hash"]]
             expected_state = "RESERVED"
             for event in events:
                 if event["kind"] == "DISPATCH_ATTEMPT":
@@ -358,7 +419,7 @@ class PaperStore:
             last = next(
                 (
                     e["data"]["reservation"]
-                    for e in reversed(history)
+                    for e in reversed(rows)
                     if e["intent_hash"] == row["intent_hash"] and "reservation" in e["data"]
                 ),
                 None,
@@ -621,9 +682,14 @@ class PaperStore:
         intent = PaperIntent.model_validate_json(intent.canonical_bytes())
         with self.engine.begin() as conn:
             row = self._lock(conn, intent.account_ref)
-            self._journal(conn, intent.account_ref)
-            account = self._account(conn, row)
-            reservations = self._reservations(conn, intent.account_ref)
+            history = _VerifiedJournal(
+                conn,
+                conn.get_transaction(),
+                intent.account_ref,
+                self._journal(conn, intent.account_ref),
+            )
+            account = self._account(conn, row, history=history)
+            reservations = self._reservations(conn, intent.account_ref, history=history)
             policy_stored = conn.scalar(
                 text("SELECT payload FROM paper_policy WHERE content_hash=:h"),
                 {"h": row["policy_hash"]},
@@ -670,7 +736,7 @@ class PaperStore:
             )
             if latest_truth != int(row["truth_cursor"]):
                 extra.add(PaperReason.ACCOUNT_UNRECONCILED)
-                updated = PaperAccountSnapshot.model_validate(
+                account = PaperAccountSnapshot.model_validate(
                     account.model_dump()
                     | {"reconciled": False, "kill": max(account.kill, KillLevel.K1)}
                 )
@@ -678,11 +744,14 @@ class PaperStore:
                     conn,
                     intent.account_ref,
                     "KILL_STATE",
-                    {"actor": "deterministic.unconsumed_truth", "account": updated},
+                    {"actor": "deterministic.unconsumed_truth", "account": account},
                     now,
+                    history=history,
                 )
-                self._save(conn, updated)
-            edge = [e for e in self._journal(conn, intent.account_ref) if e["kind"] == "EDGE_STATE"]
+                self._save(conn, account)
+            edge = [
+                e for e in history.for_scope(conn, intent.account_ref) if e["kind"] == "EDGE_STATE"
+            ]
             if (
                 edge
                 and edge[-1]["data"]["to_state"] in ("SUSPEND", "INVESTIGATE")
@@ -726,6 +795,7 @@ class PaperStore:
                         "KILL_STATE",
                         {"actor": "deterministic.loss_cap", "account": account},
                         now,
+                        history=history,
                     )
                     self._save(conn, account)
                 payload = canonical_payload(
@@ -747,7 +817,9 @@ class PaperStore:
                         "at": now,
                     },
                 )
-                self._append(conn, intent.account_ref, "DENIED", json.loads(payload), now)
+                self._append(
+                    conn, intent.account_ref, "DENIED", json.loads(payload), now, history=history
+                )
                 return Submission(decision)
             exposure = decision.exposure
             assert exposure is not None
@@ -827,6 +899,7 @@ class PaperStore:
                 },
                 now,
                 ih,
+                history=history,
             )
             return Submission(decision, authorization, reservation)
 

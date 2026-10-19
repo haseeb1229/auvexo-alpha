@@ -1,0 +1,353 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A FIFTH RESUME
+Targeted reconciliation-state correction + finish performance remediation
+Target: Claude Code / Astra 6 High
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-19
+
+OWNER / REVIEWER AUTHORIZATION
+The owner explicitly authorizes:
+1. correcting the newly discovered reconciliation-projection defect in `PaperStore.authorize`;
+2. proving that correction on real PostgreSQL and all affected safety gates;
+3. re-reviewing and completing the already-authorized correctness-neutral performance drafts;
+4. running ONE final unchanged acceptance benchmark; and
+5. if and only if performance + all mandatory gates pass, committing/pushing the same Phase 4 branch,
+   keeping PR #5 open/unmerged, and requesting exact-new-SHA review.
+
+This does NOT authorize:
+- weakening correctness/security requirements;
+- changing the <=100 ms performance target or benchmark workload;
+- repeated/lucky benchmark reruns;
+- merging PR #5;
+- starting persistent >=14-day PAPER observation;
+- Phase 5;
+- Exness/MT5/broker/account/order/live-capital work.
+
+REMOTE STATE — INDEPENDENTLY VERIFIED
+Repository: haseeb1229/auvexo-alpha
+Visibility: PUBLIC
+main:
+b24c42bc07dcd9bc1b62b04d32cc92f047116125
+PR #5:
+OPEN / mergeable / unmerged
+remote Phase 4 branch/head:
+phase-4/strategy-risk-paper
+c0a470bbf9530ccd89d82df6e96811df2ed20cda
+
+Latest remote docs at c0a470bb still say:
+- Checkpoint A acceptance OPEN;
+- full-transaction performance target missed;
+- no persistent observation / Phase 5;
+- any new material correctness/security failure stops again.
+
+LOCAL STOPPED STATE — VERIFY BEFORE EDITING
+Expected from current blocked handoff:
+- committed HEAD remains c0a470bbf9530ccd89d82df6e96811df2ed20cda;
+- performance optimization drafts are DIRTY / UNCOMMITTED / UNPUSHED;
+- stopped aggregate:
+  5399debc21698394c66841dafd688a2ab575759b77a534a9bd7bd8cb644573a0
+- recovery package:
+  `.local/phase4/performance-remediation/20261019T172839Z-reconciliation-state-stop/`
+- frozen requirements/performance docs/benchmark script/uv.lock/migrations0001-0005 unchanged;
+- AGENTS.md and CLAUDE.md byte-identical.
+
+If local state differs unexpectedly, STOP and report.
+
+A. PRESERVE THIS STOP FIRST
+Create a new ignored recovery package before edits containing:
+- branch/HEAD/status;
+- tracked binary diff;
+- all untracked draft hashes;
+- current aggregate;
+- all prior recovery references/hashes;
+- baseline source reproduction;
+- pre-optimization benchmark/profile evidence;
+- ADR020 draft hash if present.
+
+Never commit `.local`, credentials, raw DB dumps or private evidence.
+
+B. CONFIRMED DEFECT — LATEST ACCOUNT PROJECTION MUST BE MONOTONICALLY SAFER
+Remote c0a470bb source has this sequence:
+- pending truth -> create/save `updated` with `reconciled=False`, kill>=K1;
+- local variable remains old `account`;
+- loss-cap denial -> create/save K2 from old account, potentially restoring reconciled=True.
+
+Correct invariant:
+Within one account-locked transaction, every subsequent state transition must derive from the
+LATEST account projection already established in that transaction.
+
+Required result for pending truth + loss breach:
+- decision stays DENIED;
+- reasons include ACCOUNT_UNRECONCILED plus DAILY_LOSS_CAP and/or DRAWDOWN_CAP as applicable;
+- final kill is at least K2;
+- final `reconciled` remains False;
+- truth_cursor is unchanged until real reconciliation consumes truth;
+- unknown_orders/journal health/day/high-water/positions and other safety fields are preserved;
+- immutable journal's latest account projection also has K2 + reconciled=False;
+- no authorization/reservation/outbox is created;
+- owner resume remains impossible while truth is unconsumed;
+- new OPEN/AMEND remains denied;
+- only real authoritative reconciliation may restore reconciled=True.
+
+Preferred implementation principle:
+keep one authoritative transaction-local `account` projection. After any save/state transition,
+rebind/use that latest projection for every later branch. If `_latch_loss` can be reused without
+changing existing event/hash semantics, prefer shared logic over a second divergent loss-latch path.
+Do not make a cosmetic assertion-only fix.
+
+C. CORRECTION REGRESSION MATRIX — REAL POSTGRESQL REQUIRED
+Execute focused tests FIRST for:
+
+1. pending truth only:
+   - K1/reconciled=False retained;
+   - no authority issued.
+
+2. pending truth + DAILY_LOSS_CAP:
+   - DENIED with both reasons;
+   - K2 + reconciled=False final durable projection;
+   - latest journal account projection identical to durable account safety state.
+
+3. pending truth + DRAWDOWN_CAP:
+   same invariant.
+
+4. pending truth + both loss reasons:
+   same invariant, no state regression.
+
+5. multiple pending truth events / cursor behind by >1:
+   reconciled False until all authoritative truth is consumed.
+
+6. second authorize before reconciliation:
+   cannot restore reconciled;
+   cannot reserve/dispatch.
+
+7. owner resume before reconciliation:
+   denied.
+
+8. successful real reconciliation:
+   consumes truth cursor;
+   may restore reconciled only according to existing reconciliation rules;
+   does NOT clear K2 merely because truth was consumed.
+
+9. loss still active after reconciliation:
+   K2 remains, owner resume denied.
+
+10. loss no longer active on a valid later owner-resume path:
+   only existing explicit audited owner command may relax kill state.
+
+11. crash/exception injection after first safety save / before later denial append:
+   transaction rollback yields prior atomic state, never mixed projections.
+
+12. journal append failure:
+   rollback remains atomic.
+
+13. repeated denial/idempotency:
+   no hash-chain corruption, duplicate authority or safety relaxation.
+
+Do not weaken DB guards/triggers or owner/truth cursor checks.
+
+D. RECHECK ALL PRIOR MATERIAL FIXES
+After focused correction passes, rerun enough real-PG tests to prove no regression of:
+- OPEN cannot mutate existing position/stop/instrument/risk;
+- account+intent UUID/position identity collision protection;
+- REJECTED + fill => contradictory/UNKNOWN, residual reservation conservative;
+- contradiction cannot reconcile green without authoritative finality;
+- UTC daily-loss K2 latch + explicit owner resume;
+- stale observed mark retained while freshness changes separately;
+- no financial rewind without new truth;
+- production lifecycle begins RESEARCH and cannot skip history;
+- fixture PAPER cannot bypass production lifecycle;
+- direct least-privilege runtime/owner/truth LOGINs;
+- quota traversal still fail-closed;
+- data/research recovery semantics unchanged.
+
+Any new material invariant/security/recovery failure => STOP again.
+
+E. REVIEW RETAINED PERFORMANCE DRAFTS AFTER CORRECTNESS FIX
+The current blocked handoff retained drafts for:
+- transaction-local verified journal reuse inside the exact Connection/root transaction/account;
+- consolidated per-checkout privilege/catalog SQL snapshot;
+- performance regression tests.
+
+Do not assume they are valid because static checks passed.
+
+Re-diff them against the corrected source and verify:
+- no cross-transaction mutable journal cache;
+- every journal append updates the transaction-local canonical tail;
+- corruption detection is unchanged;
+- catalog/ACL snapshot contains the same nine logical verification sections/precedence;
+- no privilege result is cached across checkout/reconnect;
+- no grant/role/endpoint/UTC/security requirement is removed;
+- final rollback/check-out semantics remain safe;
+- admin-backed runtime pool is not reintroduced.
+
+F. EXECUTE THE PREPARED PERFORMANCE REGRESSION TESTS
+Run the retained/new real-PG performance-regression matrix, including:
+- exact output equivalence;
+- fresh next transaction/history validation;
+- corrected multi-event pending-truth + loss hash chain;
+- journal corruption refusal;
+- append-failure rollback/local-tail cleanup;
+- privilege scope escape refusal;
+- duplicate/concurrent race;
+- checkout drift and error precedence.
+
+Then rerun full real-PG correctness and full direct-login security suite on the combined corrected +
+optimized source.
+
+G. COMPLETE QUERY/INDEX FOLLOW-UP
+Before final benchmark, finish the diagnostic work that was interrupted:
+- inspect query plans/index use for the authorization transaction's hot SELECTs;
+- measure checkout/catalog verification, journal validation, row-lock wait, reads/writes and Python
+  canonicalization/hash cost;
+- do not change workload/DB durability merely to improve numbers;
+- only correctness-neutral query/index/roundtrip reductions are authorized.
+
+No speculative index proliferation. Add an index only if the measured plan justifies it and migration
+0005 is still unmerged; update isolated migration tests accordingly.
+
+H. PERFORMANCE BASELINE TO PRESERVE
+The single unchanged pre-optimization diagnostic reproduction is historical evidence:
+research-concurrent 2-worker baseline:
+p50 48.4912 ms
+p95 134.055 ms
+p99/max 163.9569 ms
+
+This was a real MISS, not acceptance.
+Do not rerun the baseline repeatedly.
+
+Profile evidence also showed:
+- sequential average ~32.32 ms / max ~67.94 ms;
+- 2-worker diagnostic average ~39.14 ms / max ~66.87 ms;
+- repeated checkout/catalog and journal validation are meaningful costs;
+- the entire 163.9569 ms tail is not yet fully explained.
+
+I. ONE FINAL DECLARED ACCEPTANCE BENCHMARK
+Only after corrected source passes focused + full PG/security gates and profiling is complete:
+run ONE final declared benchmark with the exact frozen script/workload.
+
+Do NOT change:
+- <=100 ms full transaction target;
+- kernel/query targets;
+- three synthetic instruments;
+- 1000 kernel / 120 primary transaction / 360 query samples per phase;
+- queue depth 32;
+- two DB workers;
+- baseline 32 admitted;
+- 5x burst 160 offered / bounded admissions;
+- research-concurrent then research-throttled;
+- competitor behavior;
+- percentile definitions;
+- sample retention/outlier handling.
+
+Report every primary and bounded-wave:
+p50 / p95 / p99 / max / sample count
+plus offered/admitted/backpressured/drained and CPU/RAM/PG/disk resources.
+
+For the currently frozen Checkpoint-A benchmark semantics, no measured reservation transaction in
+the primary or bounded admitted transaction sets may exceed 100 ms.
+
+If ANY measured transaction still exceeds 100 ms:
+STOP.
+Do not keep optimizing or rerunning until lucky.
+Return exact profile + final benchmark evidence for GPT-5.6 Sol.
+The next decision will be a formal architecture/performance-budget ADR disposition, not another
+silent micro-fix loop.
+
+J. IF PERFORMANCE PASSES — FULL FINAL VERIFICATION
+Then run:
+- all real PG correctness;
+- all direct-login security;
+- full inherited pytest;
+- Ruff format/check;
+- strict mypy;
+- docs/link/requirements;
+- AGENTS/CLAUDE equality;
+- foundation/PAPER/data-research recovery if applicable;
+- migration 0005 idempotence/downgrade refusal;
+- immutable trigger/hash/replay checks;
+- source + full-history redacted Gitleaks;
+- high-signal secret scan;
+- hash-required dependency audit;
+- git diff --check;
+- exact-final Windows clean clone.
+
+Historical c0a 661/157/110 results do not substitute for changed-source proof.
+
+K. PHASE 2 SCHEDULE PRIORITY
+Current local time is before the Oct-19 protected window.
+Do NOT run heavy PG correctness/security/recovery/profile/benchmark work from 22:45–23:20 Pakistan.
+The unchanged 22:57 warm-up / 23:00–23:12 collector gets priority.
+
+During the protected window only safe source review/light edits/static inspection may proceed if they
+cannot interfere with PostgreSQL/CPU/disk.
+
+After 23:20, inspect Oct-19 qualification READ-ONLY:
+- genuine pass => count exactly once;
+- fail/miss => preserve honestly;
+- no manual catch-up/backfill;
+- do not change scheduler.
+
+Oct-18 remains INCOMPLETE/MISSED_START.
+
+L. GIT / PR
+If and only if correctness + performance + mandatory verification all pass:
+- review complete diff;
+- founder-authored coherent commit(s);
+- no AI coauthor/generated banner;
+- no force push/history rewrite;
+- push same `phase-4/strategy-risk-paper`;
+- keep PR #5 OPEN/UNMERGED;
+- exact-new-head push + PR CI;
+- require runs AND jobs completed/success with passing logs;
+- do not merge;
+- do not create Phase 5 branch.
+
+M. SCOPE BOUNDARIES
+Still:
+- all four Phase 3 results INCONCLUSIVE;
+- no production CANDIDATE/CHAMPION;
+- no persistent 14-day PAPER task/counter;
+- no Phase 5;
+- no Exness/MT5/broker SDK/account/session/credentials/transport;
+- zero DEMO/REAL orders;
+- no LiveTradingPermit issuer/signing key;
+- live/real capital zero;
+- Binance live derivatives BLOCKED_BY_POLICY;
+- no withdrawal;
+- no runtime AI/frontend/paid service;
+- repository visibility/settings unchanged.
+
+N. REQUIRED HANDOFF
+Return:
+1. c0a reviewed baseline + stopped aggregate 5399... + new recovery aggregate;
+2. exact reconciliation-projection root cause/fix;
+3. focused real-PG regression results;
+4. proof K2 + reconciled=False survives pending truth + loss denial;
+5. proof owner resume/second authorization remain blocked before truth consumption;
+6. prior material-fix regression results;
+7. review of retained optimization drafts;
+8. query/index/profile follow-up;
+9. full PG correctness/security counts;
+10. ONE final declared benchmark full metrics/resources;
+11. explicit <=100 ms PASS or STOP/MISS;
+12. full final suite/statics/recovery/scans/audit if performance passed;
+13. exact commit/new SHA/clean tree if committed;
+14. Windows clean-clone result if performance passed;
+15. exact-head hosted CI IDs if pushed;
+16. Oct-19 genuine scheduled outcome/date count;
+17. PR #5 unmerged;
+18. no observation/Phase5/broker work;
+19. request GPT-5.6 Sol exact-new-SHA review or performance-budget disposition.
+
+STOP if:
+- reconciled can become true without authoritative truth consumption;
+- K2/other safety state is lost while fixing projection;
+- hash/journal atomicity regresses;
+- any previous material invariant regresses;
+- security/recovery gate fails;
+- final benchmark still exceeds frozen target;
+- exact-new-head CI is not coherent.
+
+This authorization is deliberately the final targeted correctness+performance remediation cycle for
+Checkpoint A under the current frozen target. If the unchanged final benchmark still safely misses,
+stop for formal performance-governance disposition rather than continuing an open-ended fix loop.

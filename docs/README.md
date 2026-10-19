@@ -8,8 +8,14 @@ outcomes remain INCONCLUSIVE, both OOS consumed, no champion. See
 [acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md),
 [frozen requirements](phase4/ACCEPTANCE_TESTS.md) and [ADR-015](adr/015-paper-risk-core.md).
 Only virtual PAPER core engineering is authorized on `phase-4/strategy-risk-paper`.
-See the [Checkpoint A implementation handoff](phase4/HANDOFF.md); acceptance remains OPEN.
+See the [Checkpoint A implementation handoff](phase4/HANDOFF.md) and the formal
+[ADR-022 performance amendment](adr/022-paper-performance-slo.md). The preserved final
+benchmark qualifies under percentile/throttle semantics, with concurrent stress marked
+THROTTLE_REQUIRED and the 272.4386 ms tail retained; no benchmark rerun is authorized.
+Local verification is recorded in the handoff; exact-new-SHA independent acceptance remains OPEN.
 Persistent observation and Phase 5 remain closed; Phase 2 B/C remains OPEN.
+October 18 and 19 are INCOMPLETE; genuine qualified scheduled dates remain zero.
+The repository remains PUBLIC; exception review remains due 2026-10-24.
 Earlier dated wording below describes historical entry/acceptance transitions.
 
 Read the [current baseline correction handoff](amendments/BASELINE_CORRECTION_HANDOFF.md),
@@ -39,7 +45,7 @@ Phase 3 implementation follows the authorized normal merge/new branch, not this 
 | [Client and UX direction](CLIENT_AND_UX_DIRECTION.md) | Future terminal, mobile, desktop and voice boundaries |
 | [Roadmap](ROADMAP.md) | Phases 0-9 and explicit proof/exit gates |
 | [Open decisions](OPEN_DECISIONS.md) | Status, owner and closure point for every open gate |
-| [ADR index](adr/README.md) | Decisions 001-013 with individual dates/statuses |
+| [ADR index](adr/README.md) | Decisions 001-022 with individual dates/statuses |
 | [Self-review](PHASE_0_SELF_REVIEW.md) | Consistency findings and resolutions |
 | [Verification evidence](validation/PHASE_0_CHECKS.md) | Commands, results and limitations |
 | [Handoff template](HANDOFF_TEMPLATE.md) | Required future phase delivery fields |

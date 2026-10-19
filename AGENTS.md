@@ -28,6 +28,16 @@ production lifecycle-history correction and the exact proven pytest cache ACL/ha
 Preserve all stopped packages. Its order is focused lifecycle, filesystem/quota and data/research
 recovery, all PG correctness, full direct-LOGIN security, then full inherited verification.
 No broad ACL change, quota exclusion or ignored PermissionError. Visibility changes prohibited.
+Fifth resume under docs/reference/PHASE_4_FIFTH_RESUME_BRIEF.txt and ADR-021 authorizes
+monotonic transaction-local reconciliation correction and retained performance draft validation.
+Focused real-PG correction first, prior correctness/security and profiling next, then ONE final
+unchanged acceptance benchmark. Any admitted transaction above 100 ms stops for formal budget
+disposition; no lucky rerun. Preserve collector priority and inspect qualification only afterward.
+Performance-governance finalization under docs/reference/PHASE_4_PERFORMANCE_GOVERNANCE_BRIEF.txt
+and ADR-022 supersedes only the hard-MAX performance interpretation. Qualified transaction
+P95<=100 ms/P99<=250 ms; concurrent stress requires throttling and successful subsequent
+qualification. Preserve all old tails/receipts and evaluate the one final receipt without rerun.
+Complete all final verification, exact-final clone and coherent hosted CI before review; no merge.
 Current authorized scope: Phase 4 Checkpoint A deterministic PAPER-only risk/lifecycle/
 durable journal and reconciliation engineering. Separate non-promotable TEST_ONLY fixtures
 only; no Phase 3 promotion. Freeze child requirements before executable implementation.

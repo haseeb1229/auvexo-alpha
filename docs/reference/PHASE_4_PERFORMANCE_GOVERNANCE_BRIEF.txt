@@ -1,0 +1,290 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A PERFORMANCE-GOVERNANCE FINALIZATION
+Formal parent-aligned SLO amendment; NO benchmark rerun
+Target: Claude Code / Astra 6 High
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-20
+
+PURPOSE
+Resolve the final Checkpoint-A performance-governance ambiguity through a formal ADR and finish
+the conditional verification that was skipped after the fifth-resume performance STOP.
+
+This is NOT authorization to rerun until lucky, weaken safety, merge PR #5, start the persistent
+14-day PAPER observation, or begin Phase 5.
+
+REMOTE ENTRY — VERIFY FIRST
+Repository: haseeb1229/auvexo-alpha
+Visibility expected: PUBLIC
+main:
+b24c42bc07dcd9bc1b62b04d32cc92f047116125
+PR #5:
+OPEN / mergeable / UNMERGED
+remote branch:
+phase-4/strategy-risk-paper
+remote head:
+c0a470bbf9530ccd89d82df6e96811df2ed20cda
+
+LOCAL EXPECTED STATE
+From fifth-resume handoff:
+- committed HEAD still c0a470bb...
+- corrected/optimized source DIRTY / UNCOMMITTED / UNPUSHED
+- final stopped source aggregate:
+  cc17c0d7b2f2e55148bd8e0d683c42027dbdc4639ee505c9bd3609cebb29b69c
+- final recovery package:
+  `.local/phase4/fifth-resume/20261019T184854Z-stop/`
+- frozen benchmark script hash:
+  7c1da5f753dd899a430e3a713f06d79d049eae491b9d9715cb9e761f663bd4fd
+- frozen requirements/performance doc/uv.lock/migrations0001-0005 preserved at stop
+- AGENTS/CLAUDE byte-identical.
+
+If local evidence differs unexpectedly, STOP.
+
+A. PRESERVE THE FIFTH STOP
+Before docs/code edits, create another ignored recovery package with:
+- branch/HEAD/status;
+- full tracked binary diff;
+- untracked file hashes;
+- stopped aggregate;
+- all fifth-resume benchmark/profile/gate receipts;
+- hashes of frozen parent performance docs and Phase0 performance wording.
+
+Never commit `.local`, DB dumps, credentials or private evidence.
+
+B. FORMAL FINDING — THE HARD-MAX INTERPRETATION WAS OVERSTRICT
+Read and cite the exact current repository text before amending:
+
+1. `docs/PHASE_0_HANDOFF.md`:
+   performance targets include <=100 ms P95 normalization/evaluation/dispatch stages and
+   research throttling protects operational work.
+
+2. `docs/PERFORMANCE_AND_RELIABILITY.md`:
+   - strategy deterministic evaluation P95<=100 / P99<=250;
+   - risk kernel P95<=10 / P99<=25;
+   - "Full transaction <=100 ms target; lock contention defers/denies";
+   - research throttle/pause before operational latency breaches;
+   - benchmark concurrent then throttled and report P50/P95/P99.
+
+3. `docs/phase4/ACCEPTANCE_TESTS.md` R-024-P4-01:
+   report P50/P95/P99 and `full transaction<=100ms target`;
+   it does NOT say every single transaction/MAX must be <=100 ms.
+
+4. Current benchmark v1 used `transaction_max <=100` for primary, and later external review briefs
+   further interpreted the target as no primary/admitted-wave sample >100 ms.
+
+This is a requirements-interpretation mismatch. Correct it through an explicit ADR; do not
+pretend the previous failures were wrong or delete them.
+
+C. FREEZE A NEW PERFORMANCE-SEMANTICS ADR BEFORE FURTHER IMPLEMENTATION
+Use the next available local ADR number after verifying local ADR020/021; expected ADR-022.
+
+Title concept:
+`Checkpoint A transaction SLO semantics and research-throttle qualification`.
+
+The ADR must record:
+- why the parent requirement is percentile/distribution based;
+- why the later hard-MAX interpretation was stricter than its parent;
+- all prior measured misses, including 163.9569 and 272.4386 ms;
+- that this is an evidence-driven formal amendment before qualification, not an erased failure;
+- that the 100 ms numeric target is retained;
+- that no correctness/security/atomicity requirement changes.
+
+Canonical Checkpoint-A performance semantics:
+
+1. Risk kernel:
+   P95 <=10 ms; P99 <=25 ms.
+
+2. Indexed operational query:
+   P95 <=50 ms; P99 <=200 ms.
+
+3. Full reservation/risk transaction:
+   - P95 <=100 ms under qualified operational load.
+   - P99 <=250 ms tail envelope under qualified/throttled PAPER engineering load.
+   - MAX always reported and investigated, not discarded or substituted for percentiles.
+   - single >100 ms sample is not itself a failure.
+
+4. Research-concurrent phase:
+   - stress/degradation characterization;
+   - a P95 breach is a research-throttle trigger;
+   - it does not by itself fail the checkpoint if bounded queues/correctness remain intact and
+     the subsequent throttled phase returns within qualified budgets.
+
+5. Research-throttled phase:
+   - qualified operational coexistence phase on owner-class laptop;
+   - primary and admitted bounded-wave P95 <=100 ms and P99 <=250 ms.
+
+6. Queue/backpressure:
+   - fixed bounds/admissions/drain behavior unchanged;
+   - no silent discard.
+
+7. Hard safety:
+   - no HFT/broker latency claim;
+   - existing higher-level deterministic deadlines/stale/deny logic remain;
+   - no lock/atomicity/security weakening.
+
+D. AMEND THE FROZEN CHILD REQUIREMENT TRANSPARENTLY
+Do NOT silently rewrite history.
+
+In `docs/phase4/ACCEPTANCE_TESTS.md`:
+- retain original freeze date/history;
+- add a dated explicit amendment note referencing the new ADR;
+- update R-024-P4-01 wording to the clarified percentile/throttle semantics;
+- state prior hard-max receipts remain valid historical evidence of the interpretation that was
+  superseded by ADR.
+
+Update `PERFORMANCE_AND_RELIABILITY.md`, current Phase4 handoff/status, ROADMAP/current navigation
+only as needed for consistency.
+Do not rewrite dated old stop handoffs/briefs.
+
+E. DO NOT RERUN THE FINAL BENCHMARK
+The one final benchmark from fifth resume is the evidence to evaluate.
+Do not run a second acceptance benchmark after changing interpretation.
+
+Preserve exact values:
+Concurrent:
+- kernel P95 3.9996 / P99 7.8128
+- primary txn P95 46.1356 / P99 54.452 / max 58.6687
+- query P95 22.2984 / P99 25.4336
+- baseline stress P95 135.6211 / P99=max 272.4386
+- burst P95 62.3726 / P99 69.3063
+
+Throttled:
+- kernel P95 2.6832 / P99 5.3042
+- primary txn P95 40.0354 / P99 46.6921 / max 113.7271
+- query P95 19.0002 / P99 23.8062
+- baseline P95 48.6988 / P99 52.4315
+- burst P95 56.5129 / P99 76.0036
+
+Queue:
+- baseline 32/32 admitted;
+- 5x burst 160 offered, 32 admitted, 128 backpressured;
+- all drained.
+
+Formal evaluation under the new ADR:
+- kernel PASS;
+- query PASS;
+- primary transaction PASS;
+- concurrent baseline stress = THROTTLE TRIGGER, preserved as degradation evidence;
+- throttled baseline/burst = PASS;
+- bounded queue/drain = PASS;
+- overall Checkpoint-A performance qualification = PASS under parent-aligned semantics.
+
+Do not erase the 272.4386 ms stress tail.
+
+F. ADD DETERMINISTIC PERFORMANCE EVALUATOR TESTS
+Do not falsify historical benchmark JSON.
+
+Add a small deterministic evaluator/domain helper only if it avoids future ambiguity:
+input = benchmark metrics + phase labels;
+output = PASS / THROTTLE_REQUIRED / FAIL with explicit reasons.
+
+Tests must prove:
+- kernel/query thresholds;
+- qualified transaction P95/P99 thresholds;
+- concurrent stress P95 breach => THROTTLE_REQUIRED, not silent PASS;
+- throttled phase must return inside budgets or overall FAIL;
+- queue overflow/backpressure/drain failure => FAIL;
+- a max >100 with P95/P99 in budget is retained but does not alone fail;
+- P95>100 in throttled phase => FAIL;
+- P99>250 in throttled phase => FAIL;
+- missing samples/metrics => FAIL;
+- no outlier filtering.
+
+Do not add dependencies.
+
+G. ACCEPT THE FIFTH-RESUME CORRECTNESS FIX FOR FINAL VERIFICATION
+The fifth-resume handoff reports:
+- focused reconciliation 13 PASS;
+- real-PG correctness 180 PASS;
+- security 111 PASS;
+- performance regressions 10 PASS.
+
+The corrected invariant is:
+pending truth + loss denial => K2 and reconciled=False until actual reconciliation consumes truth.
+No owner resume/second authorization before consumption.
+
+Keep ADR-021 and those regressions intact.
+
+H. NOW RUN THE CONDITIONAL FINAL VERIFICATION THAT WAS SKIPPED
+Because code is still uncommitted and docs/evaluator may change:
+- focused performance-evaluator tests;
+- real-PG correctness full;
+- direct-login security full;
+- full inherited pytest with no skips;
+- Ruff format/check;
+- strict mypy;
+- docs/link/requirements;
+- AGENTS/CLAUDE byte equality;
+- migration 0005 idempotence and downgrade refusal;
+- foundation/PAPER/data-research restore/replay/hash checks;
+- source + full-history redacted Gitleaks;
+- high-signal secret scan;
+- hash-required dependency audit;
+- git diff --check.
+
+Do NOT rerun the expensive acceptance benchmark.
+Normal tests may exercise synthetic timing-independent logic, but no second acceptance timing sample.
+
+I. PHASE 2 STATUS
+Preserve:
+- Oct18 INCOMPLETE/MISSED_START;
+- Oct19 INCOMPLETE;
+- genuine qualified dates = 0.
+
+Oct19 had 24 events / 22 verified; two initial stale BTC/ETH events were correctly excluded.
+Do not backfill, manually credit or change scheduler in this prompt.
+
+Future heavy work still avoids 22:45–23:20 Pakistan.
+
+J. PUBLIC GOVERNANCE
+Repository currently PUBLIC.
+Temporary public exception review remains due 2026-10-24.
+
+Do not change visibility/settings in this prompt.
+Do not put owner-private/broker/session/proprietary-alpha data in Git.
+Before any Phase5 broker session/credentials or proprietary-alpha work, PRIVATE return or an
+independently reviewed superseding owner-approved public ADR remains required.
+
+K. COMMIT / PUSH / PR
+Only after all final verification passes:
+- inspect entire dirty diff from c0a and all local ADR020/021/022 work;
+- ensure no hidden benchmark/workload weakening;
+- founder-authored coherent commits;
+- no AI coauthor/generated banner;
+- no force push/history rewrite;
+- push same `phase-4/strategy-risk-paper`;
+- keep existing PR #5 OPEN/UNMERGED;
+- exact-final Windows clean clone from new committed SHA;
+- require exact-new-head push + PR hosted runs AND jobs completed/success with passing logs;
+- do not merge.
+
+L. REQUIRED FINAL HANDOFF
+Return:
+1. c0a baseline and stopped aggregate cc17...;
+2. new recovery package/aggregate;
+3. ADR number/hash and exact parent-vs-child performance rationale;
+4. amended R-024-P4-01 exact semantics;
+5. deterministic evaluator/tests;
+6. preserved final benchmark metrics and formal evaluation (NO rerun);
+7. confirmation 272.4386 ms remains visible stress evidence;
+8. reconciliation fix proof;
+9. final real-PG correctness/security counts;
+10. full suite/static/docs counts;
+11. restore/replay/scans/dependency audit;
+12. exact founder commits/new SHA/clean tree;
+13. exact-final Windows clone;
+14. exact-head push/PR CI IDs/jobs/log disposition;
+15. PR #5 remains unmerged;
+16. Phase2 genuine count 0 unless a later actual scheduled date has independently qualified;
+17. repo PUBLIC governance/review date;
+18. no persistent PAPER observation / Phase5 / broker work;
+19. request GPT-5.6 Sol exact-new-SHA acceptance review.
+
+STOP if:
+- amendment changes the 100 ms P95 number merely to fit results;
+- throttled operational P95/P99 does not satisfy the clarified budgets;
+- old tails/receipts are removed/hidden;
+- performance evaluator filters outliers;
+- any correctness/security/recovery invariant regresses;
+- final verification or exact-head CI fails.
+
+This is a formal performance-governance correction, not a waiver and not another benchmark rerun.

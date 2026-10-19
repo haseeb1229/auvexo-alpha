@@ -37,6 +37,9 @@ const required = [
   'docs/phase3/IMPLEMENTATION.md', 'docs/phase3/VERIFICATION.md', 'docs/phase3/HANDOFF.md',
   'docs/reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md',
   'docs/phase4/ACCEPTANCE_TESTS.md', 'docs/adr/015-paper-risk-core.md',
+  'docs/adr/022-paper-performance-slo.md',
+  'docs/reference/PHASE_4_PERFORMANCE_GOVERNANCE_BRIEF.txt',
+  'docs/reference/PHASE_4_ACCEPTANCE_TESTS_ORIGINAL_20261018.txt',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -44,7 +47,11 @@ if (errors.length) {
   process.exit(1);
 }
 check(read('AGENTS.md') === read('CLAUDE.md'), 'AGENTS.md and CLAUDE.md differ');
-check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase4/ACCEPTANCE_TESTS.md'))).digest('hex') === '051da385ebc22f1c5eb98933c876a2338b7e4005f23913e8ffd0ffa070cf1d1a', 'Frozen Phase 4 Checkpoint A requirements changed; explicit amendment required');
+// ADR-022 explicitly supersedes the transaction hard-MAX interpretation. Keep the
+// original freeze byte-verified as well as the dated amended child requirement.
+check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_4_ACCEPTANCE_TESTS_ORIGINAL_20261018.txt'))).digest('hex') === '051da385ebc22f1c5eb98933c876a2338b7e4005f23913e8ffd0ffa070cf1d1a', 'Original Phase 4 freeze changed');
+check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase4/ACCEPTANCE_TESTS.md'))).digest('hex') === 'c21f27087bbf79ad5dbcaefb792cbe55f57b567fe7549481a9302e12a1dba213', 'ADR-022 amended Phase 4 requirements changed; explicit amendment required');
+check(createHash('sha256').update(readFileSync(resolve(root, 'tools/benchmark_paper.py'))).digest('hex') === '7c1da5f753dd899a430e3a713f06d79d049eae491b9d9715cb9e761f663bd4fd', 'Historical PAPER benchmark v1 changed; no rerun/workload amendment authorized');
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase3/DATA_PLAN.md'))).digest('hex') === '82d189d51b01457e8141455d02addafcdbd690e8a73f4f4996eefcc7fbd2b8a4', 'Historical Phase 3 V1 plan changed');
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase3/DATA_PLAN_V2.md'))).digest('hex') === '4e073254600d499421893c4823426980756f6f31ea745c0805de9f25b0681cce', 'Frozen Phase 3 V2 amendment changed');
 const digest = createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_0_BRIEF.txt'))).digest('hex');

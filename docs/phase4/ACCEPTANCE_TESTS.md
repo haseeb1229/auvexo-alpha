@@ -6,6 +6,14 @@ CPU-only, zero-cost virtual PAPER core. Changes to these criteria require an exp
 documented amendment; tests cannot tune limits or waive failures. ADR-015 resolves
 the separate fixture registry; inherited requirements and denials remain mandatory.
 
+Amendment dated 2026-10-20: owner-authorized [ADR-022](../adr/022-paper-performance-slo.md)
+clarifies only R-024-P4-01's percentile and research-throttle semantics before
+qualification. The original 2026-10-18 freeze remains historical; its exact
+[original bytes](../reference/PHASE_4_ACCEPTANCE_TESTS_ORIGINAL_20261018.txt) have SHA256
+051da385ebc22f1c5eb98933c876a2338b7e4005f23913e8ffd0ffa070cf1d1a.
+Prior hard-MAX failures and stop receipts remain valid evidence under the superseded
+interpretation. No benchmark rerun, numeric P95 increase or safety waiver is authorized.
+
 | Child ID | Parents | Required positive and adversarial evidence |
 | --- | --- | --- |
 | R-002-P4-01 | R-002, R-003, R-004, R-022-A/D/F | Immutable strict proposal/intent, virtual PAPER identity, canonical hashes; exact decimal/time/mode/account/spec/policy/release bindings; arbitrary payload, float/bool/NaN/Inf/expiry/alteration denied; no external transport or live issuer |
@@ -19,7 +27,7 @@ the separate fixture registry; inherited requirements and denials remain mandato
 | R-022-P4-04 | R-022-E/G | K0 NORMAL/K1 PAUSE_NEW/K2 CANCEL_PENDING/K3 CONTROLLED_FLATTEN/K4 LOCKDOWN persisted; typed fresh known position-bound reductions/cancels, no bypass/over-close/reversal; stale/unknown/journal-corrupt changes blocked; explicit audited owner PAPER resume only |
 | R-008-P4-01 | R-008, R-007, R-027 | NORMAL/WATCH/REDUCE/SUSPEND/INVESTIGATE state plumbing with versioned TEST evidence, no invented alpha thresholds; hard caps dominate; every otherwise-valid denied fixture proposal records intent/evidence/time/ordered reasons/versions; isolated forward outcome only if observed, never overlapping-profit aggregation |
 | R-023-P4-01 | R-023, R-025/026/029, R-022-G | Forward migration after 0004, no merged edits; least privilege runtime/truth roles cannot mutate immutable histories, foundation/research, schema or grants; idempotence/constraint/privilege/corruption/DB/disk/epoch failures; isolated backup/restore hashes/totals/triggers/crash/UNKNOWN; downgrade refused; same-disk DEV only |
-| R-024-P4-01 | R-015, R-024/027 | Bounded queues/backpressure, SYNTHETIC three-instrument representative load and 5x burst, research concurrent then throttled; actual counts/p50/p95/p99/CPU/RAM/disk; kernel p95<=10ms/p99<=25ms, full transaction<=100ms target, indexed query p95<=50ms/p99<=200ms; report misses without weakening correctness |
+| R-024-P4-01 | R-015, R-024/027 | ADR-022 amendment 2026-10-20: bounded queues/backpressure, SYNTHETIC three-instrument representative load and 5x burst, research concurrent then throttled; retain actual counts/p50/p95/p99/MAX/CPU/RAM/disk without outlier filtering; kernel p95<=10ms/p99<=25ms and indexed query p95<=50ms/p99<=200ms in both phases; qualified/throttled primary and every admitted transaction wave p95<=100ms/p99<=250ms; concurrent transaction p95>100ms or p99>250ms is THROTTLE_REQUIRED stress evidence, qualification requires subsequent throttled PASS; MAX always reported/investigated, a single >100ms sample alone is not failure; fixed samples/queue/admissions/drain unchanged, missing metrics or queue/drain failure FAIL; no correctness/security/atomicity weakening |
 | R-025-P4-01 | R-025/026/031/032/035 | Ruff/strict mypy/full unskipped pytest/docs/links/requirements/equal instruction bytes/inherited denials, real PG/races/recovery/security, source/history redacted scans, hash-locked audit, diff, exact-final Windows clone and push/PR CI; founder commits and one unmerged Phase 4 PR |
 
 The versioned provisional PAPER policy freezes risk <=0.25% equity per intent,

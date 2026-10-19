@@ -13,6 +13,10 @@ Phase 3 correctness/research independently accepted at `bb692208`; all four outc
 INCONCLUSIVE; no champion. The owner authorizes Phase 4 Checkpoint A after normal PR #4
 merge: virtual PAPER engineering only, no persistent observation or Phase 5.
 See [independent acceptance](docs/reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
+The [Checkpoint A handoff](docs/phase4/HANDOFF.md) records current local proof and
+the formal [ADR-022 performance amendment](docs/adr/022-paper-performance-slo.md).
+The preserved benchmark qualifies with an explicit concurrent research-throttle trigger;
+its 272.4386 ms stress tail remains visible. No benchmark rerun or phase acceptance is inferred.
 Foundation execution remains disabled in every mode; all money actions denied.
 
 Start with [Phase 3 acceptance requirements](docs/phase3/ACCEPTANCE_TESTS.md),

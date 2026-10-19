@@ -34,3 +34,9 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 | [ADR-018](018-paper-observed-mark-freshness.md) | FROZEN; local proof, independent review pending | Retained observed valuation with separate current freshness |
 
 | [ADR-019](019-paper-lifecycle-filesystem.md) | FROZEN; local proof, independent review pending | Production initial history and isolated pytest cache permissions |
+
+| [ADR-020](020-paper-transaction-performance.md) | FROZEN; local proof, independent review pending | Same-transaction verified history and bounded checkout roundtrips; performance interpretation superseded by ADR-022 |
+
+| [ADR-021](021-paper-monotonic-safety-projection.md) | FROZEN; local proof, independent review pending | Monotonic safety projection across pending truth and loss denial; performance interpretation superseded by ADR-022 |
+
+| [ADR-022](022-paper-performance-slo.md) | FROZEN owner-authorized amendment; independent review pending | Percentile transaction SLO and qualified research-throttle semantics; no benchmark rerun |
