@@ -17,7 +17,10 @@ Status: FROZEN gates; Python-first MT5 transport PROVISIONAL pending Phase 5 qua
 Eligibility is keyed by venue, product, instrument, account jurisdiction and operation,
 not one misleading venue-wide flag. States: APPROVED, RESEARCH_ONLY, PAPER_ONLY,
 REVIEW_REQUIRED, BLOCKED. APPROVED is necessary but never sufficient for real execution.
-All executions remain disabled in the current Phase 2/amendment. The matrix describes future gates:
+Foundation execution and all money actions remain disabled. Phase 4 Checkpoint A
+adds only a separate virtual PAPER engineering simulator under
+[ADR-015](adr/015-paper-risk-core.md); no broker transport or money authority.
+The matrix describes mode gates, not activation permission:
 
 | Venue/product | Data/research | Paper/demo | Real |
 | --- | --- | --- | --- |

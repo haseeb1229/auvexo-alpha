@@ -1,0 +1,362 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A FOURTH RESUME
+Lifecycle-history correction + narrowly scoped filesystem-permission correction
+Target: Astra 6 High / Claude Code
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-19
+
+OWNER / REVIEWER AUTHORIZATION
+The owner explicitly authorizes:
+1) correcting the newly discovered production lifecycle-history bypass; and
+2) a narrowly scoped correction of the known local filesystem permission defect that blocks
+   DataStore quota traversal / data+research recovery.
+
+Then resume the already-authorized Phase 4 Checkpoint A verification.
+
+This is NOT Phase 4 acceptance.
+It does NOT authorize persistent >=14-day PAPER observation, Phase 5, Exness/MT5/broker access,
+DEMO/REAL orders, live permits or capital.
+
+INDEPENDENT REMOTE RECHECK
+GitHub currently shows:
+- repository `haseeb1229/auvexo-alpha` is now PRIVATE;
+- default branch `main`;
+- main = b24c42bc07dcd9bc1b62b04d32cc92f047116125;
+- PR #4 is merged;
+- no remote `phase-4/strategy-risk-paper` branch exists.
+
+This PRIVATE state supersedes older current-state handoff lines that said PUBLIC.
+Do NOT change repository visibility in this prompt.
+Do NOT rewrite historical dated handoffs that accurately recorded PUBLIC at the time.
+At final documentation reconciliation, update only current navigation/governance statements so they
+do not falsely claim the repo is still PUBLIC.
+
+LOCAL EXPECTED STOPPED STATE — VERIFY FIRST
+Expected from the uploaded handoff:
+- branch `phase-4/strategy-risk-paper`;
+- committed HEAD `037afa282daf03eb1d03a1d9a272e5c40bf094a7`;
+- working tree DIRTY, executable Phase 4 work uncommitted;
+- no Phase 4 push or PR;
+- latest source aggregate:
+  `3da10c80d5b6a0d9adccb2efe5c36531ccb8829c28a12a8545df6abc5000c929`;
+- recovery package:
+  `.local/phase4/third-resume/20261019T143842Z-lifecycle-stop/`;
+- prior aggregates/recovery packages preserved;
+- frozen Phase 4 requirements hash unchanged;
+- merged migrations 0001-0004 and uv.lock unchanged.
+
+If local branch/HEAD/inventory differs unexpectedly, STOP and report.
+Do not reset/rewrite/push merely to make the tree clean.
+
+A. PRESERVE THE CURRENT STOP BEFORE EDITING
+Create another ignored recovery package under `.local/phase4/fourth-resume/` with:
+- current HEAD/branch/status;
+- tracked binary diff;
+- untracked file inventory + SHA-256;
+- current aggregate;
+- references/hashes to all prior recovery packages;
+- lifecycle source-repro evidence;
+- filesystem ACL/PermissionError evidence.
+Never commit `.local`, credentials, DB dumps or private evidence.
+
+B. LIFECYCLE DEFECT — PRODUCTION MAY NOT ENTER PAPER DIRECTLY
+Observed source defect:
+`PaperStore.register_release` accepts `transition=None`. A production, research-evidenced release
+already labeled PAPER can therefore be inserted into the production release/lifecycle tables without
+a prior RESEARCH record or explicit RESEARCH -> CANDIDATE -> VALIDATED -> PAPER history.
+
+This violates the frozen lifecycle:
+RESEARCH -> CANDIDATE -> VALIDATED -> PAPER -> SHADOW -> LIVE_LIMITED -> LIVE,
+with SUSPENDED/RETIRED as separately governed states.
+
+Required semantics:
+
+1. FIXTURE registry remains separate.
+   - A non-promotable `PAPER_QUALIFICATION_FIXTURE` / TEST_ONLY release may be initialized directly
+     in its fixture-only PAPER state if that is the existing frozen fixture design.
+   - Fixture state can never satisfy production lifecycle history or promotion evidence.
+
+2. PRODUCTION registry initial registration:
+   - a new production release may be created ONLY in RESEARCH;
+   - `transition=None` is permitted only for this exact initial RESEARCH registration;
+   - any initial CANDIDATE, VALIDATED, PAPER, SHADOW, LIVE_LIMITED, LIVE or other promoted state
+     must be rejected before/at the durable transaction boundary.
+
+3. PRODUCTION transitions:
+   - every move after initial RESEARCH requires an explicit immutable transition object/event;
+   - transition must bind release ID/version, exact current state, exact next state, evidence/
+     approval refs, actor, timestamp and the release/config/code/data hashes already required by
+     the frozen design;
+   - transition current-state precondition must match the latest durable lifecycle state;
+   - only legal adjacent transitions are accepted unless the frozen parent requirements explicitly
+     define a non-adjacent path;
+   - no skip RESEARCH -> VALIDATED/PAPER, CANDIDATE -> PAPER, etc.;
+   - no `transition=None` update of an existing production release.
+
+4. Release current-state projection and lifecycle history must be transactionally consistent.
+   - current release row may not claim a state that lacks the exact immutable history;
+   - history may not append a transition while current projection remains another state;
+   - crash between history/projection cannot create a usable release;
+   - stale concurrent transition must fail.
+
+5. Existing identity/history protections:
+   - same release ID/version cannot be reintroduced with a new initial state;
+   - transition for release A cannot mutate release B;
+   - config/code/data/evidence hash mismatch fails;
+   - duplicate exact transition is either idempotently recognized or deterministically rejected
+     according to existing frozen idempotency design, never applied twice;
+   - SUSPENDED cannot silently resume or jump forward;
+   - RETIRED cannot silently re-enter active lifecycle;
+   - no agent/model auto-promotion.
+
+6. Production registry remains EMPTY in current project state.
+   Do not create a real CANDIDATE/VALIDATED/PAPER production release just to test this.
+   Use synthetic production-lifecycle fixtures in isolated TEST DBs.
+
+C. LIFECYCLE REGRESSION MATRIX
+Add real PostgreSQL + domain/store tests for at least:
+- first production RESEARCH with no transition => allowed;
+- first production CANDIDATE => denied;
+- first production VALIDATED => denied;
+- first production PAPER => denied;
+- first SHADOW/LIVE_LIMITED/LIVE => denied;
+- existing RESEARCH + transition=None trying to mutate state => denied;
+- RESEARCH -> CANDIDATE => allowed with bound transition;
+- CANDIDATE -> VALIDATED => allowed;
+- VALIDATED -> PAPER => allowed;
+- RESEARCH -> VALIDATED/PAPER => denied;
+- CANDIDATE -> PAPER => denied;
+- stale expected-current-state => denied;
+- cross-release transition => denied;
+- changed release/config/code/data/evidence hashes => denied;
+- duplicate/concurrent transition => no double history/projection mutation;
+- crash/failure injection => no history/projection split;
+- SUSPENDED resume only through the already-frozen explicit path;
+- RETIRED cannot re-enter silently;
+- fixture initial PAPER still allowed only in the non-promotable fixture registry;
+- fixture record cannot be copied/promoted into production to bypass RESEARCH history.
+
+Preserve immutable triggers/history; do not weaken R-006-P4-01 or related parent requirements.
+
+D. FILESYSTEM BLOCKER — FIRST PROVE EXACT PROVENANCE
+Current blocker:
+`DataStore.__init__ -> check_quota -> tree_bytes -> os.scandir`
+receives WinError 5 on:
+`.local/pytest-phase4-sandbox`.
+
+Before changing ACLs:
+1. perform read-only inspection of:
+   - exact path;
+   - owner;
+   - inherited vs explicit ACLs;
+   - reparse-point/symlink status;
+   - parent `.local` ACL;
+   - creation/modification times where available;
+   - project evidence/logs that identify which test/harness created it;
+   - whether it contains canonical data, credentials, retained recovery evidence or unknown files.
+2. Record a sanitized inventory/hash where permissions allow.
+3. If provenance is NOT clearly a project-created isolated test sandbox, STOP. Do not take ownership,
+   grant access, delete, move or exclude it.
+4. If it is a reparse point/junction to another location, STOP unless the exact target is proven
+   to be the intended isolated project test path.
+
+E. NARROW ALLOWED PERMISSION CORRECTION
+ONLY if Section D proves this exact path is the project's isolated test sandbox and not canonical/
+private recovery evidence, the owner authorizes correcting permissions on this exact sandbox tree.
+
+Preferred correction:
+- restore/inherit the same owner-access model intended by its parent/local test-sandbox convention;
+- grant only the current project owner identity the minimum read/list/traverse rights needed for
+  quota/recovery scanning, plus modify/delete only if required for deterministic test cleanup;
+- preserve SYSTEM/Administrators rights as appropriate;
+- do NOT grant Everyone/Users broad access;
+- do NOT recursively alter all of `.local`;
+- do NOT change permissions on raw market data, credentials, recovery packages or unrelated paths;
+- do NOT disable Windows ACL protections globally.
+
+If safe inheritance from the known parent is the repository's existing convention, re-enable/copy
+that inheritance on the exact sandbox rather than inventing a broad custom ACL.
+
+Record before/after ACLs in ignored redacted evidence.
+
+F. FIX THE ROOT TEST-HARNESS CAUSE
+After the exact stale sandbox is safely readable:
+- identify the helper/fixture that created `.local/pytest-phase4-sandbox`;
+- make future isolated test sandboxes inherit the intended owner ACL from creation;
+- use unique sandbox names where appropriate;
+- ensure cleanup is deterministic;
+- ensure failed tests cannot leave a directory unreadable to the project owner;
+- do NOT solve recurrence by excluding `pytest-phase4-sandbox` from quota accounting;
+- do NOT make `tree_bytes` swallow/ignore PermissionError;
+- do NOT silently skip unreadable directories;
+- an unexpected unreadable path in a managed quota tree must remain fail-closed and visible.
+
+If the better existing repository convention is to create transient test sandboxes outside the
+managed quota root, that change is allowed ONLY for synthetic test harness state, not for canonical
+data/recovery artifacts, and tests must prove quota semantics are not weakened.
+
+G. DATA/RESEARCH RECOVERY MUST THEN RUN NORMALLY
+After the narrow permission correction:
+1. rerun the exact quota traversal/check first;
+2. verify the sandbox's bytes are counted if it remains inside the managed quota root;
+3. run the previously blocked data/research backup/restore verification unchanged;
+4. verify retained manifests, research studies/trials/events/artifacts, hashes and replay;
+5. keep the same-disk limitation explicit;
+6. do not delete or exclude data merely to obtain a pass.
+
+Any new recovery/hash/replay/permission invariant failure => STOP again.
+
+H. PRESERVE ALL PREVIOUSLY FIXED INVARIANTS
+Do not regress:
+- OPEN creates only new exposure; cannot mutate existing position/stop/instrument/risk;
+- account+intent UUID / generated position identities are collision-safe;
+- REJECTED + any fill => contradictory/UNKNOWN, conservative reservation, no blind resend;
+- contradictory truth cannot reconcile green until authoritative finality;
+- daily-loss breach latches K2 across UTC rollover/restart; explicit owner resume required;
+- last observed mark remains valuation truth when stale; freshness is separate;
+- no financial rewind without new independent truth;
+- K2/K3/K4 are not downgraded by stale-health changes;
+- direct least-privilege runtime/owner/truth LOGIN architecture remains intact.
+
+I. RE-EXECUTE AFFECTED HARD GATES
+Because source/harness code changes:
+1. focused lifecycle tests first;
+2. focused filesystem/quota + data/research recovery;
+3. all real PostgreSQL correctness tests;
+4. full direct-LOGIN security suite;
+5. full inherited pytest.
+
+Do not rely only on historical:
+- 596 full-suite PASS;
+- 106 PG correctness PASS;
+- 110 security PASS.
+Preserve those receipts as historical evidence, but final claims need the new source.
+
+J. PERFORMANCE EVIDENCE — DO NOT SILENTLY CALL IT PASS
+The prior synthetic benchmark reported good primary samples but also two-worker baseline-wave
+full-transaction p95 values above the 100 ms target:
+- ~101.7993 ms concurrent;
+- ~105.7359 ms throttled;
+with maxima above 100 ms.
+
+Do NOT hide these misses.
+
+After final coherent source:
+- rerun the Checkpoint-A benchmark using the same documented workload/method;
+- report all primary and wave percentiles/sample counts;
+- do not weaken the target or change workload after seeing results merely to obtain PASS;
+- if any canonical target still misses, do NOT claim Phase 4 Checkpoint A fully accepted;
+  return the exact evidence for reviewer disposition.
+
+K. COMPLETE FINAL CHECKPOINT-A VERIFICATION
+If lifecycle + recovery + PG + security all pass:
+- Ruff format/check;
+- strict mypy;
+- docs/link/requirements;
+- AGENTS/CLAUDE byte equality;
+- all-mode money/execution denials and no-broker boundaries;
+- migration 0005 idempotence / destructive-downgrade refusal;
+- foundation + PAPER + data/research isolated restore;
+- immutable triggers/hash/count/replay proof;
+- final performance benchmark;
+- source + full-history redacted Gitleaks;
+- high-signal secret scan;
+- hash-required dependency advisory audit;
+- git diff --check.
+
+No skipped/weakened tests.
+
+L. PHASE 2 SCHEDULE
+October 18 remains genuinely INCOMPLETE/MISSED_START and count 0 at the last verified receipt.
+Do not backfill/catch up.
+
+It is currently before the October 19 protected window.
+Do not run heavy migration/recovery/stress/benchmark work during 22:45-23:20 Pakistan.
+Let the unchanged 22:57 warm-up / 23:00-23:12 collector have priority.
+After the window, inspect qualification read-only and record October 19 honestly.
+
+Do not modify the scheduler or silently fix its separate reporting-CLI issue in this lifecycle/
+filesystem correction beyond the exact local filesystem path explicitly authorized above.
+
+M. PRIVATE REPOSITORY GOVERNANCE
+Fresh independent remote state is PRIVATE.
+
+- Preserve PRIVATE.
+- Do not change visibility/billing/permissions/runner settings.
+- Update current-state docs at final reconciliation from temporary PUBLIC wording to actual PRIVATE
+  only where they describe the present state.
+- Preserve historical dated records that accurately say PUBLIC at the time.
+- PRIVATE status does not authorize broker credentials, proprietary-alpha promotion or Phase 5.
+
+N. SCOPE BOUNDARIES
+Unchanged:
+- four Phase 3 outcomes INCONCLUSIVE;
+- no production CANDIDATE/CHAMPION;
+- TEST/PAPER fixture registry only;
+- no persistent >=14-day PAPER observation or counter;
+- no Phase 5;
+- no Exness/MT5/broker SDK/account/session/credential/transport;
+- zero DEMO/REAL orders;
+- no LiveTradingPermit issuer/signing key;
+- live capital/order count zero;
+- Binance live derivatives BLOCKED_BY_POLICY;
+- no withdrawal;
+- no runtime AI/rich frontend/paid service.
+
+O. COMMIT / PUSH ONLY AFTER REQUIRED LOCAL GATES PASS
+Do not push dirty work just to save progress.
+
+After coherent corrections and all required pre-push verification:
+- inspect complete diff against frozen requirements;
+- make small founder-authored commits;
+- no AI coauthor/generated banner;
+- no force push/history rewrite;
+- push `phase-4/strategy-risk-paper`;
+- open exactly ONE Phase 4 PR to main;
+- keep it OPEN/UNMERGED;
+- exact-final Windows clean clone from committed source;
+- exact-head push + PR hosted CI;
+- no Phase 5 branch.
+
+P. REQUIRED NEXT HANDOFF
+Include:
+1. all preserved stop aggregates/recovery packages + new fourth-resume package;
+2. lifecycle bypass root cause;
+3. exact initial-production and transition rules;
+4. lifecycle real-PG/adversarial/concurrency/crash results;
+5. proof fixture PAPER path cannot satisfy/bypass production lifecycle;
+6. filesystem path provenance and reparse/ownership/ACL diagnosis;
+7. exact narrowly changed ACL before/after, or STOP if provenance was not safe;
+8. root harness fix preventing unreadable sandbox recurrence;
+9. proof quota accounting was not weakened;
+10. completed data/research recovery/replay/hash results;
+11. rerun PG correctness + security counts;
+12. full inherited suite/static/docs counts;
+13. migration/foundation/PAPER restores;
+14. rerun benchmark with every target and any misses explicitly shown;
+15. scans/dependency audit;
+16. exact founder commits/final SHA/Phase 4 PR/clean tree;
+17. Windows clean-clone result;
+18. exact-head hosted CI run/job IDs;
+19. October 19 scheduled qualification result and genuine count;
+20. repository PRIVATE current state and current-doc reconciliation;
+21. confirmation no Phase 3 result promoted;
+22. persistent 14-day PAPER observation NOT begun;
+23. Exness/broker/orders/Phase 5 absent;
+24. request GPT-5.6 Sol exact-final-SHA review.
+
+STOP AGAIN if:
+- production release can enter CANDIDATE/VALIDATED/PAPER/etc without complete immutable history;
+- lifecycle history/current projection can diverge;
+- fixture release can bypass production lifecycle;
+- filesystem path provenance is uncertain;
+- correction requires broad ACL grant/whole-.local ownership change/quota exclusion;
+- unreadable managed paths are ignored rather than fail-closed;
+- data/research recovery/hash/replay fails;
+- any prior risk/reconciliation/security invariant regresses;
+- any material migration/security/dependency/CI gate fails;
+- performance target miss remains and someone attempts to label it PASS without reviewer disposition.
+
+This authorization covers the targeted lifecycle-history correction and the exact local
+filesystem-permission/harness correction needed to complete already-authorized Checkpoint A.
+It does not authorize Phase 4 acceptance, persistent PAPER observation or Phase 5.

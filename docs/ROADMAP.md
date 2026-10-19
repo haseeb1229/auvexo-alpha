@@ -1,12 +1,17 @@
 # Roadmap and proof gates
 
-Current Phase 4 entry: Phase 3 correctness/research independently accepted at
-`bb69220818a519e122d2cd9b1cad75559c2fa244`; all four empirical outcomes INCONCLUSIVE,
-both OOS consumed, no CANDIDATE/CHAMPION. See [acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md).
-The owner authorizes documentation-only normal PR #4 merge, then Checkpoint A on
-`phase-4/strategy-risk-paper`: PAPER-only risk/lifecycle/durable simulation core.
-No persistent PAPER observation, Phase 5 or broker capability. Phase 2 B/C stays OPEN.
-Earlier entry wording and dated handoffs below are historical snapshots.
+Current Phase 4 engineering checkpoint: Phase 3 independently accepted at
+`bb69220818a519e122d2cd9b1cad75559c2fa244`; documentation-only acceptance commit
+`5a3c03f58dbcc351c85ac799800fed74c01ebce3`, normal PR #4 merge
+`b24c42bc07dcd9bc1b62b04d32cc92f047116125` with verified parents. Four empirical
+outcomes remain INCONCLUSIVE, both OOS consumed, no champion. See
+[acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md),
+[frozen requirements](phase4/ACCEPTANCE_TESTS.md) and [ADR-015](adr/015-paper-risk-core.md).
+Only virtual PAPER core engineering is authorized on `phase-4/strategy-risk-paper`.
+The [Checkpoint A implementation handoff](phase4/HANDOFF.md) records local proof and
+transaction-tail target misses requiring independent disposition; acceptance stays OPEN.
+Persistent observation and Phase 5 remain closed; Phase 2 B/C remains OPEN.
+Earlier dated wording below describes historical entry/acceptance transitions.
 
 Status: canonical phases 0-9 retained. [ADR-013](adr/013-source-specific-acceptance.md)
 defines the superseding acceptance model independently accepted at exact `bdae1a1` by the

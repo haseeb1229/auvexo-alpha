@@ -10,6 +10,24 @@ Phase 3 independently accepted at bb69220818a519e122d2cd9b1cad75559c2fa244;
 all four results INCONCLUSIVE, both OOS holdouts consumed forever, no CANDIDATE/CHAMPION.
 See docs/reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md. Owner authorizes documentation-only
 acceptance, checked normal PR #4 merge, then phase-4/strategy-risk-paper from main.
+Security-stop resume explicitly authorized by the owner under
+docs/reference/PHASE_4_SECURITY_RESUME_BRIEF.txt and ADR-016. Preserve exact stopped
+inventory/recovery before edits. Replace admin-authenticated PAPER pools with dedicated
+least-privilege LOGIN identities; security-first real PostgreSQL verification before
+other Checkpoint A work. Any new material security/correctness failure stops again.
+No heavy DB/migration/benchmark/stress work 22:45-23:20 Pakistan.
+Second resume under docs/reference/PHASE_4_SECOND_RESUME_BRIEF.txt authorizes the three
+reported correctness fixes and direct-LOGIN completion before security-first verification.
+See ADR-017; preserve frozen requirements and both stopped-state recovery packages.
+Third resume under docs/reference/PHASE_4_THIRD_RESUME_BRIEF.txt and ADR-018 authorizes
+stale-mark replay correction with the financial guard intact. Its superseding sequence is
+failed stale-mark test, all hard PG correctness, then full direct-LOGIN security rerun.
+Collector reporting PermissionError remains separate; no silent permissions correction.
+Fourth resume under docs/reference/PHASE_4_FOURTH_RESUME_BRIEF.txt and ADR-019 authorizes
+production lifecycle-history correction and the exact proven pytest cache ACL/harness fix.
+Preserve all stopped packages. Its order is focused lifecycle, filesystem/quota and data/research
+recovery, all PG correctness, full direct-LOGIN security, then full inherited verification.
+No broad ACL change, quota exclusion or ignored PermissionError. Visibility changes prohibited.
 Current authorized scope: Phase 4 Checkpoint A deterministic PAPER-only risk/lifecycle/
 durable journal and reconciliation engineering. Separate non-promotable TEST_ONLY fixtures
 only; no Phase 3 promotion. Freeze child requirements before executable implementation.

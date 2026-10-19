@@ -1,0 +1,283 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT A THIRD RESUME
+Fix stale-mark replay/valuation consistency; preserve security and prior correctness fixes
+Target: Astra 6 High / Claude Code
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-19
+
+OWNER / REVIEWER DISPOSITION
+The owner explicitly authorizes a targeted correction for the newly discovered stale-mark
+reconciliation defect, followed by re-running the already-authorized Phase 4 Checkpoint A gates.
+
+This is NOT Phase 4 acceptance.
+It does NOT authorize persistent >=14-day PAPER observation, Phase 5, Exness/MT5/broker access,
+DEMO/REAL orders, live permits or any capital.
+
+INDEPENDENT DISPOSITION OF THE FAILURE
+The PostgreSQL guard that refused financial/position mutation without new independent truth is
+CORRECT and must remain.
+
+The defect is in reconciliation/replay semantics:
+a previously observed MARKET_MARK is being removed from the replay valuation map when it becomes
+stale according to current-time freshness logic. That causes a reconstructed position to fall back
+to its fill-price mark and attempts to rewrite financial state even though no new truth arrived.
+
+Correct principle:
+- historical/latest-observed market truth and current freshness eligibility are separate;
+- passage of time can make a mark STALE;
+- passage of time MUST NOT erase, replace, rewind or fabricate the last observed mark;
+- without new independent truth, financial projections must remain stable;
+- stale truth denies unsafe/new exposure and produces stale/not-ready health;
+- it does not restore a fill price or create a fresh valuation.
+
+REMOTE STATE — INDEPENDENTLY RECHECKED
+GitHub remains:
+- repository PUBLIC
+- main = b24c42bc07dcd9bc1b62b04d32cc92f047116125
+- PR #4 merged
+- no remote `phase-4/strategy-risk-paper` branch yet
+
+LOCAL EXPECTED STATE FROM BLOCKED HANDOFF — VERIFY FIRST
+- branch: `phase-4/strategy-risk-paper`
+- committed HEAD: `037afa282daf03eb1d03a1d9a272e5c40bf094a7`
+- dirty/uncommitted Phase 4 draft
+- no Phase 4 push/PR
+- newest stopped aggregate:
+  281b127ff42c0a7bad6e6b713f6cfd78a19b7d327d18dcda339f591f8d446bc4
+- prior stopped aggregates/recovery packages preserved
+- frozen Phase 4 requirements remain unchanged
+- migrations 0001-0004 and uv.lock unchanged
+
+If local evidence differs unexpectedly, STOP and report.
+
+A. PRESERVE CURRENT STOP BEFORE EDITING
+Create a new ignored recovery snapshot under `.local/phase4/third-resume/` containing:
+- HEAD/branch/status
+- `git diff --binary`
+- untracked file inventory + SHA-256
+- current source aggregate
+- hashes/references to all prior recovery packages
+- failing correctness receipt/log hash
+Never commit `.local`, credentials, DB dumps or private evidence.
+
+B. FIX THE MODEL: LAST OBSERVED MARK VS FRESHNESS
+Implement one clear separation:
+
+1. `last_observed_mark`
+   - latest causally accepted independent MARKET_MARK truth by instrument/position;
+   - retained regardless of whether it is currently fresh;
+   - includes original observed/available timestamp and source/fact identity;
+   - used as the last-known valuation input where policy permits a stale valuation label.
+
+2. `mark_freshness`
+   - derived from the retained mark's ORIGINAL timestamp vs current injected UTC clock;
+   - does not modify the mark timestamp/value;
+   - controls readiness/opening eligibility and stale-health state.
+
+Do not use current freshness filtering to decide whether historical truth exists.
+Replay/reconciliation must reconstruct from immutable truth in event order first, then evaluate
+freshness separately.
+
+C. NO FINANCIAL REWIND WITHOUT NEW TRUTH
+For the exact failing trace:
+- position filled .01 @ 50000;
+- fresh independent mark 40000 accepted;
+- cash/equity became the already-tested values;
+- time advances 3 seconds with no new truth and the mark becomes stale.
+
+Required result:
+- position retains last observed mark 40000 and original mark timestamp;
+- equity/financial projection stays exactly at the previously reconciled valuation;
+- `marks_fresh` / readiness becomes false;
+- new/increased exposure remains denied;
+- existing K2 daily-loss latch remains latched;
+- reconciliation does NOT attempt to write changed position/equity merely because time passed;
+- DB guard is not triggered because no unauthorized financial mutation is attempted;
+- result represents stale/not-ready/no-new-financial-truth, not an unhandled ProgrammingError.
+
+Do NOT:
+- fall back to fill price;
+- forward-date the stale mark;
+- relabel stale mark as fresh;
+- create a synthetic mark;
+- weaken/remove `paper_guard_account`;
+- grant broader DB privileges.
+
+D. HISTORICAL REPLAY SELECTION
+Correct ordering:
+1. reconstruct all eligible immutable truth facts up to consumed truth cursor;
+2. select latest accepted mark fact by causal/event ordering independent of current age;
+3. preserve exact value/timestamp/source hash;
+4. compute `fresh = now - observed_at <= policy_limit` separately;
+5. compute readiness from freshness/kill/mismatch state;
+6. only persist financial changes if NEW independent truth or another explicitly permitted
+   non-financial state event exists.
+
+E. MARK EDGE CASES
+Test:
+- fresh mark A -> no truth -> A becomes stale but remains valuation;
+- stale older mark after newer mark -> no rewind;
+- duplicate same fact -> idempotent/no financial change;
+- newer valid mark B -> valuation changes once;
+- same-timestamp conflicting facts -> fail/quarantine per existing truth rules;
+- future-dated mark -> refuse;
+- wrong account/instrument/position mark -> refuse;
+- stale FX cannot disappear and revert valuation silently;
+- missing required conversion with no historical value -> deny/unpriceable, never fabricate.
+
+F. TIME-DRIVEN HEALTH VS FINANCIAL STATE
+Passage of time may change readiness/health without new market truth.
+If stale-health/K1 is persisted:
+- use a typed/audited health transition under account lock;
+- do not alter cash, position quantity, mark, realized/unrealized P&L or equity;
+- never downgrade stronger K2/K3/K4;
+- retain financial DB guards.
+
+If freshness is derived rather than persisted, that is acceptable if frozen requirements and restart
+determinism are satisfied. K2 from daily loss dominates K1 freshness degradation.
+
+G. RESTART / REPLAY DETERMINISM
+Prove:
+- restart with no new truth reconstructs same mark/equity;
+- pool dispose/reconnect does not change valuation;
+- T1 fresh vs T2 stale => same financial projection, different freshness;
+- repeated T2 replay idempotent;
+- later new fresh mark restores mark freshness only;
+- later mark does not auto-clear latched K2;
+- owner resume rules remain required.
+
+H. PRESERVE PRIOR THREE CORRECTNESS FIXES
+Do not regress:
+1. OPEN is new-position only; cannot mutate existing position/stop/instrument/risk.
+2. REJECTED + any fill => contradictory/UNKNOWN/quarantined, conservative reservation, no blind retry.
+3. Daily-loss breach latches K2 across UTC rollover/restart; audited owner resume required.
+
+Execute all targeted PG tests that were previously after the fail-fast failure.
+
+I. PRESERVE PASSED DIRECT-LOGIN SECURITY
+Keep:
+- direct least-privilege runtime/owner/truth LOGINs;
+- no admin-backed runtime pool;
+- no SET ROLE fallback from auvexo_admin;
+- NOSUPERUSER/NOCREATEDB/NOCREATEROLE/NOREPLICATION/NOBYPASSRLS;
+- scoped NOLOGIN groups only;
+- effective grants attested.
+
+After source changes, rerun the full security suite; do not reuse only the historical 110-pass receipt.
+
+J. EXECUTION ORDER
+1. Fix stale-mark semantics + focused regression.
+2. Rerun failing inherited stale-mark test first.
+3. Execute ALL hard correctness PG cases, including:
+   - OPEN UUID/ref collisions;
+   - both REJECTED+fill orders;
+   - contradiction finality invalidation;
+   - UTC latch/owner-resume races;
+   - transaction/crash injection;
+   - stale/restart/out-of-order mark cases.
+4. Rerun full direct-login security suite.
+5. Any material invariant/security failure => STOP.
+6. Only then continue full Checkpoint-A verification.
+
+K. FULL CHECKPOINT-A VERIFICATION
+Complete:
+- full inherited pytest;
+- all-mode execution/money denial and no-broker tests;
+- Ruff format/check;
+- strict mypy;
+- docs/link/requirements;
+- AGENTS/CLAUDE byte equality;
+- 0005 migration idempotence + destructive-downgrade refusal;
+- foundation/data/research/PAPER isolated backup/restore;
+- immutable trigger/hash/count verification;
+- performance p50/p95/p99/resource/burst benchmarks from original prompt;
+- source + full-history redacted Gitleaks;
+- high-signal scan;
+- hash-locked dependency advisory audit;
+- git diff --check;
+- final Windows clean clone after commit;
+- exact-final hosted push + PR CI.
+
+Historical 95, 110, and 155/1 runs remain historical, not final proof.
+
+L. PHASE 2 SCHEDULE STATUS
+Preserve October 18 failure exactly:
+- task result 1;
+- wrapper MISSED_START;
+- started 17:59:44 UTC;
+- zero eligible exact-window DS-02 events;
+- date INCOMPLETE;
+- genuine qualified count remained 0.
+
+Do not catch up/backfill/manually count it.
+Do not modify scheduler in this Phase 4 correction.
+For future windows preserve 22:45-23:20 Pakistan as no-heavy-work time.
+
+The reporting-CLI filesystem PermissionError is separate and not authorized for silent correction here.
+
+M. SCOPE BOUNDARIES
+Unchanged:
+- four Phase 3 outcomes INCONCLUSIVE;
+- no CANDIDATE/CHAMPION;
+- TEST/PAPER fixtures non-promotable;
+- no persistent >=14-day PAPER observation/counter;
+- no Phase 5;
+- no Exness/MT5/broker SDK/account/credentials/transport;
+- zero DEMO/REAL orders;
+- no LiveTradingPermit issuer/signing key;
+- live capital/order count zero;
+- Binance live derivatives BLOCKED_BY_POLICY;
+- no withdrawal;
+- no runtime AI/rich frontend/paid service;
+- PUBLIC exception review due 2026-10-24;
+- no private/raw/OOS/DB dump/credential artifacts in Git.
+
+N. GIT
+Do not push dirty work to save progress.
+Only after local gates pass:
+- inspect complete diff vs frozen requirements;
+- founder-authored coherent commits;
+- no AI coauthor/generated banner;
+- no force push/history rewrite;
+- push `phase-4/strategy-risk-paper`;
+- open ONE Phase 4 PR to main;
+- keep it OPEN/UNMERGED;
+- exact-head push + PR CI;
+- no Phase 5 branch.
+
+O. REQUIRED NEXT HANDOFF
+Include:
+1. all prior recovery aggregates + new third-resume aggregate;
+2. stale-valuation root cause;
+3. truth-selection vs freshness design;
+4. proof no financial rewind without new truth;
+5. focused stale-mark tests;
+6. out-of-order/duplicate/future/wrong-scope mark tests;
+7. restart/replay determinism;
+8. all prior 3 correctness-defect regression results;
+9. all real-PG correctness cases executed;
+10. final direct-login security rerun;
+11. full inherited test/static/docs counts;
+12. migration/restore/recovery;
+13. benchmark metrics/resources;
+14. scans/audit;
+15. exact commits/final SHA/Phase 4 PR/clean tree;
+16. Windows clean-clone result;
+17. exact-head hosted CI IDs;
+18. genuine Phase 2 scheduled-date count;
+19. repo governance status;
+20. confirmation no candidate/champion/persistent PAPER observation/Phase 5/broker work;
+21. request GPT-5.6 Sol exact-final-SHA review.
+
+STOP AGAIN if:
+- passage of time can still change financial projection without new truth;
+- last observed mark can be erased/replaced by fill price because it aged;
+- DB guard must be weakened to pass;
+- out-of-order truth rewinds valuation;
+- any prior OPEN/rejection-fill/daily-loss invariant regresses;
+- security exposes elevated identity;
+- any reservation/reconciliation/writer/kill/recovery invariant fails;
+- material migration/recovery/security/dependency/CI gate fails.
+
+This authorization resolves the stale-mark replay defect and permits resumption of the already
+authorized Checkpoint A verification only.

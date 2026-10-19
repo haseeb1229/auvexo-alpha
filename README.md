@@ -3,6 +3,8 @@
 Personal alpha research and trading-system project owned by haseeb1229. Private-first
 baseline; source is temporarily PUBLIC under an owner-approved exception, review due
 2026-10-24. Public history cannot be revoked by later returning to PRIVATE.
+The October 19 remote recheck and owner confirmation show PUBLIC; the fourth-resume
+brief's earlier PRIVATE statement is superseded in [ADR-019](docs/adr/019-paper-lifecycle-filesystem.md).
 
 Phases 0/1 and source-specific Phase 2 research engineering are independently accepted.
 PR #3 normally merged at `26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3`; full Phase 2

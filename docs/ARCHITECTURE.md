@@ -3,8 +3,9 @@
 Status: FROZEN boundaries; Phase 1 stack pinned and exercised in
 [toolchain evidence](phase1/TOOLCHAIN.md). [Implemented subset](phase1/IMPLEMENTATION.md)
 records the historical foundation. The [Phase 2 data subset](phase2/IMPLEMENTATION.md)
-adds bounded public data collection and immutable research storage. Risk, strategy and
-broker gateway components below remain future architecture, not installed services.
+adds bounded public data collection and immutable research storage. Phase 4 Checkpoint A implements the isolated virtual PAPER subset under
+[ADR-015](adr/015-paper-risk-core.md); broker gateway and money authority remain future
+architecture. Implementation evidence must be reviewed before operational acceptance.
 
 Use a modular monolith with a separate bounded research worker and a separate Windows
 MT5 gateway process. This is process isolation for safety and resource limits, not a

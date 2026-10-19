@@ -1,10 +1,15 @@
 # Decision and external gate register
 
-Current Phase 3 entry: accepted Phase 2 research scope recorded at `7b1d23d0fb26d41e5a8cf36159c9379615f2bb50`,
-normally merged PR #3 at `26b20ca5f0ef18e5300d5213b1cc8d2667bb71d3` with expected parents.
-Phase 3 is authorized on its new branch; full Phase 2 operational status remains OPEN.
-See [Phase 3 requirements](phase3/ACCEPTANCE_TESTS.md) and [data plan](phase3/DATA_PLAN.md).
-Earlier administrative entry wording below records the acceptance transition, not current PR status.
+Current Phase 4 engineering checkpoint: Phase 3 independently accepted at
+`bb69220818a519e122d2cd9b1cad75559c2fa244`; documentation-only acceptance commit
+`5a3c03f58dbcc351c85ac799800fed74c01ebce3`, normal PR #4 merge
+`b24c42bc07dcd9bc1b62b04d32cc92f047116125` with verified parents. Four empirical
+outcomes remain INCONCLUSIVE, both OOS consumed, no champion. See
+[acceptance](reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md),
+[frozen requirements](phase4/ACCEPTANCE_TESTS.md) and [ADR-015](adr/015-paper-risk-core.md).
+Only virtual PAPER core engineering is authorized on `phase-4/strategy-risk-paper`.
+Persistent observation and Phase 5 remain closed; Phase 2 B/C remains OPEN.
+Earlier dated wording below describes historical entry/acceptance transitions.
 
 Dated 2026-10-17 [Phase 2 evidence closure](phase2/closure/HANDOFF.md): retrospective
 coverage passed, actual scheduled dates zero, Exness DEMO blocked. PUBLIC hosted CI

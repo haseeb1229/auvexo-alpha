@@ -35,6 +35,8 @@ const required = [
   'docs/phase3/ACCEPTANCE_TESTS.md', 'docs/phase3/DATA_PLAN.md', 'docs/phase3/DATA_PLAN_V2.md',
   'docs/phase3/evidence/provider-outage-diagnosis.json', 'docs/adr/014-nonproduction-research.md',
   'docs/phase3/IMPLEMENTATION.md', 'docs/phase3/VERIFICATION.md', 'docs/phase3/HANDOFF.md',
+  'docs/reviews/PHASE_3_INDEPENDENT_ACCEPTANCE.md',
+  'docs/phase4/ACCEPTANCE_TESTS.md', 'docs/adr/015-paper-risk-core.md',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -42,6 +44,7 @@ if (errors.length) {
   process.exit(1);
 }
 check(read('AGENTS.md') === read('CLAUDE.md'), 'AGENTS.md and CLAUDE.md differ');
+check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase4/ACCEPTANCE_TESTS.md'))).digest('hex') === '051da385ebc22f1c5eb98933c876a2338b7e4005f23913e8ffd0ffa070cf1d1a', 'Frozen Phase 4 Checkpoint A requirements changed; explicit amendment required');
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase3/DATA_PLAN.md'))).digest('hex') === '82d189d51b01457e8141455d02addafcdbd690e8a73f4f4996eefcc7fbd2b8a4', 'Historical Phase 3 V1 plan changed');
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/phase3/DATA_PLAN_V2.md'))).digest('hex') === '4e073254600d499421893c4823426980756f6f31ea745c0805de9f25b0681cce', 'Frozen Phase 3 V2 amendment changed');
 const digest = createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_0_BRIEF.txt'))).digest('hex');
@@ -80,6 +83,10 @@ for (const path of markdown) {
 }
 const register = read('docs/REQUIREMENTS_REGISTER.md');
 const phase3 = read('docs/phase3/ACCEPTANCE_TESTS.md');
+const phase4 = read('docs/phase4/ACCEPTANCE_TESTS.md');
+for (const id of ['R-002-P4-01', 'R-022-P4-01', 'R-022-P4-02', 'R-022-P4-03', 'R-021-P4-01', 'R-021-P4-02', 'R-006-P4-01', 'R-006-P4-02', 'R-022-P4-04', 'R-008-P4-01', 'R-023-P4-01', 'R-024-P4-01', 'R-025-P4-01']) {
+  check(phase4.includes(`| ${id} |`), `Missing frozen Phase 4 child: ${id}`);
+}
 for (const id of ['R-014-P3-01', 'R-014-P3-02', 'R-005-P3-01', 'R-005-P3-02', 'R-006-P3-01', 'R-005-P3-03', 'R-007-P3-01', 'R-015-P3-01', 'R-025-P3-01', 'R-022-P3-01']) {
   check(phase3.includes(`| ${id} |`), `Missing stable Phase 3 child: ${id}`);
 }

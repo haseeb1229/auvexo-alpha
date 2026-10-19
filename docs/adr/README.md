@@ -26,3 +26,11 @@ records require their named proof gate. None is evidence of an implemented contr
 Exact versions, capital decisions and deferred triggers live in [open decisions](../OPEN_DECISIONS.md).
 
 | [ADR-015](015-paper-risk-core.md) | FROZEN checkpoint design; implementation review pending | Isolated deterministic PAPER risk/lifecycle/durable core |
+
+| [ADR-016](016-paper-direct-login.md) | FROZEN; local proof, independent review pending | Direct least-privilege PAPER LOGIN binding, no admin pool |
+
+| [ADR-017](017-paper-risk-state-corrections.md) | FROZEN; local proof, independent review pending | New-position OPEN identity, contradictory truth and latched marked loss |
+
+| [ADR-018](018-paper-observed-mark-freshness.md) | FROZEN; local proof, independent review pending | Retained observed valuation with separate current freshness |
+
+| [ADR-019](019-paper-lifecycle-filesystem.md) | FROZEN; local proof, independent review pending | Production initial history and isolated pytest cache permissions |
