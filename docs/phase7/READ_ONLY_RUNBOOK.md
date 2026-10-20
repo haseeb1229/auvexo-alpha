@@ -1,8 +1,8 @@
 # Read-only operator terminal runbook
 
-Status: DRAFT / NOT FROZEN; terminal NOT IMPLEMENTED. No launch commands or operational readiness
-are claimed. Freeze after the [ADR025](../adr/025-read-only-private-operator-terminal.md) browser
-bootstrap/authentication question is resolved; follow [acceptance](READ_ONLY_ACCEPTANCE.md).
+Status: FROZEN before executable implementation, 2026-10-20. Engineering-only; no operational
+acceptance is claimed. Follow [ADR025](../adr/025-read-only-private-operator-terminal.md),
+[acceptance](READ_ONLY_ACCEPTANCE.md) and the owner [shell clarification](../reference/PHASE_7_STATIC_SHELL_CLARIFICATION.txt).
 
 ## Intended startup
 
@@ -11,7 +11,10 @@ projection identity/permissions and diagnostics token readiness. Never read a br
 retarget the observation runner or attach development tests/UI to its persistent campaign DB.
 Build from committed npm lock on pinned Node24.20.0. No token in build/config, URL or browser
 storage. The owner enters diagnostics bearer at runtime; token and read snapshots remain in memory.
-Static shell startup must follow the approved bootstrap disposition before any implementation.
+Only the data-free local shell and allowlisted build assets load without bearer. Every /api/v1
+endpoint is protected. Run npm ci then npm run build in web/operator-terminal before the existing
+auvexo serve command; FastAPI serves that build same-origin. Vite development is opt-in, fixed
+127.0.0.1:5173, with exact dev-origin allowed by explicit create_app configuration only.
 
 ## Inspecting truth
 
@@ -57,4 +60,4 @@ operational permits, sustained-demo clock, candidate/champion, LIVE or money aut
 
 Full Python/isolated PG/frontend/a11y/security/contract/statics/docs/scans/audits plus exact-final
 fresh Windows clone, clean frontend lock/build, exact-head hosted push/PR jobs/logs. Keep single
-Phase7 PR OPEN/UNMERGED for independent review. This draft certifies none of those future checks.
+Phase7 PR OPEN/UNMERGED for independent review. Frozen design certifies none of those future checks.

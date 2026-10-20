@@ -45,4 +45,4 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 
 | [ADR-024](024-parallel-operational-release-and-engineering.md) | ACCEPTED/FROZEN offline engineering at 82601fa; original bytes retained | [Independent acceptance](../reviews/PHASE_5_OFFLINE_FOUNDATION_INDEPENDENT_ACCEPTANCE.md); pinned release and separate non-money engineering; commissioning NOT STARTED |
 
-| [ADR-025](025-read-only-private-operator-terminal.md) | DRAFT / NOT FROZEN; bootstrap disposition pending | Read-only operator-terminal foundation; no executable implementation yet |
+| [ADR-025](025-read-only-private-operator-terminal.md) | FROZEN before implementation; independent exact-SHA review pending | Read-only terminal; approved data-free static shell, every API bearer-protected |

@@ -1,7 +1,7 @@
 # Phase 7 read-only foundation acceptance requirements
 
-Status: DRAFT / NOT FROZEN; no executable implementation. Resolve the browser-bootstrap
-authentication question in [ADR025](../adr/025-read-only-private-operator-terminal.md) before freeze.
+Status: FROZEN before executable implementation, 2026-10-20. See [ADR025](../adr/025-read-only-private-operator-terminal.md)
+and the [static-shell clarification](../reference/PHASE_7_STATIC_SHELL_CLARIFICATION.txt).
 The [owner brief](../reference/PHASE_5_ACCEPTANCE_AND_PHASE_7_READ_ONLY_BRIEF.txt) remains authority.
 
 | ID | Requirement and concrete proof |
@@ -9,7 +9,7 @@ The [owner brief](../reference/PHASE_5_ACCEPTANCE_AND_PHASE_7_READ_ONLY_BRIEF.tx
 | RO-01 | Separate development clone from verified PR7 normal merge; unchanged pinned runtime/task/config/activation; fixtures NON_COUNTING. |
 | RO-02 | Strict version1 explicit presentation DTOs for system, qualification, PAPER, research and journal; schema tests and no raw domain/DB serialization. |
 | RO-03 | Narrow application read ports and infrastructure fixed scoped SELECT-only adapters; isolated real-PG least-privilege/read-only/no-mutation proof; safe unavailability. |
-| RO-04 | All data APIs bearer-protected, loopback peer/Host only, exact approved Origin policy, no public docs/OpenAPI; unauthorized and malformed auth/method negatives. Static bootstrap must follow separate owner disposition. |
+| RO-04 | All data APIs bearer-protected, loopback peer/Host only, exact approved Origin policy, no public docs/OpenAPI; unauthorized and malformed auth/method negatives. Only approved data-free shell/assets may omit bearer; every /api/v1 endpoint remains protected. |
 | RO-05 | No command/order/activation/kill/resume/gateway/SQL/file/withdrawal/transfer endpoints; no broker dependencies/credentials/network; inherited financial rules and execution-disabled guards unchanged. |
 | RO-06 | Memory-only runtime diagnostics token; exact loopback Authorization header only; no URL/history/log/browser storage/static config/cache/worker; signout/unauthorized clears session. |
 | RO-07 | Five read-only views: Command Center, Risk/PAPER, Research, Journal/evidence, System Health. Visible engineering/qualification/authority distinction. |

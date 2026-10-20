@@ -1,0 +1,3 @@
+Owner clarification, 2026-10-20 (supersedes the bootstrap ambiguity only):
+
+Allow the loopback-only SPA shell and its static HTML/CSS/JS assets to load without bearer authentication. They must contain no operational data, secrets, tokens, credentials, runtime status, or sensitive configuration. Every /api/v1 data/read endpoint remains bearer-protected with no exceptions. The bearer token is supplied at runtime, kept in memory only, sent only in the Authorization header, and never stored in URL, localStorage, sessionStorage, IndexedDB, service workers, source files, or logs. Keep the app bound to 127.0.0.1; no public listener or wildcard CORS.

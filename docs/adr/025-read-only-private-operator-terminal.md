@@ -1,7 +1,6 @@
 # ADR-025: read-only private operator terminal foundation
 
-Status: DRAFT; NOT FROZEN; executable implementation has NOT STARTED. One browser-bootstrap
-authentication decision awaits owner clarification. No authority is inferred from this draft.
+Status: FROZEN before executable implementation, 2026-10-20; independent review pending.
 Requirements: R-003, R-006, R-018, R-019, R-022, R-023, R-024, R-025, R-027, R-029, R-031, R-035.
 
 ## Context
@@ -15,7 +14,7 @@ actual Phase 5 commissioning and full Phase 7 operational acceptance remain clos
 
 ## Decision
 
-Proposed only; freeze is pending the explicit browser-bootstrap disposition below.
+Frozen engineering scope only, with the narrow owner-approved static-shell exception below.
 
 Use one contained React/TypeScript-strict/Vite application at web/operator-terminal and the
 existing loopback FastAPI process. Versioned explicit presentation DTOs and narrow application
@@ -50,23 +49,20 @@ service worker or persistent offline cache. UI adds presentation only, no financ
 Use pinned Node24.20.0 and built-in npm/package-lock.json. Exact direct versions from authoritative
 registry metadata; justify dependencies and retain full third-party license notices. React19.3.1/
 ReactDOM19.3.1, Vite8.3.4, TypeScript7.0.2, Vitest5.0.5, jsdom30.1.3, TestingLibraryReact16.3.3,
-user-event14.6.8, axe-core4.14.0, Biome2.5.15 and matching React types are proposed; final Node24
-matching type package remains to be verified. No Next.js, charting, router, state-query framework,
+user-event14.6.8, axe-core4.14.0, Biome2.5.15 and matching React types19.3.0 plus Node24 types24.19.2 are selected. No Next.js, charting, router, state-query framework,
 CSS framework or component library is justified for these five local views. Registry adoption,
 lock integrity, supported engines, transitive licenses and vulnerabilities must pass before use.
 
-## Browser bootstrap decision requiring clarification
+## Owner-approved browser bootstrap
 
-The brief simultaneously requires bearer authentication for every endpoint, an ordinary browser
-that enters its token at runtime, and preferably a same-origin FastAPI-served SPA. A normal initial
-navigation cannot attach an arbitrary Authorization header before the sign-in shell has loaded.
-No cookie, URL token, persistent token, auth bypass or unapproved session design will resolve this.
-
-Owner clarification requested: allow only a data-free loopback sign-in shell/static assets without
-a token while all APIs remain protected, OR retain static-file authentication with an explicitly
-reviewed separate local launcher. No unauthenticated shell exception has been granted. Preserve
-the current stricter behavior until disposition. Freeze this ADR/acceptance/runbook only after
-that choice is incorporated; do not begin executable work before freeze.
+The [explicit owner clarification](../reference/PHASE_7_STATIC_SHELL_CLARIFICATION.txt) permits
+only the loopback SPA shell and allowlisted HTML/CSS/JS assets without bearer authentication.
+They contain no operational data, secrets, tokens, credentials, runtime status or sensitive
+configuration. Every /api/v1 endpoint retains bearer protection without exception. No URL,
+cookie/session, browser-storage, service-worker, source-file or log token persistence.
+The token is entered at runtime, held in memory and sent only in Authorization to exact API.
+No public listener or wildcard CORS. Static routes cannot select arbitrary files or fall through
+to API data. Production build is served same-origin by FastAPI; no runtime data is baked into it.
 
 ## Validation
 
@@ -102,18 +98,17 @@ No candidate/champion, runtime AI, paid service, money authority or Phase5 commi
 
 Unauthenticated operational APIs, URL tokens, browser persistent credentials, CORS wildcards or
 unreviewed cookies/sessions violate scope and are rejected. A data-free local sign-in shell
-would require the requested owner exception; a separately reviewed launcher can preserve strict
-static authentication. Neither is silently assumed. React/Vite remains frozen client direction;
+uses the explicit narrow owner exception; a separate launcher is unnecessary for this scope. React/Vite remains frozen client direction;
 Next.js/extra chart/state frameworks and duplicated risk logic are unnecessary for this scope.
 
 ## Consequences
 
 Engineering visibility grants no financial authority or qualification date. Unconnected views
 stay UNKNOWN and fixtures stay NON_COUNTING. Frozen design must precede executable adoption;
-the pending bootstrap decision blocks freeze, not the already verified Phase5 acceptance/merge.
+the owner bootstrap clarification resolves freeze without granting data access or money authority.
 The active campaign release and prior frozen file bytes remain untouched.
 
 ## Review point
 
-Freeze before implementation. Exact-final source, receipts and OPEN/UNMERGED single Phase7 PR
+This ADR/acceptance/runbook are frozen before implementation. Exact-final source, receipts and OPEN/UNMERGED single Phase7 PR
 require GPT-5.6 Sol independent review. This prompt authorizes no Phase7 merge or commissioning.

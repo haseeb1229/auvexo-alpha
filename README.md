@@ -5,7 +5,7 @@ administrative CI events/jobs/logs passed1594tests at `14254170de2fa3b7acd0f7edc
 Its executable tree equals the accepted source. Development is now on the separate Phase7 branch.
 The [read-only foundation design](docs/adr/025-read-only-private-operator-terminal.md),
 [requirements](docs/phase7/READ_ONLY_ACCEPTANCE.md) and [runbook](docs/phase7/READ_ONLY_RUNBOOK.md)
-are DRAFT/NOTFROZEN pending browser-bootstrap authentication disposition; no executable work yet.
+are FROZEN before implementation with the explicit data-free static-shell exception; all APIs remain protected.
 The active operational checkout remains clean/pinned9b9038b; no broker/money/commissioning authority.
 
 Phase 5 offline foundation is independently ACCEPTED/PASS at `82601fa80a711ce3de66b4b8289ac0f9b679b298`;
