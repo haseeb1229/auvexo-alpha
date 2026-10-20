@@ -40,6 +40,10 @@ const required = [
   'docs/adr/022-paper-performance-slo.md',
   'docs/reference/PHASE_4_PERFORMANCE_GOVERNANCE_BRIEF.txt',
   'docs/reference/PHASE_4_ACCEPTANCE_TESTS_ORIGINAL_20261018.txt',
+  'docs/adr/023-paper-observation-qualification.md',
+  'docs/phase4/OBSERVATION_ACCEPTANCE.md', 'docs/phase4/OBSERVATION_RUNBOOK.md',
+  'docs/reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md',
+  'docs/reference/PHASE_4_CHECKPOINT_B_BRIEF.txt',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -47,6 +51,14 @@ if (errors.length) {
   process.exit(1);
 }
 check(read('AGENTS.md') === read('CLAUDE.md'), 'AGENTS.md and CLAUDE.md differ');
+for (const [path, expected] of [
+  ['docs/adr/023-paper-observation-qualification.md', 'a3d478abe514f9ac9ba041aa71337fbb6950f5320791f5f1f598e278dba63bb4'],
+  ['docs/phase4/OBSERVATION_ACCEPTANCE.md', '429ac2af998951945ca3694502550b58dd77534bb31ba206a509fbc0169ca684'],
+  ['docs/phase4/OBSERVATION_RUNBOOK.md', '1a949ced0028568a7d0823299904c1288d8e564f4fadb80b3ea9f3d8afce22a8'],
+]) {
+  check(createHash('sha256').update(readFileSync(resolve(root, path))).digest('hex') === expected,
+    `Frozen Checkpoint B requirement changed; explicit amendment required: ${path}`);
+}
 // ADR-022 explicitly supersedes the transaction hard-MAX interpretation. Keep the
 // original freeze byte-verified as well as the dated amended child requirement.
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_4_ACCEPTANCE_TESTS_ORIGINAL_20261018.txt'))).digest('hex') === '051da385ebc22f1c5eb98933c876a2338b7e4005f23913e8ffd0ffa070cf1d1a', 'Original Phase 4 freeze changed');

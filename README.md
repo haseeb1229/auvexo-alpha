@@ -17,9 +17,12 @@ ACCEPTED/PASS at `e3f39e0397e1846c37febcebc246ea91c9f2eb78`; see its
 this scope. The 272.4386 ms concurrent stress tail remains THROTTLE_REQUIRED evidence;
 no benchmark rerun is authorized.
 Full Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days. Observation
-has not started; its counter is zero. The owner authorizes documentation-only
-acceptance/CI and normal PR #5 merge, then Checkpoint B harness implementation from
-verified merged main in `phase-4/paper-observation`. Persistent task registration,
+has not started; its counter is zero. PR #5 merged normally at
+`dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09` after exact-head acceptance CI.
+Checkpoint B harness implementation proceeds from that main in
+`phase-4/paper-observation` under frozen
+[ADR-023](docs/adr/023-paper-observation-qualification.md) and
+[requirements](docs/phase4/OBSERVATION_ACCEPTANCE.md). Persistent task registration,
 observation START, Phase 5 and broker/money capability remain unauthorized.
 Foundation execution remains disabled in every mode; all money actions denied.
 

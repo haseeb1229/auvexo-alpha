@@ -52,6 +52,19 @@ for exact-SHA independent review. No persistent observation task registration/ST
 following Checkpoint B review. Separate non-promotable ENGINEERING_ONLY fixtures only;
 no Phase 3 promotion, production candidate/champion, Phase 5, broker transport, live permit
 issuer, runtime AI or frontend. No broker account/session/trading credentials or money action.
+PR #5 normal merge verified at dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09 after
+acceptance-only e39d590caa008608d0dbd543418021f0e6fcd10b passed both CI events.
+Checkpoint B ADR-023/OBSERVATION_ACCEPTANCE/OBSERVATION_RUNBOOK frozen before code
+at 9306f2d858fee4988045295f1dda3b3eeafd2e1a; branch phase-4/paper-observation.
+Its PR must remain unmerged. Observation task absent; genuine dates zero; no START.
+Dependency-boundary resume is owner-authorized by
+docs/reference/PHASE_4_CHECKPOINT_B_DEPENDENCY_RESUME_BRIEF.txt. Preserve the exact
+9306f2d dirty draft and stopped package before ports/adapters refactoring. Application
+observation modules use only domain/application contracts and stdlib; concrete DB,
+provider and PAPER effects belong in infrastructure, injected at the outer CLI.
+Run the exact failed R019 test first without test exceptions, then focused observation,
+all PG correctness/security and complete inherited verification before publication.
+Frozen ADR-023/acceptance/runbook semantics and hashes remain unchanged. No START.
 Full Phase 2 operational acceptance stays OPEN; seven genuine dates and DS-03 not waived.
 Do not modify/retime/delete the public-data daily task. Exness/XAU/CFD research blocked.
 Broker SDKs, account access and credentials remain prohibited.

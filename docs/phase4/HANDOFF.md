@@ -8,8 +8,15 @@ ADR-015 through ADR-022 are ACCEPTED/FROZEN for this scope. The accepted
 concurrent stress tail as THROTTLE_REQUIRED evidence; no benchmark rerun.
 Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
 replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
-its counter is zero. Only documentation-only acceptance/CI and verified normal PR #5
-merge are authorized now; Checkpoint B harness implementation follows only from merged main.
+its counter is zero. Acceptance commit e39d590caa008608d0dbd543418021f0e6fcd10b passed
+both administrative CI events. PR #5 merged normally at
+dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09 with its required parents verified.
+Checkpoint B implementation now proceeds from that main on phase-4/paper-observation
+under [ADR-023](../adr/023-paper-observation-qualification.md), frozen
+[requirements](OBSERVATION_ACCEPTANCE.md) and [future runbook](OBSERVATION_RUNBOOK.md).
+Its independent review and separate owner START remain pending; no task registration.
+See the Checkpoint B [implementation map](OBSERVATION_IMPLEMENTATION.md) for the
+current observation-harness components and non-counting verification scope.
 
 ## Implemented scope and preserved safety
 

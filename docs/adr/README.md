@@ -40,3 +40,5 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 | [ADR-021](021-paper-monotonic-safety-projection.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Monotonic safety projection across pending truth and loss denial; performance interpretation superseded by ADR-022 |
 
 | [ADR-022](022-paper-performance-slo.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Percentile transaction SLO and qualified research-throttle semantics; no benchmark rerun |
+
+| [ADR-023](023-paper-observation-qualification.md) | FROZEN for Checkpoint B implementation; review/START pending | Actual-feed PAPER observation machinery, causal truth, immutable calendar qualification; zero dates |

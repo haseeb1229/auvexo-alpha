@@ -153,7 +153,7 @@ def enforce_paper_engine(
     """
     url = engine.url
     database = url.database or ""
-    match = re.fullmatch(r"auvexo_(?:test|restore)_([a-f0-9]{20})", database)
+    match = re.fullmatch(r"auvexo_(?:test|restore|paperobs)_([a-f0-9]{20})", database)
     tag = GROUP_TAGS.get(group)
     if match is None or tag is None:
         raise PaperIdentityError("PAPER_IDENTITY_DATABASE_OR_GROUP_DENIED")
@@ -227,6 +227,44 @@ def enforce_paper_engine(
             "paper_lifecycle",
         },
     }[group]
+    if database.startswith("auvexo_paperobs_"):
+        observation_tables = {
+            "paper_observation_campaign",
+            "paper_observation_activation",
+            "paper_observation_run",
+            "paper_observation_feed",
+            "paper_observation_trace",
+            "paper_observation_receipt",
+            "paper_observation_version",
+            "paper_observation_simulation",
+        }
+        permitted_reads |= observation_tables
+        if group == "auvexo_paper_owner":
+            permitted_writes["paper_observation_campaign"] = {"INSERT"}
+        elif group == "auvexo_paper_truth":
+            for table in (
+                "data_manifest",
+                "data_event",
+                "data_checkpoint",
+                "data_source_review",
+                "paper_observation_feed",
+                "paper_observation_simulation",
+            ):
+                permitted_writes[table] = {"INSERT"}
+                permitted_reads.add(table)
+        else:
+            for table in (
+                "paper_observation_run",
+                "paper_observation_trace",
+                "paper_observation_receipt",
+            ):
+                permitted_writes[table] = {"INSERT"}
+            permitted_reads |= {
+                "data_manifest",
+                "data_event",
+                "data_checkpoint",
+                "data_source_review",
+            }
     full_rights = {table: set(operations) for table, operations in permitted_writes.items()}
     for table in permitted_reads:
         full_rights.setdefault(table, set()).add("SELECT")

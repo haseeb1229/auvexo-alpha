@@ -9,10 +9,16 @@ as THROTTLE_REQUIRED evidence; no benchmark rerun is authorized.
 
 Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
 replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
-its counter remains zero. The owner authorizes documentation-only acceptance/CI,
-then a verified normal PR #5 merge, and only afterward Checkpoint B harness
-implementation from merged main in `phase-4/paper-observation`. No persistent task
+its counter remains zero. PR #5 merged normally at dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09
+after exact-head administrative CI. Checkpoint B harness implementation now proceeds
+from that main in `phase-4/paper-observation` under frozen
+[ADR-023](adr/023-paper-observation-qualification.md),
+[requirements](phase4/OBSERVATION_ACCEPTANCE.md) and
+[runbook](phase4/OBSERVATION_RUNBOOK.md). No persistent task
 registration/START, Phase 5, broker or money authority follows from this acceptance.
+
+Checkpoint B's [implementation map](phase4/OBSERVATION_IMPLEMENTATION.md) links the
+source/clock/fixture, persistent ledger, task-definition and recovery boundaries.
 
 Phase 2 B/C remains OPEN: October 18/19 INCOMPLETE, genuine qualified scheduled dates
 zero, DS-03/Exness blocked. Phase 3 remains independently accepted at bb692208 with
@@ -47,7 +53,7 @@ Phase 3 implementation follows the authorized normal merge/new branch, not this 
 | [Client and UX direction](CLIENT_AND_UX_DIRECTION.md) | Future terminal, mobile, desktop and voice boundaries |
 | [Roadmap](ROADMAP.md) | Phases 0-9 and explicit proof/exit gates |
 | [Open decisions](OPEN_DECISIONS.md) | Status, owner and closure point for every open gate |
-| [ADR index](adr/README.md) | Decisions 001-022 with individual dates/statuses |
+| [ADR index](adr/README.md) | Decisions 001-023 with individual dates/statuses |
 | [Self-review](PHASE_0_SELF_REVIEW.md) | Consistency findings and resolutions |
 | [Verification evidence](validation/PHASE_0_CHECKS.md) | Commands, results and limitations |
 | [Handoff template](HANDOFF_TEMPLATE.md) | Required future phase delivery fields |
