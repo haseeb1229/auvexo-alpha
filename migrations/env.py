@@ -12,7 +12,10 @@ url = make_url(os.environ["AUVEXO_MIGRATION_DSN"])
 if (
     url.drivername != "postgresql+psycopg"
     or url.host != "127.0.0.1"
-    or not re.fullmatch(r"auvexo_(dev|test|restore)(_[a-z0-9]{1,32})?", url.database or "")
+    or not re.fullmatch(
+        r"auvexo_((dev|test|restore)(_[a-z0-9]{1,32})?|paperobs_[a-f0-9]{20})",
+        url.database or "",
+    )
     or url.username != "auvexo_admin"
     or bool(url.query)
 ):

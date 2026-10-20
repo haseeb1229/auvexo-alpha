@@ -40,3 +40,5 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 | [ADR-021](021-paper-monotonic-safety-projection.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Monotonic safety projection across pending truth and loss denial; performance interpretation superseded by ADR-022 |
 
 | [ADR-022](022-paper-performance-slo.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Percentile transaction SLO and qualified research-throttle semantics; no benchmark rerun |
+
+| [ADR-023](023-paper-observation-qualification.md) | ACCEPTED/FROZEN for Checkpoint B engineering at 527bd23; original document bytes retained | [Independent acceptance](../reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md); verified normal PR #6 merge permits PREPARATION only; separate owner START pending; zero dates |

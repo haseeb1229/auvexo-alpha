@@ -43,7 +43,7 @@ e3f39e0397e1846c37febcebc246ea91c9f2eb78; ADR-015 through ADR-022 ACCEPTED/FROZE
 See docs/reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md and the owner-authorized
 docs/reference/PHASE_4_CHECKPOINT_B_BRIEF.txt. Full Phase 4 remains OPEN pending >=14
 actual-feed PAPER calendar days, replay evidence and zero unexplained ledger mismatches.
-Current authority is documentation-only acceptance on PR #5, exact-head administrative CI,
+Checkpoint A authority was documentation-only acceptance on PR #5, exact-head administrative CI,
 then verified NORMAL MERGE with expected parents. Only AFTER that merge may Checkpoint B
 observation-harness implementation begin from merged main on phase-4/paper-observation.
 Freeze its ADR/requirements before executable implementation; its new PR remains unmerged
@@ -52,6 +52,32 @@ for exact-SHA independent review. No persistent observation task registration/ST
 following Checkpoint B review. Separate non-promotable ENGINEERING_ONLY fixtures only;
 no Phase 3 promotion, production candidate/champion, Phase 5, broker transport, live permit
 issuer, runtime AI or frontend. No broker account/session/trading credentials or money action.
+PR #5 normal merge verified at dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09 after
+acceptance-only e39d590caa008608d0dbd543418021f0e6fcd10b passed both CI events.
+Checkpoint B ADR-023/OBSERVATION_ACCEPTANCE/OBSERVATION_RUNBOOK frozen before code
+at 9306f2d858fee4988045295f1dda3b3eeafd2e1a; branch phase-4/paper-observation.
+Its original PR merge hold is superseded only by the Checkpoint B acceptance authority below.
+Observation task absent; genuine dates zero; no START.
+Dependency-boundary resume is owner-authorized by
+docs/reference/PHASE_4_CHECKPOINT_B_DEPENDENCY_RESUME_BRIEF.txt. Preserve the exact
+9306f2d dirty draft and stopped package before ports/adapters refactoring. Application
+observation modules use only domain/application contracts and stdlib; concrete DB,
+provider and PAPER effects belong in infrastructure, injected at the outer CLI.
+Run the exact failed R019 test first without test exceptions, then focused observation,
+all PG correctness/security and complete inherited verification before publication.
+Frozen ADR-023/acceptance/runbook semantics and hashes remain unchanged. No START.
+Checkpoint B engineering independently ACCEPTED/PASS at
+527bd23ce434fee557f6f1414bf5b43d7c3c3f21; ADR-023/requirements/runbook ACCEPTED/FROZEN,
+original bytes retained. See docs/reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md
+and docs/reference/PHASE_4_CHECKPOINT_B_PRESTART_BRIEF.txt. Owner authorizes documentation-only
+acceptance on the same PR #6, exact-head administrative push AND PR CI with passing logs,
+then verified NORMAL MERGE with parents prior main dbe3cd6 and exact administrative head.
+Only afterward, on verified merged main, use reviewed tools for one persistent observation DB,
+one ignored merge-SHA-pinned campaign PREPARE and future task XML definition. DEV stays0004.
+Activation rows, scheduled runs, qualifying receipts and observation_days remain ZERO;
+task NOT REGISTERED/NOT STARTED. No activation/authority/START issuer or manual SQL activation.
+Request GPT-5.6 Sol merged-SHA/prepared-hash review before separate explicit owner START.
+PUBLIC October24 governance gate remains mandatory for a future campaign; no settings changes.
 Full Phase 2 operational acceptance stays OPEN; seven genuine dates and DS-03 not waived.
 Do not modify/retime/delete the public-data daily task. Exness/XAU/CFD research blocked.
 Broker SDKs, account access and credentials remain prohibited.

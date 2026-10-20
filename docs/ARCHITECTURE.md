@@ -7,9 +7,12 @@ adds bounded public data collection and immutable research storage. Phase 4 Chec
 [ADR-015](adr/015-paper-risk-core.md), independently accepted for Checkpoint A at
 `e3f39e0397e1846c37febcebc246ea91c9f2eb78`; see the
 [acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md).
-Full Phase 4 actual-feed observation remains OPEN and has not started. Only after the
-authorized normal PR #5 merge may Checkpoint B harness implementation begin; persistent
-observation START requires separate review/owner authority. Broker gateway and money
+Full Phase 4 actual-feed observation remains OPEN and has not started. Checkpoint B
+engineering is independently accepted at 527bd23ce434fee557f6f1414bf5b43d7c3c3f21;
+see its [acceptance record](reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
+Docs-only acceptance/CI and verified normal PR #6 merge permit local PREPARATION only;
+activation, task registration and observation START require merged-SHA/prepared-hash
+review and separate owner authority. Broker gateway and money
 authority remain future architecture.
 
 Use a modular monolith with a separate bounded research worker and a separate Windows

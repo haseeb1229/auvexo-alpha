@@ -1,0 +1,517 @@
+AUVEXO ALPHA — PHASE 4 CHECKPOINT B DEPENDENCY-BOUNDARY RESUME
+Ports/adapters refactor only; complete unpublished observation harness verification
+Target: Codex
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-20
+
+PURPOSE
+Resume the STOPPED Phase 4 Checkpoint B implementation after the inherited dependency-boundary
+test correctly rejected application-layer imports of infrastructure/SQLAlchemy/HTTP concerns.
+
+This prompt authorizes ONLY the architecture-boundary correction required to finish the already
+frozen Checkpoint B observation harness and then complete its verification/publication for
+independent exact-SHA review.
+
+It does NOT authorize:
+- changing the frozen Checkpoint B observation semantics merely to make tests pass;
+- weakening/skipping the inherited import-boundary test;
+- registering/starting the persistent observation task;
+- counting an observation day;
+- Phase 5;
+- Exness/MT5/broker SDK/account/session/trading credentials;
+- DEMO/REAL orders;
+- live permits/capital/withdrawals;
+- repository visibility/settings changes.
+
+===============================================================================
+0. INDEPENDENT REMOTE RECHECK / CURRENT AUTHORITY
+===============================================================================
+
+GPT-5.6 Sol independently rechecked GitHub before issuing this resume.
+
+Current remote state:
+- repository: haseeb1229/auvexo-alpha
+- visibility: PUBLIC
+- default branch: main
+- main:
+  dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09
+- PR #5: CLOSED / MERGED
+- PR #5 final administrative head:
+  e39d590caa008608d0dbd543418021f0e6fcd10b
+- PR #5 merge:
+  dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09
+- merge parents, in order:
+  1. b24c42bc07dcd9bc1b62b04d32cc92f047116125
+  2. e39d590caa008608d0dbd543418021f0e6fcd10b
+- remote `phase-4/paper-observation` branch does NOT exist
+- there are currently no open PRs
+
+Checkpoint A acceptance is recorded on merged main:
+accepted executable source:
+e3f39e0397e1846c37febcebc246ea91c9f2eb78
+ADR-015 through ADR-022 accepted/frozen for Checkpoint A.
+
+Canonical full Phase 4 remains OPEN pending >=14 genuine actual-feed PAPER calendar days,
+replay evidence and zero unexplained ledger mismatches.
+
+The inherited architecture is still FROZEN:
+clients -> API contracts -> application use cases -> narrow ports/contracts;
+adapters own infrastructure/provider/storage details.
+`tests/test_boundaries.py::test_r019_p1_import_direction` prohibits application imports of:
+- fastapi
+- sqlalchemy
+- psycopg
+- auvexo_alpha.api
+- auvexo_alpha.infrastructure
+
+Do NOT weaken this rule.
+
+===============================================================================
+1. EXPECTED LOCAL STOPPED STATE — VERIFY BEFORE ANY EDIT
+===============================================================================
+
+Expected owner-local Checkpoint B state from the blocked handoff:
+
+- local branch: `phase-4/paper-observation`
+- branch base: verified merged main dbe3cd6...
+- committed local HEAD:
+  9306f2d858fee4988045295f1dda3b3eeafd2e1a
+- 9306f2d is the founder requirements-freeze commit
+- executable Checkpoint B draft remains UNCOMMITTED
+- working tree deliberately DIRTY
+- no remote B branch
+- no PR #6
+- no persistent observation task registered
+- observation_days = 0
+- no actual-feed qualifying run/preflight credited
+
+Frozen files/hashes:
+- ADR-023:
+  a3d478abe514f9ac9ba041aa71337fbb6950f5320791f5f1f598e278dba63bb4
+- OBSERVATION_ACCEPTANCE:
+  429ac2af998951945ca3694502550b58dd77534bb31ba206a509fbc0169ca684
+- OBSERVATION_RUNBOOK:
+  1a949ced0028568a7d0823299904c1288d8e564f4fadb80b3ea9f3d8afce22a8
+
+Stopped source evidence:
+- inventory SHA256:
+  c9d6d123952d2750559c33521d508acb7ef2004d9fab3ddfa8edf797fc5c5c64
+- canonical source aggregate:
+  dc75b234b0bd027a3edbf6091247bae7523d5afeed70b408009ad10ee84abb99
+- recovery package:
+  `.local/phase4/checkpoint-b/20261020T080048Z-dependency-stop/`
+
+The current material failure is:
+`tests/test_boundaries.py::test_r019_p1_import_direction`
+
+Known offending draft modules:
+- `application/observation_runner.py` imports SQLAlchemy plus infrastructure feed/store/truth/
+  source-registry/HTTP exception concerns.
+- `application/observation_simulator.py` imports concrete infrastructure PAPER store/truth.
+
+If any expected local state/hash/branch/HEAD differs unexpectedly:
+STOP and return exact evidence.
+Do not reset/discard/recreate the draft from memory.
+
+===============================================================================
+2. PRESERVE THE STOP BEFORE CORRECTION
+===============================================================================
+
+Before editing:
+- verify current branch/HEAD/status;
+- verify the frozen ADR-023/acceptance/runbook hashes exactly;
+- verify prior accepted Checkpoint A evidence inventory remains unchanged;
+- rehash tracked and untracked Checkpoint B draft;
+- save a new ignored recovery package under:
+  `.local/phase4/checkpoint-b/dependency-resume/`
+  containing:
+  - HEAD/branch/status;
+  - tracked binary diff;
+  - untracked file inventory and hashes;
+  - prior stopped package references;
+  - exact import-violation inventory;
+  - failed test/log receipt.
+
+Never commit `.local`, credentials, raw data or DB dumps.
+
+===============================================================================
+3. ROOT CAUSE / CORRECT ARCHITECTURE
+===============================================================================
+
+The STOP is an architecture dependency-direction regression, not a business-rule failure.
+
+Correct dependency direction:
+- DOMAIN: pure contracts/rules; no application/infrastructure/API/provider imports.
+- APPLICATION: orchestration/use cases + narrow abstract ports; may import stdlib, domain and
+  application-local modules only; NO SQLAlchemy/psycopg/HTTP/infrastructure/API.
+- INFRASTRUCTURE: concrete PostgreSQL, DS-02, PAPER store/truth, source registry and provider
+  adapters. Outer infrastructure may depend inward on domain/application contracts.
+- COMPOSITION ROOT: tool/CLI/API boundary constructs concrete infrastructure adapters and injects
+  them into application use cases.
+
+Use the existing Phase 1 pattern (`application/ports.py`, structural Protocols and composition
+at an outer boundary) rather than creating a second architecture model.
+
+Do NOT use:
+- TYPE_CHECKING imports to hide infrastructure imports;
+- dynamic imports/importlib tricks;
+- string-annotation hacks to bypass AST tests;
+- re-exporting infrastructure under application/domain names;
+- boundary-test exceptions/allowlists;
+- moving the test;
+- suppressing the failure.
+
+The code must satisfy the architecture naturally.
+
+===============================================================================
+4. APPLICATION PORTS — NARROW AND DOMAIN-TYPED
+===============================================================================
+
+Inspect the current stopped draft before naming new abstractions.
+
+Prefer extending the existing `application/ports.py` or adding a dedicated
+`application/observation_ports.py` following the same pattern.
+
+Ports must use ONLY:
+- stdlib types;
+- domain contracts;
+- small neutral application result/error types where necessary.
+
+No port signature may expose:
+- SQLAlchemy Engine/Connection/Row;
+- psycopg objects;
+- DataStore;
+- Collector;
+- PublicHTTP;
+- SourceError;
+- source-registry implementation objects;
+- PaperStore/PaperTruth concrete classes;
+- filesystem/provider implementation types.
+
+Create only the minimum ports required by the current draft. Logical responsibilities should
+remain separated, for example:
+
+1. ObservationFeedPort
+   - readiness/current-rights/source-pin result
+   - newly observed finalized DS-02 market observations
+   - domain/application neutral failure representation
+
+2. ObservationPersistencePort
+   - observation configuration/START state
+   - immutable daily receipt/date-ledger operations
+   - pinned fixture/release lookup via typed domain result
+   - no SQL in application
+
+3. PaperCommandPort
+   - existing PAPER authorization/decision operations exposed through domain types only
+
+4. PaperTruthPort
+   - append/read independent virtual truth needed by the observation use case
+   - domain truth contracts only
+
+5. CausalPaperSimulatorPort
+   - deterministic simulated-fill operation over typed domain/application inputs
+   - no concrete PaperStore/PaperTruth type in application
+
+Do not create one giant god port.
+Do not duplicate accepted PaperStore/PaperTruth business rules in application.
+If a smaller set of ports fits the existing code better, use it, but preserve responsibility
+separation and the import boundary.
+
+===============================================================================
+5. MOVE CONCRETE RESPONSIBILITIES OUTWARD
+===============================================================================
+
+A. SQL / pinned release
+Move `_pinned_release` or equivalent SQLAlchemy query logic out of
+`application/observation_runner.py` into the infrastructure observation persistence adapter.
+Application receives a typed immutable pinned-release/domain result.
+
+B. DS-02 source registry / HTTP errors
+Move rights/source-registry access, PublicHTTP/Collector/DataStore concrete wiring and
+`SourceError` translation into infrastructure feed adapter(s).
+Expose a neutral typed readiness/failure result to application.
+Translate ONLY expected provider/source failures. Do NOT broadly catch security/identity,
+corruption/hash, programmer or unexpected failures.
+
+C. Concrete PAPER store/truth
+Application must not import concrete PAPER infrastructure. Create thin observation adapter(s)
+around accepted PaperStore/PaperTruth. Reuse accepted behavior; do not clone risk, reconciliation,
+journal, reservation or truth invariants.
+
+D. Causal simulator
+Move concrete `CausalPaperSimulator` behavior that requires PaperStore/PaperTruth to infrastructure.
+Pure deterministic calculations using immutable domain inputs may remain in domain/application.
+
+E. Composition root
+Wire application runner + concrete DS-02/persistence/PAPER/truth/simulator adapters only in an
+outer tool/CLI composition root. A tool/CLI may import both application and infrastructure.
+Application may not. Do not register/start the Windows task.
+
+===============================================================================
+6. PRESERVE ALL FROZEN CHECKPOINT B SEMANTICS
+===============================================================================
+
+This refactor MUST NOT change frozen ADR-023 / acceptance/runbook behavior:
+
+Actual feed:
+- DS-02 Binance market-data-only public endpoint;
+- BTCUSDT + ETHUSDT SPOT finalized 1m;
+- rights current and fail closed;
+- ENGINEERING_ONLY / personal nonproduction;
+- no execution/promotion entitlement;
+- no archive substitution/backfill.
+
+Causality:
+- preserve provider/raw/end/received/processing/availability timestamps;
+- no lookahead or fabricated bars;
+- claimed order at N fills only from later independently received truth.
+
+Fixture:
+- TEST_ONLY/PAPER_QUALIFICATION_FIXTURE/ENGINEERING_ONLY;
+- PAPER only;
+- production registry empty;
+- no Phase 3 strategy import/candidate/champion.
+
+Risk/execution:
+- all fills SIMULATED;
+- accepted PaperStore/PaperTruth rules remain authoritative;
+- no broker/Phase 5 capability.
+
+Daily qualification:
+- >=50 valid paired observations each symbol;
+- >=50-minute span;
+- no unexplained gap >120 seconds including edges;
+- exact source/rights/parser/version pins;
+- startup reconciliation;
+- no unresolved UNKNOWN at close;
+- no unexplained ledger mismatch;
+- deterministic replay;
+- immutable receipt/date ledger;
+- no double count/backfill.
+
+Campaign:
+- >=14 distinct genuine post-START Pakistan calendar dates;
+- first-to-last span >=14 days;
+- incomplete days do not count;
+- observation_days remains 0 in THIS prompt.
+
+Future schedule:
+- 21:00–22:00 Pakistan / 16:00–17:00 UTC;
+- task AuvexoAlpha-Paper-Observation;
+- definition only, NOT registered/started;
+- >15 sec late refuses; one instance; no catch-up/wake/highest privilege;
+- existing Phase 2 task untouched.
+
+Persistent observation DB:
+- auvexo_paperobs_<20hex> design;
+- direct pw/po/pt least-privilege LOGINs;
+- no admin pool/SET ROLE fallback;
+- no normal DEV migration;
+- no merged migration edits.
+
+===============================================================================
+7. FIX / TEST ORDER — FIRST THE EXACT FAILED BOUNDARY
+===============================================================================
+
+After the refactor run FIRST:
+`python -m pytest -q tests/test_boundaries.py::test_r019_p1_import_direction`
+
+It must PASS without modifying the test.
+
+Then prove:
+- application observation modules have no forbidden imports;
+- domain observation modules remain pure;
+- concrete adapters wire only at composition root;
+- application runner tests use fake ports with no DB/provider imports;
+- expected source error translation is narrow/typed;
+- unexpected/security/corruption failures are not swallowed;
+- pure simulator logic is side-effect free;
+- concrete storage/truth side effects remain infrastructure-only.
+
+===============================================================================
+8. RE-RUN ALL CHECKPOINT B FOCUSED EVIDENCE
+===============================================================================
+
+Historical baseline, not a fixed required count if legitimate tests are added:
+- 99 focused observation cases;
+- 70 observation real-PG cases;
+- 1 synthetic end-to-end PG pipeline.
+
+Rerun/extend schedule/date, source/symbol/stale/duplicate/out-of-order/gap/span, rights/parser/
+manifest pins, causal fills, immutable receipts/counter, 14-day off-by-one, fixture isolation,
+resource thresholds, task-definition constraints, observation DB direct identities, escalation/
+cross-scope denials, START/source forgery, wrong/revoked identity, and raw->Parquet->proposal->later
+fill->receipt->replay pipeline.
+
+No actual observation date may be credited.
+
+===============================================================================
+9. FULL INHERITED SAFETY / SECURITY REGRESSION
+===============================================================================
+
+Then rerun:
+- full real PostgreSQL PAPER correctness (historically 180);
+- full direct-LOGIN security (historically 111);
+- all prior material Phase 4 regressions: OPEN identity, rejection+fill contradiction, UNKNOWN
+  reservation, daily-loss latch, observed-mark freshness, lifecycle history, monotonic
+  reconciliation, privilege isolation, immutable journals, writer fencing, recovery.
+
+Any new material correctness/security/recovery failure => STOP.
+
+===============================================================================
+10. FULL SUITE / STATIC / RECOVERY
+===============================================================================
+
+Only after sections 7-9 pass:
+- full unskipped pytest;
+- Ruff format/check;
+- strict mypy;
+- docs/link/requirements;
+- AGENTS == CLAUDE byte-for-byte;
+- frozen ADR-023/acceptance/runbook hashes still match unless a genuine owner-reviewed amendment is
+  required; do not amend just for refactor;
+- migration/provisioning idempotence;
+- foundation/PAPER/data-research/observation recovery and replay;
+- source + full-history redacted Gitleaks;
+- high-signal secret scan;
+- hash-required dependency audit;
+- git diff --check.
+
+Do NOT rerun Checkpoint A performance benchmark.
+
+===============================================================================
+11. PHASE 2 / TIME PROTECTION
+===============================================================================
+
+At resume entry:
+- Oct18 = INCOMPLETE/MISSED_START
+- Oct19 = INCOMPLETE
+- genuine Phase 2 count = 0 in reviewed handoff
+- Oct20 result must not be invented
+
+Do not modify/retime/delete `AuvexoAlpha-PublicData-Daily`.
+If work reaches 22:45–23:20 Pakistan, pause heavy PG/recovery/stress work and give the collector
+priority. Inspect later evidence read-only; no catch-up/manual credit/backfill.
+
+===============================================================================
+12. PUBLIC REPOSITORY GOVERNANCE
+===============================================================================
+
+Repository remains PUBLIC under temporary exception; review due 2026-10-24.
+Do not change visibility/billing/permissions/runner settings.
+Do not commit raw observations/datasets, DB dumps, credentials, owner-machine identifiers,
+proprietary alpha or broker/session material.
+Before broker sessions/credentials or proprietary-alpha work: PRIVATE return or independently
+accepted owner-approved permanent-public superseding ADR remains mandatory.
+
+===============================================================================
+13. GIT / PUBLICATION — ONLY AFTER COMPLETE LOCAL PASS
+===============================================================================
+
+Do not push the dirty draft just to save it.
+Only after all local gates pass:
+1. inspect full diff from 9306f2d;
+2. confirm frozen B semantics unchanged;
+3. confirm application/domain boundary clean;
+4. coherent founder-authored commits;
+5. no AI coauthor/generated banner;
+6. no force/history rewrite;
+7. push `phase-4/paper-observation`;
+8. open exactly one PR to main, expected #6 if sequential;
+9. keep PR OPEN/UNMERGED;
+10. do NOT install/start observation task;
+11. do NOT create Phase 5 branch.
+
+===============================================================================
+14. EXACT-FINAL WINDOWS CLONE + HOSTED CI
+===============================================================================
+
+After final B commit(s):
+- exact-final Windows clean clone from committed B SHA;
+- full suite/statics/docs/scans as applicable;
+- no observation task activation / qualifying day.
+
+Then require exact-head GitHub Actions:
+- push run/job(s) completed/success with passing logs;
+- PR run/job(s) completed/success with passing logs;
+- exact B SHA.
+
+Do not reuse Checkpoint A CI as B evidence.
+If metadata/logs conflict, STOP and report.
+
+===============================================================================
+15. OPTIONAL DS-02 PREFLIGHT
+===============================================================================
+
+A live DS-02 preflight is NOT required to resolve this dependency stop.
+If the frozen B requirements genuinely benefit after all code/tests pass, at most one explicitly
+NON-COUNTING preflight may run with current rights, no key, no task registration, no observation
+credit, no historical credit and no Phase 2 protected-window interference.
+Otherwise skip it.
+
+===============================================================================
+16. REQUIRED NEXT HANDOFF
+===============================================================================
+
+Return one consolidated handoff with:
+1. verified merged main dbe3cd6...
+2. requirements-freeze HEAD 9306f2d...
+3. prior stopped + new dependency-resume recovery hashes
+4. exact R019 root cause
+5. port/adapter/composition refactor
+6. proof application has no DB/provider/infrastructure imports
+7. exact inherited boundary-test PASS
+8. architecture-focused regressions
+9. focused observation tests
+10. observation real-PG results
+11. synthetic E2E pipeline
+12. inherited PAPER correctness count
+13. direct-LOGIN security count
+14. full unskipped suite count
+15. Ruff/mypy/docs/instruction equality
+16. all restores/replay
+17. scans/audit/diff
+18. founder commits/final B SHA/clean tree
+19. exact-final Windows clone
+20. remote branch + PR number
+21. exact-head push/PR run/job IDs + log summaries
+22. frozen ADR-023/acceptance/runbook hashes
+23. current DS-02 rights status
+24. production registry empty / fixture non-promotable
+25. observation DB/direct-login design
+26. task definition + explicit NOT REGISTERED/NOT STARTED
+27. observation_days = 0
+28. no qualifying observation run
+29. current genuine Phase 2 count/evidence
+30. repository PUBLIC + Oct24 governance status
+31. no candidate/champion
+32. no Phase5/Exness/MT5/broker/DEMO/REAL orders
+33. request GPT-5.6 Sol exact-final-SHA review BEFORE task registration/START
+
+===============================================================================
+17. STOP CONDITIONS
+===============================================================================
+
+STOP if:
+- local preserved state/hash differs unexpectedly;
+- boundary fix requires weakening/changing test_r019_p1_import_direction;
+- application still imports concrete infrastructure/provider/DB types;
+- TYPE_CHECKING/dynamic/re-export tricks are needed;
+- refactor duplicates PaperStore/PaperTruth business logic;
+- provider failures are broadly swallowed;
+- frozen observation semantics must be relaxed;
+- rights are invalid/expired/unknown;
+- dates can backfill/double-count;
+- production promotion boundary regresses;
+- direct-login security regresses;
+- replay/receipt/UNKNOWN invariants fail;
+- existing Phase 4 correctness/security fails;
+- public Git would expose private/raw/proprietary material;
+- final clean clone or exact-head CI fails.
+
+FINAL GOAL:
+Correct the dependency direction honestly through ports/adapters/composition, complete the
+unpublished Checkpoint B harness verification, publish one OPEN/UNMERGED B PR for independent
+review, and keep the observation task NOT installed, NOT started, with observation_days = 0.

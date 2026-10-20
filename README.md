@@ -17,9 +17,17 @@ ACCEPTED/PASS at `e3f39e0397e1846c37febcebc246ea91c9f2eb78`; see its
 this scope. The 272.4386 ms concurrent stress tail remains THROTTLE_REQUIRED evidence;
 no benchmark rerun is authorized.
 Full Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days. Observation
-has not started; its counter is zero. The owner authorizes documentation-only
-acceptance/CI and normal PR #5 merge, then Checkpoint B harness implementation from
-verified merged main in `phase-4/paper-observation`. Persistent task registration,
+has not started; its counter is zero. PR #5 merged normally at
+`dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09` after exact-head acceptance CI.
+Checkpoint B engineering is independently ACCEPTED/PASS at
+`527bd23ce434fee557f6f1414bf5b43d7c3c3f21`; see its
+[acceptance record](docs/reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
+ADR-023 and its requirements/runbook are ACCEPTED/FROZEN, with original bytes retained.
+The owner authorizes documentation-only acceptance on PR #6, exact-head administrative
+CI and a verified normal merge, followed only by local PREPARATION from merged main under
+the [pre-start brief](docs/reference/PHASE_4_CHECKPOINT_B_PRESTART_BRIEF.txt) and frozen
+[ADR-023](docs/adr/023-paper-observation-qualification.md) and
+[requirements](docs/phase4/OBSERVATION_ACCEPTANCE.md). Persistent task registration,
 observation START, Phase 5 and broker/money capability remain unauthorized.
 Foundation execution remains disabled in every mode; all money actions denied.
 
@@ -44,5 +52,5 @@ git diff --check
 
 These checks validate repository documents, not future trading safety or profitability.
 The accepted engineering source and documentation-only administrative child follow
-the checked merge sequence in the acceptance record. Checkpoint B needs independent
-exact-SHA review and separate owner START authorization before observation begins.
+the checked merge sequence in the acceptance record. The merged SHA and prepared local
+hashes require pre-start review and separate owner START before activation or observation.
