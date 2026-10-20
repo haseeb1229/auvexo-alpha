@@ -1,5 +1,15 @@
 # Auvexo Alpha
 
+Phase 5 offline foundation is independently ACCEPTED/PASS at `82601fa80a711ce3de66b4b8289ac0f9b679b298`;
+see the [independent acceptance](docs/reviews/PHASE_5_OFFLINE_FOUNDATION_INDEPENDENT_ACCEPTANCE.md).
+ADR-024 is ACCEPTED/FROZEN for offline engineering; its original document bytes remain retained.
+Actual Phase 5 commissioning NOT STARTED; sustained-demo clock zero and execution disabled.
+Owner-selected long-term repository disposition is PRIVATE; verified entry remains PUBLIC,
+so the temporary exception and 2026-10-24 governance gate remain active. No settings change.
+Current authority is docs-only PR #7 acceptance, exact-head CI, then verified NORMAL merge;
+only afterward may separate-clone Phase 7 read-only foundation begin under its new frozen ADR.
+The active Phase 4 operational release remains separately pinned to `9b9038b` and untouched.
+
 Phase4 engineering is independently accepted; actual-feed observation is ACTIVE on the
 separate pinned operational checkout at `9b9038b6966843805c99f15e1c37cdba7c026679`.
 Full Phase4 remains OPEN pending genuine dates/span/replay/zero mismatch. The separate
