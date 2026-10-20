@@ -3,6 +3,7 @@
 PR #7 is normally merged at `1d6b08fc36884f1bc4845ac54111776d80df056b` after both
 administrative CI events/jobs/logs passed1594tests at `14254170de2fa3b7acd0f7edcd6e2a0211de5144`.
 Its executable tree equals the accepted source. Development is now on the separate Phase7 branch.
+Read-only implementation is a tested draft; full-suite/clean-clone/publication gates remain pending.
 The [read-only foundation design](adr/025-read-only-private-operator-terminal.md),
 [requirements](phase7/READ_ONLY_ACCEPTANCE.md) and [runbook](phase7/READ_ONLY_RUNBOOK.md)
 are FROZEN before implementation with the explicit data-free static-shell exception; all APIs remain protected.
@@ -14,8 +15,8 @@ ADR-024 is ACCEPTED/FROZEN for offline engineering; its original document bytes 
 Actual Phase 5 commissioning NOT STARTED; sustained-demo clock zero and execution disabled.
 Owner-selected long-term repository disposition is PRIVATE; verified entry remains PUBLIC,
 so the temporary exception and 2026-10-24 governance gate remain active. No settings change.
-Current authority is docs-only PR #7 acceptance, exact-head CI, then verified NORMAL merge;
-only afterward may separate-clone Phase 7 read-only foundation begin under its new frozen ADR.
+PR #7 administrative acceptance/CI/NORMAL merge are complete; separate-clone Phase 7 foundation
+is authorized under frozen ADR025. Its new PR must remain OPEN/UNMERGED after final verification.
 The active Phase 4 operational release remains separately pinned to `9b9038b` and untouched.
 
 Phase4 engineering is independently accepted; actual-feed observation is ACTIVE on the
@@ -128,3 +129,6 @@ approval to continue publicly or authority for an agent to flip visibility. Rele
 (protected main/release or equivalent and CI-bound manifest/tag) is required before Phase 8.
 Tax/statement/recordkeeping and current legal/data-use eligibility require external owner/professional
 disposition, without agent legal, tax or religious conclusions.
+
+Read-only terminal [implementation checkpoint](phase7/READ_ONLY_IMPLEMENTATION.md) records
+focused results and pending verification without claiming operational or independent acceptance.

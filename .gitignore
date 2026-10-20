@@ -27,3 +27,6 @@ Thumbs.db
 build/
 .coverage
 htmlcov/
+
+# Frontend generated artifacts
+web/operator-terminal/dist/

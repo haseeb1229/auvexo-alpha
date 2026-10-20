@@ -1,7 +1,7 @@
 name: foundation
 on:
   push:
-    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data, phase-3/backtest-simple-alpha, phase-4/strategy-risk-paper, phase-4/paper-observation, phase-5/offline-execution-foundation]
+    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data, phase-3/backtest-simple-alpha, phase-4/strategy-risk-paper, phase-4/paper-observation, phase-5/offline-execution-foundation, phase-7/read-only-operator-terminal-foundation]
   pull_request:
     branches: [main]
 permissions:
@@ -49,4 +49,17 @@ jobs:
       - run: uv run --frozen python tools/secret_scan.py
       - run: uv export --frozen --all-groups --no-emit-project --output-file requirements-audit.txt
       - run: uv run --frozen pip-audit --disable-pip --require-hashes -r requirements-audit.txt
+      - run: git diff --exit-code
+      - run: npm ci --ignore-scripts --no-fund
+        working-directory: web/operator-terminal
+      - run: npm run typecheck
+        working-directory: web/operator-terminal
+      - run: npm run lint
+        working-directory: web/operator-terminal
+      - run: npm test
+        working-directory: web/operator-terminal
+      - run: npm run build
+        working-directory: web/operator-terminal
+      - run: npm audit --audit-level=high
+        working-directory: web/operator-terminal
       - run: git diff --exit-code

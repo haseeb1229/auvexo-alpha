@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { resolve, dirname, relative, extname } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -8,6 +9,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
 const check = (condition, message) => { if (!condition) errors.push(message); };
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
+const trackedNames = execFileSync('git', ['-c', `safe.directory=${root.replaceAll('\\', '/')}`, 'ls-files', '-z'], { cwd: root }).toString().split('\0');
+check(!trackedNames.some(p => /(^|\/)(node_modules|dist)(\/|$)/.test(p)), 'Generated frontend dependencies/build must never be tracked');
 const required = [
   'README.md', 'AGENTS.md', 'CLAUDE.md', '.gitignore', '.gitattributes',
   'docs/README.md', 'docs/PRODUCT_CONSTITUTION.md', 'docs/REQUIREMENTS_REGISTER.md',
@@ -75,7 +78,7 @@ check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHA
 const files = [];
 function walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    if (['.git', '.local', '.venv', '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache', '.hypothesis', 'build', 'dist'].includes(entry.name) || entry.name.endsWith('.egg-info')) continue;
+    if (['.git', '.local', '.venv', 'node_modules', '__pycache__', '.pytest_cache', '.mypy_cache', '.ruff_cache', '.hypothesis', 'build', 'dist'].includes(entry.name) || entry.name.endsWith('.egg-info')) continue;
     const full = resolve(dir, entry.name);
     if (entry.isDirectory()) walk(full);
     else files.push(relative(root, full).replaceAll('\\', '/'));
@@ -135,7 +138,8 @@ for (let i = 0; i <= 9; i++) {
 }
 for (const path of files) {
   const allowed = ['.md', '.txt', '.py', '.toml', '.ps1', '.json', '.yml', '.yaml', '.ini', '.mako'].includes(extname(path)) || ['.gitignore', '.gitattributes', '.python-version', 'uv.lock', 'tools/check-docs.mjs', 'src/auvexo_alpha/py.typed'].includes(path);
-  check(allowed, `Unexpected repository file: ${path}`);
+  const frontendSource = /^web\/operator-terminal\/(src\/|tests\/|vite\.config\.ts$|index\.html$)/.test(path) && ['.ts', '.tsx', '.css', '.html'].includes(extname(path));
+  check(allowed || frontendSource, `Unexpected repository file: ${path}`);
   check(statSync(resolve(root, path)).size < 1_000_000, `Unexpected large file: ${path}`);
   if (['.md', '.txt'].includes(extname(path))) {
     // High-signal patterns only; this does not replace a full secret scanner in Phase 1.

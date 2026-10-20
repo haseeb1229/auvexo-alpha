@@ -1,0 +1,667 @@
+{
+  "$defs": {
+    "Freshness": {
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "AVAILABLE",
+            "UNKNOWN",
+            "UNAVAILABLE",
+            "STALE"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed At"
+        },
+        "provenance": {
+          "enum": [
+            "LOCAL_DIAGNOSTICS",
+            "UNCONNECTED",
+            "ISOLATED_SYNTHETIC_PAPER",
+            "REVIEWED_ENGINEERING"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "CURRENT",
+            "NOT_CONNECTED",
+            "READ_UNAVAILABLE",
+            "SOURCE_STALE",
+            "REVIEWED_SUMMARY"
+          ],
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "state",
+        "provenance",
+        "reason"
+      ],
+      "title": "Freshness",
+      "type": "object"
+    },
+    "JournalEvent": {
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "observed_at": {
+          "format": "date-time",
+          "title": "Observed At",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "AUTHORIZED",
+            "DENIED",
+            "RECONCILED",
+            "KILL_CHANGED",
+            "OTHER_RECORDED_EVENT"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "intent_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Intent Hash"
+        },
+        "evidence_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Evidence Hash",
+          "type": "string"
+        },
+        "decision_hash": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Hash"
+        }
+      },
+      "required": [
+        "sequence",
+        "observed_at",
+        "reason",
+        "evidence_hash"
+      ],
+      "title": "JournalEvent",
+      "type": "object"
+    },
+    "JournalView": {
+      "additionalProperties": false,
+      "properties": {
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        },
+        "events": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/JournalEvent"
+          },
+          "maxItems": 100,
+          "title": "Events",
+          "type": "array"
+        }
+      },
+      "required": [
+        "freshness"
+      ],
+      "title": "JournalView",
+      "type": "object"
+    },
+    "PaperView": {
+      "additionalProperties": false,
+      "properties": {
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        },
+        "balance": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Balance"
+        },
+        "equity": {
+          "anyOf": [
+            {
+              "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Equity"
+        },
+        "currency": {
+          "anyOf": [
+            {
+              "enum": [
+                "USD",
+                "UNCLASSIFIED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Currency"
+        },
+        "kill": {
+          "anyOf": [
+            {
+              "enum": [
+                "K0",
+                "K1",
+                "K2",
+                "K3",
+                "K4"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Kill"
+        },
+        "reconciled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reconciled"
+        },
+        "unknown_orders": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Unknown Orders"
+        },
+        "active_reservations": {
+          "anyOf": [
+            {
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Reservations"
+        },
+        "reservations": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ReservationView"
+          },
+          "maxItems": 100,
+          "title": "Reservations",
+          "type": "array"
+        },
+        "positions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PositionView"
+          },
+          "maxItems": 100,
+          "title": "Positions",
+          "type": "array"
+        },
+        "pending": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/PendingView"
+          },
+          "maxItems": 100,
+          "title": "Pending",
+          "type": "array"
+        }
+      },
+      "required": [
+        "freshness"
+      ],
+      "title": "PaperView",
+      "type": "object"
+    },
+    "PendingView": {
+      "additionalProperties": false,
+      "properties": {
+        "intent_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Intent Hash",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "RESERVED",
+            "SENT_PENDING",
+            "ACKNOWLEDGED",
+            "UNKNOWN",
+            "PARTIALLY_FILLED"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent_hash",
+        "state"
+      ],
+      "title": "PendingView",
+      "type": "object"
+    },
+    "PositionView": {
+      "additionalProperties": false,
+      "properties": {
+        "position_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Position Hash",
+          "type": "string"
+        },
+        "instrument": {
+          "enum": [
+            "BTCUSDT",
+            "ETHUSDT",
+            "UNCLASSIFIED"
+          ],
+          "title": "Instrument",
+          "type": "string"
+        },
+        "quantity": {
+          "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+          "title": "Quantity",
+          "type": "string"
+        },
+        "entry_price": {
+          "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+          "title": "Entry Price",
+          "type": "string"
+        },
+        "mark_price": {
+          "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+          "title": "Mark Price",
+          "type": "string"
+        }
+      },
+      "required": [
+        "position_hash",
+        "instrument",
+        "quantity",
+        "entry_price",
+        "mark_price"
+      ],
+      "title": "PositionView",
+      "type": "object"
+    },
+    "QualificationView": {
+      "additionalProperties": false,
+      "properties": {
+        "phase2": {
+          "const": "OPERATIONAL_OPEN",
+          "default": "OPERATIONAL_OPEN",
+          "title": "Phase2",
+          "type": "string"
+        },
+        "phase2_days": {
+          "anyOf": [
+            {
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase2 Days"
+        },
+        "phase4": {
+          "const": "OBSERVATION_ACTIVE_OPERATIONAL_OPEN",
+          "default": "OBSERVATION_ACTIVE_OPERATIONAL_OPEN",
+          "title": "Phase4",
+          "type": "string"
+        },
+        "phase4_days": {
+          "anyOf": [
+            {
+              "maximum": 10000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Phase4 Days"
+        },
+        "task": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Task",
+          "type": "string"
+        },
+        "phase5": {
+          "const": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
+          "default": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
+          "title": "Phase5",
+          "type": "string"
+        },
+        "ds03": {
+          "const": "BLOCKED",
+          "default": "BLOCKED",
+          "title": "Ds03",
+          "type": "string"
+        },
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        }
+      },
+      "required": [
+        "freshness"
+      ],
+      "title": "QualificationView",
+      "type": "object"
+    },
+    "ResearchView": {
+      "additionalProperties": false,
+      "properties": {
+        "outcomes": {
+          "default": [
+            "INCONCLUSIVE",
+            "INCONCLUSIVE",
+            "INCONCLUSIVE",
+            "INCONCLUSIVE"
+          ],
+          "maxItems": 4,
+          "minItems": 4,
+          "prefixItems": [
+            {
+              "const": "INCONCLUSIVE",
+              "type": "string"
+            },
+            {
+              "const": "INCONCLUSIVE",
+              "type": "string"
+            },
+            {
+              "const": "INCONCLUSIVE",
+              "type": "string"
+            },
+            {
+              "const": "INCONCLUSIVE",
+              "type": "string"
+            }
+          ],
+          "title": "Outcomes",
+          "type": "array"
+        },
+        "oos": {
+          "const": "BOTH_CONSUMED_FOREVER",
+          "default": "BOTH_CONSUMED_FOREVER",
+          "title": "Oos",
+          "type": "string"
+        },
+        "candidate": {
+          "const": "NONE",
+          "default": "NONE",
+          "title": "Candidate",
+          "type": "string"
+        },
+        "champion": {
+          "const": "NONE",
+          "default": "NONE",
+          "title": "Champion",
+          "type": "string"
+        },
+        "scope": {
+          "const": "REVIEWED_NONPRODUCTION_SUMMARY",
+          "default": "REVIEWED_NONPRODUCTION_SUMMARY",
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "title": "ResearchView",
+      "type": "object"
+    },
+    "ReservationView": {
+      "additionalProperties": false,
+      "properties": {
+        "intent_hash": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Intent Hash",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "ACTIVE",
+            "PARTIAL",
+            "UNKNOWN",
+            "RELEASED"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "instrument": {
+          "enum": [
+            "BTCUSDT",
+            "ETHUSDT",
+            "UNCLASSIFIED"
+          ],
+          "title": "Instrument",
+          "type": "string"
+        },
+        "quantity": {
+          "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+          "title": "Quantity",
+          "type": "string"
+        },
+        "notional": {
+          "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+          "title": "Notional",
+          "type": "string"
+        },
+        "modeled_loss": {
+          "pattern": "^-?(0|[1-9][0-9]{0,17})(\\.[0-9]{1,18})?$",
+          "title": "Modeled Loss",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intent_hash",
+        "state",
+        "instrument",
+        "quantity",
+        "notional",
+        "modeled_loss"
+      ],
+      "title": "ReservationView",
+      "type": "object"
+    },
+    "SystemView": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1",
+          "default": "1",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 32,
+          "pattern": "^[0-9.]+$",
+          "title": "Version",
+          "type": "string"
+        },
+        "build": {
+          "const": "PHASE7_READ_ONLY_FOUNDATION",
+          "default": "PHASE7_READ_ONLY_FOUNDATION",
+          "title": "Build",
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "RESEARCH",
+            "BACKTEST",
+            "PAPER",
+            "DEMO",
+            "SHADOW",
+            "LIVE_LIMITED",
+            "LIVE"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "policy": {
+          "const": "phase1.disabled.v1",
+          "default": "phase1.disabled.v1",
+          "title": "Policy",
+          "type": "string"
+        },
+        "execution_enabled": {
+          "const": false,
+          "default": false,
+          "title": "Execution Enabled",
+          "type": "boolean"
+        },
+        "live_authority": {
+          "const": "LOCKED",
+          "default": "LOCKED",
+          "title": "Live Authority",
+          "type": "string"
+        },
+        "api": {
+          "const": "ALIVE",
+          "default": "ALIVE",
+          "title": "Api",
+          "type": "string"
+        },
+        "database": {
+          "enum": [
+            "READY",
+            "NOT_READY"
+          ],
+          "title": "Database",
+          "type": "string"
+        },
+        "source": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Source",
+          "type": "string"
+        },
+        "gateway": {
+          "const": "SYNTHETIC_OFFLINE_ACCEPTED",
+          "default": "SYNTHETIC_OFFLINE_ACCEPTED",
+          "title": "Gateway",
+          "type": "string"
+        },
+        "freshness": {
+          "$ref": "#/$defs/Freshness"
+        }
+      },
+      "required": [
+        "version",
+        "mode",
+        "database",
+        "freshness"
+      ],
+      "title": "SystemView",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "contract_version": {
+      "const": "1",
+      "default": "1",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "system": {
+      "$ref": "#/$defs/SystemView"
+    },
+    "qualification": {
+      "$ref": "#/$defs/QualificationView"
+    },
+    "paper": {
+      "$ref": "#/$defs/PaperView"
+    },
+    "research": {
+      "$ref": "#/$defs/ResearchView"
+    },
+    "journal": {
+      "$ref": "#/$defs/JournalView"
+    }
+  },
+  "required": [
+    "system",
+    "qualification",
+    "paper",
+    "research",
+    "journal"
+  ],
+  "title": "TerminalSnapshot",
+  "type": "object"
+}
