@@ -10,9 +10,13 @@ as THROTTLE_REQUIRED evidence; no benchmark rerun is authorized.
 Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
 replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
 its counter remains zero. PR #5 merged normally at dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09
-after exact-head administrative CI. Checkpoint B implementation proceeds from that main
-in `phase-4/paper-observation` under [ADR-023](adr/023-paper-observation-qualification.md).
-Exact-SHA independent review and separate owner START remain pending. No persistent task
+after exact-head administrative CI. Checkpoint B engineering is independently
+ACCEPTED/PASS at `527bd23ce434fee557f6f1414bf5b43d7c3c3f21`; see its
+[acceptance record](reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
+[ADR-023](adr/023-paper-observation-qualification.md) and its requirements/runbook are
+ACCEPTED/FROZEN; original bytes retained. Docs-only PR #6 acceptance, exact-head admin CI
+and verified normal merge authorize local PREPARATION only. Merged-SHA/prepared-hash review
+and separate owner START remain pending. No persistent task
 registration/START, Phase 5, broker or money authority follows from this acceptance.
 
 Phase 2 B/C remains OPEN: October 18/19 INCOMPLETE, genuine qualified scheduled dates

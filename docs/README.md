@@ -10,8 +10,13 @@ as THROTTLE_REQUIRED evidence; no benchmark rerun is authorized.
 Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
 replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
 its counter remains zero. PR #5 merged normally at dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09
-after exact-head administrative CI. Checkpoint B harness implementation now proceeds
-from that main in `phase-4/paper-observation` under frozen
+after exact-head administrative CI. Checkpoint B engineering is independently
+ACCEPTED/PASS at `527bd23ce434fee557f6f1414bf5b43d7c3c3f21`; see its
+[acceptance record](reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
+ADR-023 and its requirements/runbook are ACCEPTED/FROZEN with unchanged original bytes.
+Docs-only PR #6 acceptance, exact-head admin CI and verified normal merge authorize
+local PREPARATION only under the [pre-start brief](reference/PHASE_4_CHECKPOINT_B_PRESTART_BRIEF.txt)
+and frozen
 [ADR-023](adr/023-paper-observation-qualification.md),
 [requirements](phase4/OBSERVATION_ACCEPTANCE.md) and
 [runbook](phase4/OBSERVATION_RUNBOOK.md). No persistent task

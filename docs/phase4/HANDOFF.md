@@ -11,12 +11,21 @@ replay evidence and zero unexplained ledger mismatches. Observation has NOT star
 its counter is zero. Acceptance commit e39d590caa008608d0dbd543418021f0e6fcd10b passed
 both administrative CI events. PR #5 merged normally at
 dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09 with its required parents verified.
-Checkpoint B implementation now proceeds from that main on phase-4/paper-observation
-under [ADR-023](../adr/023-paper-observation-qualification.md), frozen
+Checkpoint B engineering is independently ACCEPTED/PASS at
+`527bd23ce434fee557f6f1414bf5b43d7c3c3f21`; its
+[acceptance record](../reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md) records
+the supplied GPT-5.6 Sol review and exact source/CI evidence. ADR-023 and the requirements/
+runbook are ACCEPTED/FROZEN with original bytes unchanged. Current authority is docs-only
+PR #6 acceptance, exact-head administrative CI, verified normal merge, then local
+PREPARATION only on merged main under the
+[pre-start brief](../reference/PHASE_4_CHECKPOINT_B_PRESTART_BRIEF.txt),
+[ADR-023](../adr/023-paper-observation-qualification.md), frozen
 [requirements](OBSERVATION_ACCEPTANCE.md) and [future runbook](OBSERVATION_RUNBOOK.md).
-Its independent review and separate owner START remain pending; no task registration.
+Merged-SHA/prepared-hash review and separate owner START remain pending; no activation
+or task registration. Activation, scheduled runs, qualifying receipts and genuine dates stay zero.
 See the Checkpoint B [implementation map](OBSERVATION_IMPLEMENTATION.md) for the
 current observation-harness components and non-counting verification scope.
+The Checkpoint A delivery and its original transition sequence below remain historical.
 
 ## Implemented scope and preserved safety
 

@@ -46,8 +46,11 @@ no tradable champion. Phase 4 Checkpoint A engineering is independently accepted
 e3f39e0397e1846c37febcebc246ea91c9f2eb78; see its
 [acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md).
 Full Phase 4 remains OPEN for >=14 actual-feed PAPER calendar days and replay/ledger proof.
-After the authorized documentation-only acceptance/CI and verified normal PR #5 merge,
-only Checkpoint B harness implementation may begin under its separate scoped brief.
+Checkpoint B engineering is independently accepted at
+527bd23ce434fee557f6f1414bf5b43d7c3c3f21; see its
+[acceptance record](reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
+Documentation-only acceptance/CI and verified normal PR #6 merge authorize local
+PREPARATION only. Merged-SHA/prepared-hash review and separate owner START are required.
 Persistent PAPER observation/14-day counting has not started and requires separate START
 authorization after review. No Phase 5, broker account/credentials/transport, DEMO/REAL orders,
 live permit issuer, runtime agents, frontend or paid service. All money modes remain denied.
