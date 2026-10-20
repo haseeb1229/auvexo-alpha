@@ -1,23 +1,36 @@
 # Decision and external gate register
 
+Phase4 engineering is independently accepted; actual-feed observation is ACTIVE on the
+separate pinned operational checkout at `9b9038b6966843805c99f15e1c37cdba7c026679`.
+Full Phase4 remains OPEN pending genuine dates/span/replay/zero mismatch. The separate
+development clone is authorized only for Phase5 OFFLINE/PRE-COMMISSIONING engineering
+under [ADR-024](adr/024-parallel-operational-release-and-engineering.md) and [offline requirements](phase5/OFFLINE_ACCEPTANCE.md).
+Actual Phase5 commissioning and sustained-demo evidence are NOT STARTED. Broker
+SDK/session/order capability is absent; no credentials or money authority. Phase2 full
+operational OPEN/DS03 BLOCKED; Phase3 four INCONCLUSIVE outcomes, both OOS consumed,
+no candidate/champion. PUBLIC governance review due2026-10-24 and DS02 rights review
+due2026-11-16 remain unwaived. Never alter/repoint the operational checkout/task/config/
+activation from this development lane. Dated handoffs retain their original historical facts.
+
 Phase 4 Checkpoint A engineering is independently ACCEPTED/PASS at
 `e3f39e0397e1846c37febcebc246ea91c9f2eb78` by GPT-5.6 Sol. See the
 [acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md) and
-[current handoff](phase4/HANDOFF.md). ADR-015 through ADR-022 are ACCEPTED/FROZEN
+[Checkpoint A handoff](phase4/HANDOFF.md). ADR-015 through ADR-022 are ACCEPTED/FROZEN
 for this engineering scope. ADR-022 retains the 272.4386 ms concurrent stress tail
 as THROTTLE_REQUIRED evidence; no benchmark rerun is authorized.
 
 Full canonical Phase 4 remains OPEN pending >=14 actual-feed PAPER calendar days,
-replay evidence and zero unexplained ledger mismatches. Observation has NOT started;
-its counter remains zero. PR #5 merged normally at dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09
+replay evidence and zero unexplained ledger mismatches. Observation is ACTIVE on the
+separately pinned operational checkout; this development lane earns no qualifying dates. PR #5 merged normally at dbe3cd6f47bf5a48c044df2f36cba5ea7081ca09
 after exact-head administrative CI. Checkpoint B engineering is independently
 ACCEPTED/PASS at `527bd23ce434fee557f6f1414bf5b43d7c3c3f21`; see its
 [acceptance record](reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
 [ADR-023](adr/023-paper-observation-qualification.md) and its requirements/runbook are
-ACCEPTED/FROZEN; original bytes retained. Docs-only PR #6 acceptance, exact-head admin CI
-and verified normal merge authorize local PREPARATION only. Merged-SHA/prepared-hash review
-and separate owner START remain pending. No persistent task
-registration/START, Phase 5, broker or money authority follows from this acceptance.
+ACCEPTED/FROZEN; original bytes retained. PR #6 merged normally at
+`9b9038b6966843805c99f15e1c37cdba7c026679`. Preparation and separate owner START have
+completed; the operational campaign and registered task remain pinned there. ADR-024
+permits only separate-clone offline engineering; actual Phase 5 commissioning, broker
+capability and money authority remain blocked.
 
 Phase 2 B/C remains OPEN: October 18/19 INCOMPLETE, genuine qualified scheduled dates
 zero, DS-03/Exness blocked. Phase 3 remains independently accepted at bb692208 with

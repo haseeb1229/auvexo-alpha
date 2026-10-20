@@ -98,6 +98,17 @@ proprietary alpha work, independent review must resolve PRIVATE return or an own
 permanent-public superseding ADR. Vision-derived results remain nonproduction research;
 future experiments/releases require typed source-specific data-use eligibility.
 
+Current development authority supersedes prior Phase5 engineering prohibitions only for
+OFFLINE/PRE-COMMISSIONING work in this separate development clone under ADR-024 and
+docs/reference/PHASE_5_OFFLINE_BRIEF.txt. Active Phase4 campaign is pinned at 9b9038b
+in its separate operational checkout; task/config/activation/receipts unchanged. No code/Git
+writes there. Actual Phase5 commissioning, broker SDK/terminal/session/credentials/DS03,
+DEMO/REAL orders, live permits and money remain prohibited. Only fake/synthetic adapters.
+Freeze ADR024 and OF requirements before implementation; reuse PAPER core without
+weakening PAPER-only guards. PR stays OPEN/UNMERGED for independent exact-SHA review.
+No heavy work 20:45-22:15 Pakistan; no heavy DB/recovery/clone 22:45-23:20 Pakistan.
+Runtime AI/frontend/paid service/promotion remain excluded; PUBLIC Oct24 gate unchanged.
+
 Before changes, read [constitution](docs/PRODUCT_CONSTITUTION.md),
 [architecture](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md),
 [engineering rules](docs/engineering/ENGINEERING_RULES.md), and the current

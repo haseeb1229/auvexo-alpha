@@ -1,5 +1,17 @@
 # Product constitution
 
+Phase4 engineering is independently accepted; actual-feed observation is ACTIVE on the
+separate pinned operational checkout at `9b9038b6966843805c99f15e1c37cdba7c026679`.
+Full Phase4 remains OPEN pending genuine dates/span/replay/zero mismatch. The separate
+development clone is authorized only for Phase5 OFFLINE/PRE-COMMISSIONING engineering
+under [ADR-024](adr/024-parallel-operational-release-and-engineering.md) and [offline requirements](phase5/OFFLINE_ACCEPTANCE.md).
+Actual Phase5 commissioning and sustained-demo evidence are NOT STARTED. Broker
+SDK/session/order capability is absent; no credentials or money authority. Phase2 full
+operational OPEN/DS03 BLOCKED; Phase3 four INCONCLUSIVE outcomes, both OOS consumed,
+no candidate/champion. PUBLIC governance review due2026-10-24 and DS02 rights review
+due2026-11-16 remain unwaived. Never alter/repoint the operational checkout/task/config/
+activation from this development lane. Dated handoffs retain their original historical facts.
+
 Status: Phase 0 architecture baseline independently accepted; Phase 1 accepted and merged.
 The 2026-10-17 [ADR-013](adr/013-source-specific-acceptance.md) amendment is independently
 accepted at `bdae1a1978ecfe26c201074fe12e81f2c654a4af`; see the
@@ -31,7 +43,7 @@ changes an environment's authority. LIVE requires independent signed release per
 step-up owner activation, account attestation and all readiness gates.
 
 Initial execution target is future Exness MT5 demo qualification. Exness real remains
-locked. Binance public spot/derivatives intelligence is allowed; paper is future scope;
+locked. Binance public spot/derivatives intelligence is allowed; virtual PAPER is implemented;
 full account adapter is later scope; Binance live derivatives are BLOCKED_BY_POLICY.
 Bybit/OKX are optional intelligence sources. No financial or religious conclusion is
 embedded in domain code; eligibility lives in a versioned policy registry.
@@ -49,11 +61,12 @@ Full Phase 4 remains OPEN for >=14 actual-feed PAPER calendar days and replay/le
 Checkpoint B engineering is independently accepted at
 527bd23ce434fee557f6f1414bf5b43d7c3c3f21; see its
 [acceptance record](reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
-Documentation-only acceptance/CI and verified normal PR #6 merge authorize local
-PREPARATION only. Merged-SHA/prepared-hash review and separate owner START are required.
-Persistent PAPER observation/14-day counting has not started and requires separate START
-authorization after review. No Phase 5, broker account/credentials/transport, DEMO/REAL orders,
-live permit issuer, runtime agents, frontend or paid service. All money modes remain denied.
+PR #6 merged normally at `9b9038b6966843805c99f15e1c37cdba7c026679`.
+Preparation and separate owner START have completed; the operational campaign and
+registered task remain pinned there. Full Phase 4 remains OPEN and development earns
+no qualifying dates. ADR-024 permits only separate-clone offline engineering; actual
+Phase 5 commissioning, broker account/credentials/transport, DEMO/REAL orders, live permit
+issuer, runtime agents, frontend or paid service remain blocked. All money modes remain denied.
 
 Decision meanings: FROZEN means an accepted design requiring a superseding ADR to change;
 PROVISIONAL means a selected direction with a named validation gate; DEFERRED means no

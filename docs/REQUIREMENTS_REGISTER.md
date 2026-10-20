@@ -104,3 +104,11 @@ Phase 3 refines the same parent IDs through [stable child requirements](phase3/A
 under [ADR-014](adr/014-nonproduction-research.md). No Phase 1/2 safety proof is retired.
 
 Phase 4 Checkpoint A refines existing parents through [frozen child requirements](phase4/ACCEPTANCE_TESTS.md) under [ADR-015](adr/015-paper-risk-core.md). No persistent observation or operational acceptance is inferred.
+
+## Parallel offline engineering amendment (2026-10-20)
+
+[ADR-024](adr/024-parallel-operational-release-and-engineering.md) and
+[OF-01 through OF-12](phase5/OFFLINE_ACCEPTANCE.md) scope R-003/R-006/R-008/R-018/
+R-021/R-022/R-023/R-024/R-029/R-031/R-035 for separate-clone synthetic execution foundations.
+No original numeric/calendar/activation gate is relaxed. Actual Phase5 commissioning,
+DS03/broker connection and money permission remain blocked; no Phase4 credit from tests.
