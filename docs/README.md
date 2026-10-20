@@ -1,5 +1,13 @@
 # Project document index
 
+PR #7 is normally merged at `1d6b08fc36884f1bc4845ac54111776d80df056b` after both
+administrative CI events/jobs/logs passed1594tests at `14254170de2fa3b7acd0f7edcd6e2a0211de5144`.
+Its executable tree equals the accepted source. Development is now on the separate Phase7 branch.
+The [read-only foundation design](adr/025-read-only-private-operator-terminal.md),
+[requirements](phase7/READ_ONLY_ACCEPTANCE.md) and [runbook](phase7/READ_ONLY_RUNBOOK.md)
+are DRAFT/NOTFROZEN pending browser-bootstrap authentication disposition; no executable work yet.
+The active operational checkout remains clean/pinned9b9038b; no broker/money/commissioning authority.
+
 Phase 5 offline foundation is independently ACCEPTED/PASS at `82601fa80a711ce3de66b4b8289ac0f9b679b298`;
 see the [independent acceptance](reviews/PHASE_5_OFFLINE_FOUNDATION_INDEPENDENT_ACCEPTANCE.md).
 ADR-024 is ACCEPTED/FROZEN for offline engineering; its original document bytes remain retained.

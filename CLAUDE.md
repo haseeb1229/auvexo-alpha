@@ -127,6 +127,13 @@ stop before any long heavy step that cannot fit; record PROTECTED_WINDOW_PENDING
 Prior frontend prohibition is superseded only after the verified merge for this scoped
 read-only foundation. Broker/DS03/credentials/orders/permits/AI/promotion remain prohibited.
 
+PR #7 NORMAL merge verified at1d6b08fc36884f1bc4845ac54111776d80df056b with ordered parents
+9b9038b6966843805c99f15e1c37cdba7c026679 and14254170de2fa3b7acd0f7edcd6e2a0211de5144.
+Both administrative CI events/jobs/logs passed1594tests. Phase7 branch exists separately.
+ADR025/read-only requirements/runbook are DRAFT, NOT FROZEN pending owner browser-bootstrap
+authentication disposition. No executable Phase7 work before freeze. Existing bearer protection
+must not be weakened without explicit disposition. Active runtime stays9b9038b unchanged.
+
 Before changes, read [constitution](docs/PRODUCT_CONSTITUTION.md),
 [architecture](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md),
 [engineering rules](docs/engineering/ENGINEERING_RULES.md), and the current
