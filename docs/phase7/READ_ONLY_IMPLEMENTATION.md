@@ -57,7 +57,11 @@ responsive layouts, semantic tables/labels/landmarks, focus outlines, keyboard n
 skip link and reduced-motion rules. [Dependency/notice inventory](../../web/operator-terminal/THIRD_PARTY_NOTICES.md)
 records exact direct/transitive versions/licenses and preserved packaged/upstream notices.
 Node24.20.0/built-in npm11.19.0, exact direct versions and committed npm lock are required.
-Generated node_modules/dist stay ignored. Docs QA now recognizes only the contained frontend
+Generated node_modules/dist stay ignored. Scoped Git attributes force LF for frontend
+TypeScript/TSX/CSS/HTML on Windows and Linux, matching the unchanged formatter. The first
+exact-source Windows clone passed1661Python tests but exposed CRLF checkout lint failures;
+its logs/source were retained, and the checkout policy was corrected in a forward commit
+before a new exact-final clone. Docs QA now recognizes only the contained frontend
 source extensions and rejects tracked generated dependencies/builds; inherited link/requirements/
 ADR/phase/size/secret checks remain intact. Existing CI gates/actions/services/permissions/timeout
 are unchanged; only this exact push branch and deterministic npm gates were added.
