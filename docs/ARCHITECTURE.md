@@ -1,5 +1,17 @@
 # Architecture
 
+Phase4 engineering is independently accepted; actual-feed observation is ACTIVE on the
+separate pinned operational checkout at `9b9038b6966843805c99f15e1c37cdba7c026679`.
+Full Phase4 remains OPEN pending genuine dates/span/replay/zero mismatch. The separate
+development clone is authorized only for Phase5 OFFLINE/PRE-COMMISSIONING engineering
+under [ADR-024](adr/024-parallel-operational-release-and-engineering.md) and [offline requirements](phase5/OFFLINE_ACCEPTANCE.md).
+Actual Phase5 commissioning and sustained-demo evidence are NOT STARTED. Broker
+SDK/session/order capability is absent; no credentials or money authority. Phase2 full
+operational OPEN/DS03 BLOCKED; Phase3 four INCONCLUSIVE outcomes, both OOS consumed,
+no candidate/champion. PUBLIC governance review due2026-10-24 and DS02 rights review
+due2026-11-16 remain unwaived. Never alter/repoint the operational checkout/task/config/
+activation from this development lane. Dated handoffs retain their original historical facts.
+
 Status: FROZEN boundaries; Phase 1 stack pinned and exercised in
 [toolchain evidence](phase1/TOOLCHAIN.md). [Implemented subset](phase1/IMPLEMENTATION.md)
 records the historical foundation. The [Phase 2 data subset](phase2/IMPLEMENTATION.md)
@@ -7,13 +19,14 @@ adds bounded public data collection and immutable research storage. Phase 4 Chec
 [ADR-015](adr/015-paper-risk-core.md), independently accepted for Checkpoint A at
 `e3f39e0397e1846c37febcebc246ea91c9f2eb78`; see the
 [acceptance record](reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md).
-Full Phase 4 actual-feed observation remains OPEN and has not started. Checkpoint B
+Full Phase 4 remains OPEN; actual-feed observation is ACTIVE on the pinned release. Checkpoint B
 engineering is independently accepted at 527bd23ce434fee557f6f1414bf5b43d7c3c3f21;
 see its [acceptance record](reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md).
-Docs-only acceptance/CI and verified normal PR #6 merge permit local PREPARATION only;
-activation, task registration and observation START require merged-SHA/prepared-hash
-review and separate owner authority. Broker gateway and money
-authority remain future architecture.
+PR #6 merged normally at `9b9038b6966843805c99f15e1c37cdba7c026679`.
+Preparation and separate owner START have completed; the operational campaign and
+registered task remain pinned there. ADR-024 permits only physically separate offline
+engineering. The current gateway process is synthetic and inspection-only; actual broker
+gateway commissioning and money authority remain future gated work.
 
 Use a modular monolith with a separate bounded research worker and a separate Windows
 MT5 gateway process. This is process isolation for safety and resource limits, not a
@@ -45,8 +58,8 @@ flowchart LR
 
 Dependency direction: clients -> API contracts -> application use cases -> domain ports.
 Adapters implement ports; domain imports neither FastAPI, storage drivers, MT5, LLM SDKs
-nor UI. Risk is deterministic and has no provider calls. Gateway has only execution
-credentials and a narrow authenticated command protocol. Research has read-only snapshots
+nor UI. Risk is deterministic and has no provider calls. The future operational gateway
+will be the sole execution-credential holder with a narrow authenticated command protocol. Research has read-only snapshots
 and a proposal/job API, no risk-write, execution, production filesystem or secret access.
 Logical modules: instruments/policy; ingestion; features; research; strategies; risk;
 execution; reconciliation; journal; identity; operations; optional agent tools.

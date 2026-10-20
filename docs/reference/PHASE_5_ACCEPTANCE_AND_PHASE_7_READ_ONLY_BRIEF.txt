@@ -1,0 +1,882 @@
+AUVEXO ALPHA — PHASE 5 OFFLINE FOUNDATION ACCEPTANCE + NORMAL MERGE
+AND PARALLEL PHASE 7 READ-ONLY OPERATOR TERMINAL FOUNDATION
+
+Target: Codex
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-20
+
+PURPOSE
+
+This is one scoped continuation prompt with two sequential goals:
+
+1) record GPT-5.6 Sol's independent acceptance of the Phase 5 OFFLINE/PRE-COMMISSIONING
+   foundation at exact reviewed SHA
+   `82601fa80a711ce3de66b4b8289ac0f9b679b298`,
+   run administrative exact-head CI, and normally merge PR #7; then
+
+2) from the resulting merged main, continue useful NON-MONEY engineering in the separate
+   development clone by building a Phase 7 READ-ONLY private operator-terminal foundation.
+
+This prompt deliberately keeps actual Phase 5 broker commissioning CLOSED while the
+Phase 4 and Phase 2 calendar/source gates continue independently.
+
+Auvexo remains ONE production-quality project. DEMO and later REAL are modes/accounts
+of the same deterministic system, not separate bots.
+
+OWNER REPOSITORY DISPOSITION
+The owner has chosen PRIVATE as Auvexo's long-term repository state. The current PUBLIC
+state is temporary for build/CI convenience only, not a permanent-public product decision.
+
+This prompt does NOT itself change repository visibility. If the owner manually changes the
+repository to PRIVATE before or during this workflow:
+- treat PRIVATE as the desired state;
+- record the verified visibility;
+- never switch it back to PUBLIC;
+- no permanent-public superseding ADR is required.
+
+If it is still PUBLIC, only generic sanitized non-money work may continue. Actual broker
+SDK/session/credentials/DS-03/proprietary-alpha work remains blocked until PRIVATE is
+independently verified.
+
+===============================================================================
+0. INDEPENDENT GPT-5.6 SOL EXACT-SHA VERDICT
+===============================================================================
+
+Repository:
+`haseeb1229/auvexo-alpha`
+
+Independently verified GitHub state:
+- visibility: PUBLIC
+- default branch: main
+- main:
+  `9b9038b6966843805c99f15e1c37cdba7c026679`
+- PR #7:
+  OPEN / mergeable / non-draft / UNMERGED
+- branch:
+  `phase-5/offline-execution-foundation`
+- exact head:
+  `82601fa80a711ce3de66b4b8289ac0f9b679b298`
+- base:
+  `9b9038b6966843805c99f15e1c37cdba7c026679`
+- ahead 2 / behind 0
+- 26 changed files
+- no review threads
+
+PR commits are straight-line and founder-authored:
+1. `f07954abfbca98fc6ebc88aade30b2facc3e37f7`
+   `Freeze parallel operational release and offline gateway engineering scope`
+2. `82601fa80a711ce3de66b4b8289ac0f9b679b298`
+   `Add offline gateway protocol and PAPER-backed synthetic coordinator`
+
+Author/committer:
+Muhammad Haseeb <abdulhaseeb1229@gmail.com>
+
+No AI coauthor/generated-by trailer.
+No force/history rewrite.
+
+ADR-024 independently reviewed:
+- canonical phases 0-9 unchanged
+- pinned Phase 4 operational release remains 9b9038b
+- separate development clone is the only development lane
+- Phase 5 OFFLINE/PRE-COMMISSIONING is engineering-only
+- actual broker commissioning is NOT STARTED
+- broker SDK/session/credentials/DS-03 remain blocked
+- PUBLIC governance review due 2026-10-24 remains mandatory
+
+Implementation independently reviewed at exact head:
+- strict domain gateway contracts
+- synthetic-only account attestation
+- inert OfflineDemoPermit with no issuer/signer/transport authority
+- application ports remain abstract
+- offline coordinator delegates accepted PAPER risk/reservation/outbox/reconciliation
+- fake transport only
+- separate child inspection process is pipe-only and dispatch-UNSUPPORTED
+- no provider socket/listener
+- no MetaTrader5 import/package
+- no Exness connection/account/session
+- no broker credential loader
+- no withdrawal/transfer interface
+- no operational DEMO permit
+- no LIVE authority
+- `execution_enabled` remains false
+- no new migration
+- accepted PAPER risk/store/truth code unchanged
+- no dependency addition by this scope
+- workflow change only adds this branch to the existing push trigger
+
+Known engineering limitation accepted for OFFLINE scope:
+the inherited-pipe/HMAC inspection process assumes a trusted parent owns inherited handles.
+This is not certification of future Windows cross-user ACLs, secret storage or operational IPC.
+Actual commissioning must replace/prove those outer security assumptions.
+
+Exact-head hosted CI independently verified with no rerun:
+
+PUSH:
+- run `39451100828`
+- job `118725796787`
+- completed / success
+- `1594 passed in 115.83s`
+- strict mypy: no issues in 66 source files
+- aligned-instruction/high-signal checks PASS
+- dependency audit: no known vulnerabilities
+- git diff --exit-code PASS
+
+PULL REQUEST:
+- run `39451115386`
+- job `118725851661`
+- completed / success
+- `1594 passed in 93.97s`
+- strict mypy: no issues in 66 source files
+- aligned-instruction/high-signal checks PASS
+- dependency audit: no known vulnerabilities
+- git diff --exit-code PASS
+
+AGENTS.md and CLAUDE.md are byte-identical.
+
+Owner-machine supporting evidence from the private handoff:
+- 137 new focused offline tests
+- 260 inherited correctness/security/boundary tests
+- full 1594 PASS
+- exact-final fresh Windows clone 1594 PASS
+- recovery/restore evidence PASS
+- source/history scans PASS
+- 69 hash-locked dependencies / zero reported vulnerabilities
+- active Phase 4 checkout/task/config/activation unchanged
+- development tests never wrote to active observation DB
+- Phase 4 genuine observation dates = 0 at handoff
+- Phase 2 genuine dates = 0 at handoff; Oct20 window had not yet occurred
+- DS-03 remains BLOCKED
+- no candidate/champion
+- actual Phase 5 commissioning clock = 0
+- frozen ADR-024 SHA256:
+  `cae841398db8a12ce2d76066106ebbc3b0ce8f7186315df8dd6b85f2207a8033`
+- frozen Phase5 OFFLINE_ACCEPTANCE SHA256:
+  `1bd7fef5272d1c54b4eaa1461f0a5fc4d8185202c5b74b437739549d24623d07`
+
+GPT-5.6 Sol verdict:
+`82601fa80a711ce3de66b4b8289ac0f9b679b298`
+PHASE 5 OFFLINE/PRE-COMMISSIONING ENGINEERING = ACCEPTED/PASS.
+
+This does NOT accept:
+- MetaTrader5 integration
+- Exness onboarding
+- DS-03
+- broker credentials/session
+- DEMO broker orders
+- real orders
+- sustained Phase 5 qualification
+- LIVE
+- any profitability claim
+
+===============================================================================
+1. VERIFY ENTRY BEFORE ANY WRITE
+===============================================================================
+
+Re-read:
+- AGENTS.md
+- CLAUDE.md
+- PRODUCT_CONSTITUTION.md
+- ARCHITECTURE.md
+- ROADMAP.md
+- ADR-013
+- ADR-024
+- phase5/OFFLINE_ACCEPTANCE.md
+- phase5/OFFLINE_IMPLEMENTATION.md
+- phase5/OFFLINE_RUNBOOK.md
+- EXECUTION_AND_VENUE_POLICY.md
+- CLIENT_AND_UX_DIRECTION.md
+
+Verify:
+- remote main still exact 9b9038b...
+- PR #7 still exact head 82601fa...
+- PR #7 open/unmerged/mergeable
+- current development branch clean
+- active Phase 4 runtime checkout remains separately pinned at 9b9038b...
+- registered Phase 4 task still points to that original runtime checkout
+- Phase 2 task unchanged
+- no MetaTrader5/Exness/provider session exists
+- no money capability
+- repo remains PUBLIC
+
+If any material mismatch: STOP.
+
+===============================================================================
+2. PROTECTED OPERATIONAL CHECKOUT REMAINS UNTOUCHED
+===============================================================================
+
+The original Phase 4 campaign checkout is an operational release.
+
+Never:
+- pull
+- switch branch
+- reset/rebase
+- commit
+- edit files
+- change config
+- change activation
+- change the registered task
+- run development tests against its persistent observation DB
+
+It remains pinned at:
+`9b9038b6966843805c99f15e1c37cdba7c026679`
+
+All Git/development writes remain in the separate development clone.
+
+If the operational and development clones cannot be clearly distinguished: STOP.
+
+===============================================================================
+3. TIME / RESOURCE PROTECTION
+===============================================================================
+
+Phase 4 scheduled window:
+21:00-22:00 Pakistan, first eligible date 2026-10-21.
+
+Phase 2:
+22:57 warm-up
+23:00-23:12 qualification
+
+Rules:
+- on/after 2026-10-21, avoid heavy development DB/clone/full-suite work 20:45-22:15 Pakistan;
+- every day avoid heavy DB/recovery/stress/clone/full-suite work 22:45-23:20 Pakistan;
+- never compete with the active observation DB or tasks;
+- development databases must be isolated.
+
+If this prompt is executed on 2026-10-20 before 23:20 Pakistan, do not begin a long local
+full-suite/recovery/clone operation that would overlap the Phase 2 protected window.
+Lightweight Git/docs/admin work may proceed, but preserve collector priority.
+If a safe checkpoint cannot be reached before 22:45, stop before the heavy step and report
+`PROTECTED_WINDOW_PENDING`; do not leave a partial runtime/DB mutation.
+
+===============================================================================
+4. DOCUMENTATION-ONLY PHASE 5 OFFLINE ACCEPTANCE COMMIT
+===============================================================================
+
+On PR #7 branch create:
+
+`docs/reviews/PHASE_5_OFFLINE_FOUNDATION_INDEPENDENT_ACCEPTANCE.md`
+
+Record:
+- exact accepted source 82601fa...
+- freeze commit f07954a...
+- base main 9b9038b...
+- PR #7
+- exact push/PR CI run+job IDs
+- 1594 hosted tests on both events
+- owner-machine focused/inherited/full/clone/recovery evidence
+- ADR-024 accepted/frozen for this scope
+- offline gateway foundation PASS
+- actual Phase 5 commissioning NOT STARTED
+- sustained-demo clock = 0
+- no SDK/session/credentials/orders/money
+- active Phase 4 runtime stays pinned to 9b9038b
+- Phase 4 full operational exit remains OPEN
+- Phase 2 full operational remains OPEN / DS-03 BLOCKED
+- Phase 3 four outcomes INCONCLUSIVE / no candidate/champion
+- PUBLIC governance due 2026-10-24
+- owner-machine evidence limitations
+- inherited-pipe security limitation remains future commissioning work
+
+Update CURRENT status/navigation only:
+- add the independent acceptance record
+- ADR index/current status docs => ADR-024 ACCEPTED/FROZEN for offline engineering at 82601fa
+- ROADMAP
+- OPEN_DECISIONS
+- README/docs README
+- AGENTS.md and CLAUDE.md identically
+- if repository visibility has already become PRIVATE, record that factual owner disposition;
+  otherwise record PRIVATE as owner-selected/pending and keep the temporary PUBLIC gate visible
+
+IMPORTANT:
+Do NOT modify the frozen bytes of:
+- docs/adr/024-parallel-operational-release-and-engineering.md
+- docs/phase5/OFFLINE_ACCEPTANCE.md
+- docs/phase5/OFFLINE_IMPLEMENTATION.md
+- docs/phase5/OFFLINE_RUNBOOK.md
+
+ADR-024 and OFFLINE_ACCEPTANCE hashes above must remain byte-identical after the administrative
+acceptance commit. Do not rewrite PRODUCT_CONSTITUTION or ARCHITECTURE merely to restate status;
+their PR #7 reviewed content is already accepted.
+
+Do NOT change:
+- runtime Python code
+- tests
+- migrations
+- uv.lock
+- dependency set
+- workflow
+- Phase 4 runtime checkout/config/task
+- historical handoffs
+- frozen prior ADRs
+
+If executable changes are needed for the acceptance commit: STOP.
+
+Run lightweight admin verification:
+- docs/links/requirements
+- AGENTS == CLAUDE
+- secret/high-signal scan
+- git diff --check
+
+Founder-authored commit only.
+No AI trailer.
+
+Push to same PR #7.
+
+===============================================================================
+5. ADMINISTRATIVE EXACT-HEAD CI
+===============================================================================
+
+Require exact new documentation-only head:
+- push CI completed/success
+- PR CI completed/success
+- jobs/logs actually inspected
+- no rerun used to hunt success
+
+Confirm diff from 82601fa is documentation/status only.
+No executable/dependency/workflow/migration change.
+
+If CI or diff is not clean: STOP.
+
+===============================================================================
+6. NORMAL MERGE PR #7
+===============================================================================
+
+Only after Section 5 passes:
+
+Verify main still 9b9038b...
+Verify PR head is exact docs-only child of 82601fa.
+Verify PR remains mergeable/unmerged.
+
+NORMAL MERGE using merge commit.
+NO squash.
+NO rebase.
+NO force/history rewrite.
+
+Verify:
+- PR #7 merged=true
+- merge commit has exactly two ordered parents:
+  1. prior main 9b9038b...
+  2. exact administrative PR #7 head
+- remote main points to merge commit
+- executable tree equals accepted PR tree except docs-only acceptance/status changes
+
+IMPORTANT:
+DO NOT update the active Phase 4 campaign checkout to new main.
+Its scheduled release stays on 9b9038b until separate closure/migration authority.
+
+Record merge SHA.
+
+===============================================================================
+7. NEXT PARALLEL WORK: PHASE 7 READ-ONLY OPERATOR TERMINAL FOUNDATION
+===============================================================================
+
+Reason for this parallel scope:
+- actual Phase 5 commissioning is correctly blocked by Phase 4 closure + DS-03 + provider/security
+  + PUBLIC governance;
+- roadmap explicitly permits scoped non-money Phase 7 surfaces before completion of
+  Phase 4/5 observations;
+- building operator visibility now advances the real product without weakening activation gates.
+
+Create in the SEPARATE DEVELOPMENT CLONE from verified post-merge main:
+
+branch:
+`phase-7/read-only-operator-terminal-foundation`
+
+This is Phase 7 ENGINEERING-UNBLOCKING only.
+It is not full Phase 7 operational acceptance.
+
+Before executable work freeze next ADR number, expected ADR-025:
+`read-only private operator terminal foundation`
+
+Also freeze:
+- `docs/phase7/READ_ONLY_ACCEPTANCE.md`
+- `docs/phase7/READ_ONLY_RUNBOOK.md`
+
+===============================================================================
+8. PHASE 7 FOUNDATION SCOPE
+===============================================================================
+
+Build a LOCAL/PRIVATE OWNER-ONLY web terminal foundation.
+
+The terminal is a client of versioned backend contracts.
+It must contain ZERO independent trading/risk logic.
+
+Initial read-only areas:
+
+A. Command Center
+- system version/build
+- current mode
+- execution_enabled
+- policy state
+- system readiness/liveness
+- source freshness
+- current kill/readiness state where safe read model exists
+- Phase 2 / Phase 4 qualification progress from read-only projections
+- clearly visible STALE / UNKNOWN / INCOMPLETE states
+
+B. Risk / PAPER status
+- virtual account equity/balance where permitted
+- positions
+- reservations
+- pending/UNKNOWN state
+- kill level
+- reconciliation status
+- no write controls
+
+C. Research
+- Phase 3 hypothesis/result summary
+- show four INCONCLUSIVE results honestly
+- no candidate/champion badge
+- OOS consumed state
+- no profitability exaggeration
+
+D. Journal / evidence
+- read-only event timeline
+- safe reason codes
+- intent/decision/evidence hashes
+- never expose secrets/raw restricted artifacts
+
+E. System Health
+- database/API readiness
+- source health/freshness
+- observation/task status via safe backend read models
+- optional offline-gateway engineering status labeled SYNTHETIC/OFFLINE
+
+Do NOT expose:
+- broker credentials
+- owner secret values
+- DSNs
+- Windows local paths
+- raw private market archives
+- activation secrets
+- direct DB access from browser
+- arbitrary SQL/file access
+
+===============================================================================
+9. API / PRESENTATION BOUNDARY
+===============================================================================
+
+Current FastAPI diagnostics API is local-only and bearer protected.
+Extend backend only through versioned READ-ONLY `/api/v1` presentation/read-model endpoints.
+
+Requirements:
+- bind 127.0.0.1 only for this phase
+- no public listener
+- authentication required for every endpoint
+- no public signup
+- no cookie/session expansion unless separately justified
+- current random bearer-token foundation may remain for local owner engineering
+- browser never receives execution/broker credentials
+- stable strict DTOs
+- no domain objects leaked directly without presentation mapping
+- money-changing endpoints = ZERO
+- no generic command endpoint
+- no policy activation endpoint
+- no order endpoint
+- no kill/resume endpoint in this scope
+
+Do NOT make the UI import Python/domain internals.
+Backend exposes presentation DTOs.
+
+Read-only API tests must prove unauthorized requests = denied.
+
+===============================================================================
+10. FRONTEND DIRECTION
+===============================================================================
+
+Follow frozen CLIENT_AND_UX_DIRECTION:
+
+- React
+- TypeScript strict
+- Vite
+- dark-first professional terminal
+- accessible focus/contrast
+- keyboard usable
+- reduced-motion support
+- restrained animation
+- responsive but desktop-first
+- no casino styling
+- no unexplained AI confidence meters
+
+Use a minimal dependency set.
+
+Current repository has NO JavaScript application package manifest/lockfile. For this first
+frontend adoption:
+- use the already pinned Node `24.20.0`;
+- prefer built-in npm with a committed `package-lock.json` rather than introducing pnpm/yarn/
+  another package-manager dependency unless a concrete reviewed need exists;
+- place the terminal in one contained frontend directory (prefer `web/operator-terminal`
+  unless the existing repo structure provides a clearly better canonical location);
+- review current supported stable versions from authoritative package metadata/docs at adoption;
+- pin exact direct dependency versions;
+- commit the lockfile;
+- document license/NOTICE obligations;
+- no abandoned/unmaintained package;
+- no dependency chosen only for visual novelty.
+
+Preferred initial direct dependencies:
+- React + ReactDOM
+- Vite
+- TypeScript
+- minimal testing/accessibility tooling
+- TanStack Query only if materially justified by actual server-state behavior
+- accessible primitives only where needed
+
+Avoid charting libraries in this foundation unless a concrete read-only screen genuinely
+requires one. Price charts can wait for a later Phase 7 increment.
+
+Do NOT use Next.js; current Auvexo architecture froze React + Vite for the private terminal.
+
+Do not alter the active runtime checkout.
+
+===============================================================================
+11. SECURITY / BROWSER MODEL
+===============================================================================
+
+The web terminal is owner-local engineering only.
+
+Tests/controls:
+- loopback host only
+- no CORS wildcard
+- no remote origin by default
+- auth token never committed
+- no token in URL
+- no token persisted to source-controlled browser config
+- safe error messages
+- CSP appropriate to local SPA
+- frame-ancestors / clickjacking protection
+- Referrer-Policy
+- nosniff
+- cache-control for sensitive operational responses
+- no inline secret logging
+- no service worker/offline cache for sensitive state in this foundation
+- disconnect/stale state becomes visibly stale, never silently current
+
+Canonical local release design:
+- serve the committed production SPA build from the same loopback FastAPI origin where practical,
+  so production/local use does not require broad CORS;
+- keep FastAPI bound to 127.0.0.1;
+- do not expose an OpenAPI/docs HTTP endpoint merely for the browser.
+
+Development-only Vite server:
+- bind exactly 127.0.0.1, not 0.0.0.0;
+- use one fixed/strict port;
+- exact loopback dev-origin allowlist only;
+- no wildcard CORS.
+
+Bearer-token handling for this foundation:
+- enter/provide it at runtime only;
+- keep it in memory only;
+- send only in the Authorization header to the exact loopback API;
+- never put it in URL/query/history;
+- never store it in localStorage, sessionStorage, IndexedDB, service worker cache, source files,
+  generated static config or logs.
+
+No external analytics/telemetry/CDN/font dependency.
+
+===============================================================================
+12. READ-MODEL DESIGN
+===============================================================================
+
+Do not let HTTP routes query arbitrary tables ad hoc.
+
+Create narrow application read ports and infrastructure adapters for:
+- system status
+- qualification status
+- PAPER/risk operational status
+- research result summary
+- journal summary
+
+Read adapters are least-privilege and query-only where feasible.
+They do not mutate operational tables.
+
+Do not expose raw database rows blindly.
+Use typed presentation models with explicit redaction.
+
+Observation/runtime status from the pinned Phase 4 campaign is NOT to be wired to the
+development UI using the active production DB during tests.
+Use isolated test databases/fixtures.
+Real runtime integration comes later under separate authority.
+
+===============================================================================
+13. UI TRUTH RULES
+===============================================================================
+
+The terminal must never convert unknown/incomplete evidence into green status.
+
+Examples:
+- Phase 4 ACTIVE but not complete => "Observation active / operational exit open"
+- Phase 2 scheduled count not complete => open/incomplete
+- DS-03 => BLOCKED
+- four Phase 3 outcomes => INCONCLUSIVE
+- candidate/champion => NONE
+- Phase 5 => OFFLINE FOUNDATION ACCEPTED; COMMISSIONING NOT STARTED
+- execution => DISABLED
+- LIVE => LOCKED
+
+Every screen must distinguish:
+- engineering state
+- operational qualification state
+- financial authority state
+
+No "ready to trade" banner from passing software tests alone.
+
+===============================================================================
+14. NO MONEY / NO BROKER / NO PHASE 5 COMMISSIONING
+===============================================================================
+
+This branch must not:
+- import/install MetaTrader5
+- connect Exness
+- connect any broker account
+- load broker credentials
+- connect DS-03
+- send DEMO/REAL orders
+- issue demo/live permit
+- set execution_enabled=true
+- add withdrawal/transfer
+- create browser execution controls
+- expose arbitrary gateway dispatch
+- start the Phase 5 sustained-demo clock
+
+The Phase 5 offline gateway foundation may be displayed only as OFFLINE/SYNTHETIC engineering status.
+
+===============================================================================
+15. PHASE 4 / PHASE 2 PARALLEL SAFETY
+===============================================================================
+
+Active runtime checkout remains exact 9b9038b.
+
+Phase 4:
+- first genuine scheduled date: 2026-10-21
+- 21:00-22:00 Pakistan
+- >=14 genuine qualifying dates
+- first-last span >=14 calendar days
+- replay/ledger gates unchanged
+
+Phase 2:
+- 22:57 warm-up
+- 23:00-23:12 Pakistan
+- seven genuine dates remain required
+- DS-03 remains blocked
+
+Never use UI development fixtures as qualification evidence.
+
+Do not run heavy local development/full-suite work during protected windows.
+
+===============================================================================
+16. PUBLIC GOVERNANCE
+===============================================================================
+
+Owner's selected long-term disposition is PRIVATE.
+
+This prompt does NOT itself authorize Codex to change repository settings. At entry and at handoff:
+- verify actual visibility;
+- if PRIVATE, treat the temporary PUBLIC-governance issue as owner-resolved by the private return
+  and never switch back PUBLIC;
+- if still PUBLIC, the temporary exception/review due 2026-10-24 remains active and only generic,
+  sanitized framework/client code may be pushed.
+
+Never commit:
+- credentials
+- local auth tokens
+- raw actual-feed evidence
+- DB dumps
+- machine paths/identifiers
+- proprietary alpha
+- broker account/session data
+
+Before any broker SDK/session/credentials/DS-03/proprietary-alpha work:
+PRIVATE return is the selected path and must be independently verified.
+
+Do NOT create a permanent-public superseding ADR unless the owner later explicitly reverses the
+current PRIVATE decision.
+
+If still PUBLIC when the 2026-10-24 governance gate arrives:
+do not infer permission for sensitive/provider integration work.
+
+===============================================================================
+17. TEST MATRIX
+===============================================================================
+
+Backend read API:
+- every route auth-required
+- malformed auth denied
+- read endpoints only
+- no hidden mutation
+- strict DTO/schema
+- stale/unknown/incomplete preserved
+- redaction
+- DB failure => safe unavailable state
+- no arbitrary table selection
+- no execution routes
+
+Frontend:
+- renders loading/error/stale/unknown/incomplete states
+- mode/authority labels correct
+- no candidate/champion when absent
+- Phase 3 INCONCLUSIVE visible
+- Phase 4 OPEN visible
+- Phase 5 commissioning NOT STARTED visible
+- keyboard navigation
+- focus visibility
+- accessible labels
+- responsive layout
+- reduced-motion
+- no token leakage to URL/log
+- unauthorized backend response handled safely
+- disconnected state visibly stale
+
+Security:
+- loopback/CORS
+- headers/CSP
+- injection/XSS-safe rendering
+- no external telemetry/CDN
+- dependency/license audit
+
+Architecture:
+- UI contains no risk/business logic
+- application read ports do not import infrastructure
+- browser cannot import backend domain modules
+- no broker SDK/dependency
+- no duplicated financial rules
+
+===============================================================================
+18. FULL VERIFICATION
+===============================================================================
+
+Before publication:
+- focused Phase 7 backend read-model tests
+- focused frontend unit/component tests
+- contract/schema tests
+- accessibility tests
+- security header/CORS/auth negatives
+- import-boundary tests
+- inherited full Python suite
+- affected real-PG read-model tests
+- Ruff
+- strict mypy
+- frontend TypeScript typecheck
+- frontend lint
+- frontend unit/component/accessibility tests
+- frontend production build
+- npm lock integrity (`npm ci` from committed lock)
+- frontend dependency audit; high/critical findings fail unless explicitly stopped for review
+- docs/link/requirements
+- AGENTS == CLAUDE
+- source/history Gitleaks
+- high-signal scan
+- Python hash-required audit
+- frontend lock/audit
+- git diff --check
+- exact-final Windows clean clone
+- build frontend from committed lock without modifying tracked files
+
+CI WORKFLOW NOTE:
+The current workflow push allowlist does not yet include
+`phase-7/read-only-operator-terminal-foundation`.
+This Phase 7 branch is explicitly allowed to modify `.github/workflows/foundation.yml` ONLY as
+needed to:
+- add the exact Phase 7 branch to the existing push trigger; and
+- add deterministic frontend `npm ci` / typecheck / lint / test / build / audit steps using the
+  committed frontend lockfile.
+
+Do not weaken existing Python/PostgreSQL/security gates, permissions, pinned GitHub Actions,
+timeouts, checkout credential policy or service configuration.
+
+No Phase 4 performance benchmark.
+No broker/MT5 test.
+
+===============================================================================
+19. GIT / PR
+===============================================================================
+
+All work only in the separate development clone.
+
+Branch:
+`phase-7/read-only-operator-terminal-foundation`
+
+Founder-authored coherent commits.
+No AI trailer.
+No force/history rewrite.
+
+Push branch.
+Open exactly ONE PR to main.
+Keep OPEN/UNMERGED.
+
+Require exact-head:
+- push CI completed/success
+- PR CI completed/success
+- job/log evidence
+
+Do not merge Phase 7 under this prompt.
+
+Active operational checkout remains pinned to 9b9038b regardless of new main/dev history.
+
+===============================================================================
+20. REQUIRED HANDOFF
+===============================================================================
+
+Return:
+
+1. accepted Phase 5 offline source 82601fa...
+2. PR #7 docs-only acceptance commit SHA
+3. PR #7 administrative push/PR CI IDs
+4. PR #7 normal merge SHA + ordered parents
+5. new post-merge main SHA
+6. proof Phase 4 operational checkout still exact 9b9038b and clean
+7. proof Phase 4 task/config/activation unchanged
+8. latest genuine Phase 4 result/count only if the real scheduled window actually occurred
+9. latest genuine Phase 2 result/count only if real window occurred
+10. ADR-025 hash/status
+11. Phase 7 branch/final SHA/PR
+12. frontend dependency/version/license decisions
+13. read-only API/read-port architecture
+14. auth/CORS/security model
+15. terminal screens implemented
+16. truth/status mapping
+17. proof zero execution/money/broker capability
+18. focused backend/frontend/accessibility/security test counts
+19. full Python suite count
+20. frontend type/lint/build results
+21. PG/read-model results
+22. scans/audits/recovery as applicable
+23. fresh Windows clone
+24. exact-head push/PR CI IDs/logs
+25. actual repository visibility; if PUBLIC, Oct24 governance status; if PRIVATE, evidence that
+    owner-selected private return is in effect
+26. DS-02 rights state
+27. DS-03 BLOCKED
+28. no candidate/champion
+29. Phase 5 actual commissioning NOT STARTED
+30. request GPT-5.6 Sol exact-SHA review
+
+===============================================================================
+21. STOP CONDITIONS
+===============================================================================
+
+STOP if:
+- PR #7/main/head differs unexpectedly
+- Phase 5 acceptance commit requires executable changes
+- PR #7 exact-head admin CI fails
+- normal merge cannot be verified
+- active Phase 4 checkout/task/config/activation changes
+- UI would require broker/provider credentials
+- UI introduces execution/money endpoint
+- application/browser dependency direction breaks
+- status presentation hides UNKNOWN/INCOMPLETE/BLOCKED
+- public Git would expose private/proprietary/provider material
+- repository becomes PUBLIC again after an owner-confirmed PRIVATE return
+- any material inherited risk/security regression occurs
+- Phase 2/Phase 4 scheduled operations are disturbed
+- exact-head CI fails
+
+FINAL INTENT
+
+Auvexo keeps moving toward a complete professional product while evidence clocks run.
+
+- Phase 4 actual-feed observation continues on its pinned reviewed release.
+- Phase 5 offline execution foundation is accepted and merged.
+- Phase 7 read-only owner terminal can advance in parallel.
+- Actual Exness/MT5 commissioning remains separately gated.
+- DEMO and future REAL remain modes/accounts of the SAME Auvexo system, not separate bots.

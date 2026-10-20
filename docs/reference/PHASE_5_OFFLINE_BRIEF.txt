@@ -1,0 +1,303 @@
+AUVEXO ALPHA — PARALLEL DEVELOPMENT AMENDMENT AND PHASE 5 OFFLINE EXECUTION FOUNDATION
+
+Target: Codex
+Owner: haseeb1229
+Independent reviewer/planner: GPT-5.6 Sol
+Date: 2026-10-20
+
+PURPOSE
+Auvexo Alpha is one production-quality multi-mode system, not a throwaway demo bot.
+
+The active Phase 4 PAPER observation campaign must continue unchanged, but it must no longer freeze all unrelated development. This prompt authorizes a separate, NON-MONEY development lane while the reviewed Phase 4 runtime checkout continues its calendar qualification.
+
+Goals:
+1. Freeze ADR-024 for a pinned operational release plus parallel non-money engineering.
+2. Build Phase 5 PRE-COMMISSIONING/OFFLINE execution foundations using only fake/synthetic broker adapters.
+
+NOT authorized:
+- MetaTrader5 package/import/terminal launch
+- Exness login/session/account access
+- broker credentials
+- DS-03 connection
+- DEMO/REAL broker orders
+- money authority
+- Phase 5 sustained-demo clock
+- LiveTradingPermit
+- visibility/settings changes
+
+ENTRY STATE — VERIFY
+Repository: haseeb1229/auvexo-alpha
+Expected remote main:
+9b9038b6966843805c99f15e1c37cdba7c026679
+Visibility: PUBLIC under temporary exception
+No open PR / no Phase 5 branch expected.
+
+Active Phase 4 campaign runtime:
+- exact reviewed checkout HEAD 9b9038b...
+- task AuvexoAlpha-Paper-Observation
+- activation already recorded
+- first eligible date 2026-10-21
+- schedule 21:00-22:00 Asia/Karachi
+- full Phase 4 OPEN
+
+Existing Phase 2 task:
+AuvexoAlpha-PublicData-Daily
+22:57 warm-up / 23:00-23:12 Pakistan
+must remain untouched.
+
+If entry differs materially: STOP.
+
+1. PROTECT THE ACTIVE CAMPAIGN CHECKOUT
+The scheduled runner verifies HEAD == campaign config.git_revision.
+
+Do NOT use the active observation checkout for development.
+Do NOT pull/switch/reset/rebase/commit/edit anything there.
+Do NOT modify task/config/activation.
+
+Identify the exact checkout used by the registered task and preserve evidence that it remains:
+- HEAD 9b9038b...
+- clean
+- unchanged
+
+All development must happen in a separate sibling CLONE created from founder remote at exact main 9b9038b.
+If physical separation cannot be guaranteed: STOP.
+
+2. FREEZE ADR-024 BEFORE BROAD IMPLEMENTATION
+Create:
+docs/adr/024-parallel-operational-release-and-engineering.md
+
+ADR-024 must reconcile:
+- ADR-013 rejects universal sequential blocking and allows calendar evidence alongside accepted non-money engineering.
+- Phase 4 observation evidence remains unchanged.
+- Phase 5 actual commissioning still depends on Phase 4 + account/spec/terms + explicit authorization.
+
+Decision:
+- canonical phases 0-9 unchanged
+- active Phase 4 checkout is a PINNED OPERATIONAL RELEASE
+- separate development clone may advance generic NON-MONEY engineering
+- Phase 5 offline foundation is ENGINEERING-UNBLOCKING only
+- broker SDK/terminal/session/credentials/orders remain blocked
+- Phase 4 dates cannot be earned by the development lane
+- campaign config is never repointed silently
+- material bugs affecting the pinned release stop affected campaign interpretation for review
+- PUBLIC governance review due 2026-10-24 remains unwaived
+
+Update roadmap/open decisions/architecture/requirements only as needed.
+Do not rewrite historical handoffs.
+
+3. ONE PRODUCTION SYSTEM, NOT DEMO VS REAL FORKS
+Preserve the existing constitution:
+RESEARCH -> BACKTEST -> PAPER -> DEMO -> SHADOW -> LIVE_LIMITED -> LIVE
+
+Same core across modes:
+- TradeIntent
+- deterministic risk
+- reservations/outbox
+- execution coordinator contracts
+- reconciliation/journal
+- kill states
+- release/config hashes
+- account attestation
+
+DEMO is an account execution mode, not a separate bot.
+REAL later uses the same core but a distinct attested account plus explicit live permit.
+Credentials never grant authority.
+
+4. CREATE DEVELOPMENT BRANCH
+In the separate development clone:
+phase-5/offline-execution-foundation
+
+This is PRE-COMMISSIONING engineering inside canonical Phase 5.
+
+5. BUILD OFFLINE GATEWAY FOUNDATION
+Implement without MetaTrader5/Exness:
+
+A. Separate Windows gateway process skeleton
+- no MT5 imports
+- no terminal initialization
+- no provider network
+- fake/synthetic broker transport only
+
+B. Versioned strict local protocol DTOs
+Include:
+- gateway identity/hello
+- heartbeat/health
+- account-attestation result
+- instrument-spec snapshot
+- dispatch command/ack
+- broker order/deal/position facts
+- reconciliation request/snapshot
+- stable safe errors
+
+Bind schema version, IDs, correlation/causation, account_ref, mode, writer epoch, intent/authorization/reservation hashes, release/config hashes, expiry and payload hash.
+No pickle/eval/arbitrary deserialization.
+
+C. Execution transport port
+Future adapter shape only:
+- connect/attest
+- account/instrument snapshots
+- submit already-authorized order
+- cancel identified pending order
+- query orders/deals/positions/history
+- health/reconnect
+No withdrawal/transfer/portal capability.
+
+D. Account attestation contract
+Typed venue, server, account identifier, DEMO/REAL kind, currency, margin/account mode, observed_at, capability hash.
+Tests:
+- DEMO + REAL => hard refusal
+- REAL/LIVE modes denied
+- unknown account => refusal
+- server/account drift => refusal/pause
+- credential presence gives zero authority
+Synthetic account IDs only.
+
+E. Offline DEMO qualification permit contract
+Design only; no operational signer/issuer.
+Bind DEMO account/server, allowlisted venue/product/instrument, release/config hashes, bounded test risk/notional, validity/revocation and allowed commands.
+Tests: missing/expired/tampered/wrong-account/wrong-release/wrong-mode denied; cannot authorize REAL; cannot bypass risk; cannot withdraw.
+
+F. Dispatch/reconciliation
+Reuse accepted semantics:
+intent -> reservation -> durable outbox -> claim -> SENT_PENDING -> ACK/REJECT/UNKNOWN -> partial/filled/canceled/expired.
+
+Synthetic failure matrix:
+- duplicate delivery
+- crash before send
+- crash after broker acceptance before local persistence
+- timeout -> UNKNOWN
+- late deal
+- reject
+- partial fill
+- cancel/fill race
+- reconnect
+- terminal restart
+- stale writer
+- manual external synthetic trade
+- local/broker mismatches
+
+Broker facts authoritative. No blind resend. No exactly-once claim.
+
+G. Security boundary
+- gateway is future sole credential holder
+- core/research/UI never load execution credentials
+- loopback/local authenticated IPC first
+- no public listener
+- one writer epoch/account
+- redacted logs
+- fake secret loader only
+- no browser direct order route
+
+H. Offline operations runbooks
+Cover startup, attestation, reconcile-only readiness, disconnect, UNKNOWN, restart, manual-trade mismatch, failed protection, kill/revocation, shutdown.
+Clearly label all as offline/synthetic, not Exness evidence.
+
+6. DO NOT DUPLICATE CORE
+Inspect and reuse existing intent/risk/PaperStore/outbox/journal/reconciliation/writer-fencing/kill-state contracts.
+Do not fork accepted business rules.
+If needed abstraction conflicts with accepted Phase 4 invariants: STOP.
+
+7. STRICT PROHIBITIONS
+Do NOT:
+- add/install/import MetaTrader5
+- access Exness website/account/terminal
+- request/store broker credentials
+- connect DS-03
+- send any broker order
+- enable DEMO/REAL execution
+- create operational demo permit
+- set execution_enabled=true
+- change Binance derivatives block
+- create withdrawal/transfer support
+- use real account IDs
+- start Phase 5 sustained-demo evidence
+- claim candidate/champion/profitability
+
+8. TESTS
+At minimum cover malformed protocol/version, oversize payload, replayed command, wrong account/epoch/release/config, expired command, unauthorized client, redaction, DEMO/REAL mismatch, duplicate dispatch, crash/timeout/UNKNOWN, partial/cancel-fill, unsupported fill/instrument, reconciliation mismatches, stale writer/reconnect/restart, permit/risk/reservation tampering and REAL activation refusal.
+All synthetic.
+
+9. KEEP PHASE 4 + PHASE 2 RUNNING
+Do not touch active runtime checkout/tasks.
+
+Phase 4:
+- first real run 2026-10-21 21:00
+- >=14 genuine PASS dates
+- first-last >=14 calendar days
+- replay/mismatch gates unchanged
+
+Phase 2:
+- existing schedule untouched
+- seven genuine dates still required
+- DS-03 remains blocked in this prompt
+
+Avoid heavy work 20:45-22:15 Pakistan to protect Phase 4.
+Pause heavy DB/recovery/clone work 22:45-23:20 to protect Phase 2.
+Development tests must use isolated resources, never active observation DB.
+
+10. PUBLIC GOVERNANCE
+Repo is PUBLIC under temporary exception; review due 2026-10-24.
+This prompt does NOT authorize visibility changes.
+Public branch must contain only generic sanitized framework code.
+No raw observations, DB dumps, machine identifiers, proprietary alpha, broker details, credentials.
+Before future broker SDK/session/credentials/DS-03/proprietary-alpha work: PRIVATE return OR independently accepted permanent-public superseding ADR is mandatory.
+
+11. STATUS WORDING
+Development docs must say:
+- Phase 4 engineering accepted; actual-feed observation ACTIVE; full Phase 4 OPEN
+- Phase 5 OFFLINE/PRE-COMMISSIONING engineering only
+- actual Phase 5 commissioning NOT STARTED
+- broker SDK/session/order capability absent
+- Phase 2 full operational OPEN; DS-03 BLOCKED
+- Phase 3 four INCONCLUSIVE outcomes; no candidate/champion
+
+12. VERIFICATION
+Run focused gateway/protocol tests, useful property/fuzz tests, inherited risk/PAPER regressions, import boundaries, affected real PostgreSQL tests, full unskipped pytest, Ruff, strict mypy, docs/links/requirements, AGENTS==CLAUDE, source/history Gitleaks, high-signal scan, locked dependency audit, git diff --check, recovery/restart for new durable state, and exact-final fresh Windows clone.
+Do not rerun Phase 4 performance benchmark.
+Do not run actual MT5/broker tests.
+
+13. GIT / PR
+All Git writes only in separate development clone.
+Founder-authored commits. No AI trailers. No force/history rewrite.
+Push branch:
+phase-5/offline-execution-foundation
+Open exactly one PR to main and KEEP IT OPEN/UNMERGED.
+Require exact-head push + PR CI runs/jobs/logs success.
+Return for GPT-5.6 Sol exact-SHA review.
+
+14. REQUIRED HANDOFF
+Return:
+1. entry main
+2. active campaign checkout HEAD/clean proof
+3. task still points to frozen campaign checkout
+4. separate development clone confirmation
+5. ADR-024 decision/hash
+6. roadmap/requirements impact
+7. branch/final SHA/PR
+8. changed modules
+9. proof no MetaTrader5/Exness/credentials/network/orders
+10. gateway/protocol architecture
+11. account attestation
+12. offline demo permit
+13. dispatch/reconciliation reuse
+14. synthetic failure matrix
+15. focused/inherited/full test counts
+16. statics/docs/scans/audit
+17. recovery + clean Windows clone
+18. exact-head CI IDs/log summary
+19. PR OPEN/UNMERGED
+20. Phase 4 task/activation unchanged
+21. latest genuine Phase 4 count if a real date occurred
+22. latest genuine Phase 2 count if a real window occurred
+23. PUBLIC governance due date
+24. DS-02 rights state
+25. DS-03 blocked
+26. no candidate/champion
+27. no Phase 5 commissioning/order/money capability
+28. request GPT-5.6 Sol exact-SHA review
+
+STOP if active campaign checkout is disturbed, evidence gates are weakened, MetaTrader5/Exness access becomes necessary, broker credentials/orders are introduced, public Git would expose sensitive/proprietary material, accepted invariants regress, or CI fails.
+
+FINAL INTENT
+Keep real qualification clocks running while useful non-money engineering advances.
+Build one serious Auvexo system; do not wait idle and do not bypass activation gates.

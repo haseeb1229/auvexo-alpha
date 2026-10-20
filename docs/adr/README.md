@@ -42,3 +42,5 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 | [ADR-022](022-paper-performance-slo.md) | ACCEPTED/FROZEN for Checkpoint A at e3f39e0 | Percentile transaction SLO and qualified research-throttle semantics; no benchmark rerun |
 
 | [ADR-023](023-paper-observation-qualification.md) | ACCEPTED/FROZEN for Checkpoint B engineering at 527bd23; original document bytes retained | [Independent acceptance](../reviews/PHASE_4_CHECKPOINT_B_INDEPENDENT_ACCEPTANCE.md); verified normal PR #6 merge permits PREPARATION only; separate owner START pending; zero dates |
+
+| [ADR-024](024-parallel-operational-release-and-engineering.md) | ACCEPTED/FROZEN offline engineering at 82601fa; original bytes retained | [Independent acceptance](../reviews/PHASE_5_OFFLINE_FOUNDATION_INDEPENDENT_ACCEPTANCE.md); pinned release and separate non-money engineering; commissioning NOT STARTED |

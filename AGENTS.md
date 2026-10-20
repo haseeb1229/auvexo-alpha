@@ -98,6 +98,35 @@ proprietary alpha work, independent review must resolve PRIVATE return or an own
 permanent-public superseding ADR. Vision-derived results remain nonproduction research;
 future experiments/releases require typed source-specific data-use eligibility.
 
+Current development authority supersedes prior Phase5 engineering prohibitions only for
+OFFLINE/PRE-COMMISSIONING work in this separate development clone under ADR-024 and
+docs/reference/PHASE_5_OFFLINE_BRIEF.txt. Active Phase4 campaign is pinned at 9b9038b
+in its separate operational checkout; task/config/activation/receipts unchanged. No code/Git
+writes there. Actual Phase5 commissioning, broker SDK/terminal/session/credentials/DS03,
+DEMO/REAL orders, live permits and money remain prohibited. Only fake/synthetic adapters.
+Freeze ADR024 and OF requirements before implementation; reuse PAPER core without
+weakening PAPER-only guards. PR stays OPEN/UNMERGED for independent exact-SHA review.
+No heavy work 20:45-22:15 Pakistan; no heavy DB/recovery/clone 22:45-23:20 Pakistan.
+Runtime AI/frontend/paid service/promotion remain excluded; PUBLIC Oct24 gate unchanged.
+
+Phase 5 OFFLINE/PRE-COMMISSIONING engineering independently ACCEPTED/PASS at
+82601fa80a711ce3de66b4b8289ac0f9b679b298. See the independent acceptance record and
+docs/reference/PHASE_5_ACCEPTANCE_AND_PHASE_7_READ_ONLY_BRIEF.txt. This owner authority
+supersedes the PR #7 merge hold only: docs-only acceptance child, exact-head push AND PR
+CI/jobs/logs PASS, then verified NORMAL merge with ordered parents prior main 9b9038b
+and exact administrative head. Preserve frozen ADR024/acceptance/implementation/runbook.
+Do not modify executable code/tests/migrations/dependencies/workflow for acceptance.
+After verified merge only, separate-clone Phase7 read-only terminal engineering is authorized;
+freeze ADR025/requirements/runbook first. No money endpoint or actual Phase5 commissioning.
+The active operational checkout/task/config/activation remain pinned to 9b9038b, never updated.
+Owner selects PRIVATE long term; current PUBLIC exception remains due October24 until
+verified owner return. No visibility/settings change or permanent-public ADR is authorized.
+This brief supersedes timing only: Phase4 heavy-work exclusion20:45-22:15 applies on/after
+October21; Phase2 exclusion22:45-23:20 applies daily. Before tonight's protected window,
+stop before any long heavy step that cannot fit; record PROTECTED_WINDOW_PENDING safely.
+Prior frontend prohibition is superseded only after the verified merge for this scoped
+read-only foundation. Broker/DS03/credentials/orders/permits/AI/promotion remain prohibited.
+
 Before changes, read [constitution](docs/PRODUCT_CONSTITUTION.md),
 [architecture](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md),
 [engineering rules](docs/engineering/ENGINEERING_RULES.md), and the current
