@@ -161,3 +161,14 @@ audits after the certifi-only update. The corrected committed source still requi
 hosted push/PR jobs and fresh Windows clone; prior-head results are not release evidence.
 PR8 remains OPEN/UNMERGED for independent review; Phase5 commissioning and Phase6 remain
 NOT STARTED. The protected operational windows govern remaining local heavy verification.
+
+
+The first corrected hosted runs at6df5634 exposed a CI authentication regression: both
+reported2failed/1709passed because inherited wrong-password rejection tests did not raise.
+The loopback topology selected initdb's default trust host rules. Both failed runs/logs and
+the stopped commit are preserved; temporary containers were removed. On2026-10-22 the
+owner explicitly authorized the prepared CI SCRAM security resume. The one-line fix sets
+POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256, initializing host rules with SCRAM while
+retaining the pinned image, endpoint, cleanup and every test. No assertions or inherited
+security gates are weakened; a new forward commit requires fresh hosted events and final
+Windows clone verification. The old failed CI events must never be reported as passing.

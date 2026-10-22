@@ -30,6 +30,7 @@ jobs:
             --env POSTGRES_USER=auvexo_admin \
             --env POSTGRES_PASSWORD=ci-synthetic-ephemeral-only \
             --env POSTGRES_DB=auvexo_test \
+            --env POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
             postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3 \
             postgres -c listen_addresses=127.0.0.1 -c port=55432
           for attempt in $(seq 1 30); do
