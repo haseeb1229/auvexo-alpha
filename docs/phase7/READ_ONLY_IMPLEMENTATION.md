@@ -103,3 +103,61 @@ work must still avoid the frozen protected operational windows.
 Phase4 ACTIVE/fullOPEN pinned9b9038b; Phase2 operationalOPEN/seven dates; DS03BLOCKED;
 PRIVATE selected/PUBLIC temporary exception October24 until verified owner return; DS02November16;
 fourINCONCLUSIVE/no candidate; Phase5 commissioningNOTSTARTED/clock0/moneyDISABLED.
+
+
+## Independent review correction: actual read identity
+
+Review of source260f0ce found that the synthetic PAPER adapter checked its configured
+DSN and too narrow a privilege set; that did not prove the identity of an acquired
+PostgreSQL session or the absence of additional application reads and writes. The
+reviewed source, dirty correction, failed audit and recovery inventories are retained
+locally. The frozen ADR025, acceptance requirements, runbook and shell exception remain
+unchanged. This correction does not wire the operator terminal to the campaign.
+
+Each connection acquisition now checks one coherent catalog snapshot before any
+projection query: session_user and current_user must both equal the expected dedicated
+LOGIN, actual database and server address/port must match the isolated configuration,
+and UTC, repeatable-read, read-only and public-only search path must hold. URL overrides,
+unsupported drivers, missing credentials and engine execution overrides are refused.
+The login must have no elevated role attributes, inheritance, memberships, ownership,
+schema CREATE or database CREATE/TEMP capability. All application relations are checked:
+only the four required public PAPER tables may have SELECT, all four must have it,
+and additional table/column reads, mutations, grant options, sequence privileges and
+executable application security-definer functions are refused. Projection SQL explicitly
+qualifies public tables. Every acquisition rechecks; no cached verdict survives pool
+reuse, privilege changes or reconnect. Refusal returns the existing safe UNAVAILABLE
+shape before any projection SQL and exposes no database details.
+
+Fifty additional real-PostgreSQL tests exercise actual session/admin/SET ROLE deception,
+wrong databases despite a plausible engine URL, role flags, memberships, missing SELECT,
+extra table/column/view/materialized-view/PUBLIC reads, writes, schema/object ownership,
+sequence privileges, UTC/search-path drift, pool reuse, rollback and reconnect. Existing
+good-path projections and no-mutation checks remain. Focused verification passed151 tests
+(58 real-PG,59 API/security,34 configuration/boundary); the inherited full suite passed1711
+without skips before the security dependency update, then passed1711 again with the fixed
+certifi environment. Final release verification still requires a new exact-commit clone
+and corrected exact-head hosted CI; prior-head evidence cannot satisfy those gates.
+
+The required hash-verified audit then reported certifi2026.7.22 affected by
+[GHSA-6q48-6c7w-9gw2](https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2).
+Publication stopped. The owner explicitly authorized a certifi-only security resume:
+update only certifi and its lock hashes, preserve the failure, and rerun the required
+gates without weakening them. No other dependency or operational authority is included.
+The corrected lock installs certifi2026.10.19; all other locked values are identical.
+The repeated hash-required Python audit checks69dependencies with zero vulnerabilities;
+the repeated frontend audit also reports zero. Official PyPI artifact hashes were verified.
+
+A prepublication check identified a separate authority conflict: the strict actual server
+loopback/port attestation required by the correction brief is incompatible with the inherited
+hosted PostgreSQL service's bridged55432:5432 topology. On2026-10-22 the owner explicitly
+approved the prepared CI-only resume, superseding only ADR025's inherited CI-service clause.
+The original frozen documents remain byte-identical. The workflow now runs the same pinned
+PostgreSQL17.11 image with host networking and PostgreSQL bound only to127.0.0.1:55432,
+with bounded readiness and always-run cleanup. All existing tests, pinned actions, permissions,
+runner and timeouts remain unchanged. The strict server attestation remains intact.
+
+Local verification passed1711Python tests,31frontend tests, statics/docs/scans and zero-vulnerability
+audits after the certifi-only update. The corrected committed source still requires its own
+hosted push/PR jobs and fresh Windows clone; prior-head results are not release evidence.
+PR8 remains OPEN/UNMERGED for independent review; Phase5 commissioning and Phase6 remain
+NOT STARTED. The protected operational windows govern remaining local heavy verification.
