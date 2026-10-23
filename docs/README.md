@@ -1,13 +1,24 @@
 # Project document index
 
+Phase 7 read-only foundation engineering is independently ACCEPTED/PASS at
+`4418df01128b08e6ac18a79e9f967f7c5364b1b3`; see the [acceptance record](reviews/PHASE_7_READ_ONLY_FOUNDATION_INDEPENDENT_ACCEPTANCE.md).
+ADR-025 is ACCEPTED/FROZEN with original bytes retained. Full Phase 7 operational
+acceptance remains OPEN. Owner authorizes documentation-only acceptance on PR #8,
+then exact-head push/PR CI and verified NORMAL merge. Operational release stays pinned
+at 9b9038b. Phase 2/4 full operational gates remain OPEN; Phase 5 commissioning and
+Phase 6 remain NOT STARTED. Read-only operational diagnosis follows merge. PRIVATE
+must be independently verified before any Phase6 branch is created or published;
+current entry is PUBLIC and no visibility change is authorized. Only DS-04 substep 6A
+is conditionally authorized; no macro/news/LLM, broker, money or collection START.
+
 Phase 5 offline foundation is independently ACCEPTED/PASS at `82601fa80a711ce3de66b4b8289ac0f9b679b298`;
 see the [independent acceptance](reviews/PHASE_5_OFFLINE_FOUNDATION_INDEPENDENT_ACCEPTANCE.md).
 ADR-024 is ACCEPTED/FROZEN for offline engineering; its original document bytes remain retained.
 Actual Phase 5 commissioning NOT STARTED; sustained-demo clock zero and execution disabled.
 Owner-selected long-term repository disposition is PRIVATE; verified entry remains PUBLIC,
 so the temporary exception and 2026-10-24 governance gate remain active. No settings change.
-Current authority is docs-only PR #7 acceptance, exact-head CI, then verified NORMAL merge;
-only afterward may separate-clone Phase 7 read-only foundation begin under its new frozen ADR.
+PR #7 administrative acceptance/CI/NORMAL merge are complete; separate-clone Phase 7 foundation
+is authorized under frozen ADR025. PR #8 merge hold is superseded only by the acceptance sequence above.
 The active Phase 4 operational release remains separately pinned to `9b9038b` and untouched.
 
 Phase4 engineering is independently accepted; actual-feed observation is ACTIVE on the
@@ -104,3 +115,6 @@ baseline amendment above now provides current navigation. Closure records the or
 approved [daily task](phase2/closure/SCHEDULER_PROPOSAL.md), temporary
 [public-source exception](phase2/closure/PUBLIC_VISIBILITY_PROPOSAL.md), actual
 retrospective coverage and remaining exit gates. It is not Phase 2 acceptance.
+
+Read-only terminal [implementation checkpoint](phase7/READ_ONLY_IMPLEMENTATION.md) records
+historical implementation results; the independent acceptance record above supplies the current disposition.

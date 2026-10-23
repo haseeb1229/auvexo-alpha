@@ -1,7 +1,7 @@
 name: foundation
 on:
   push:
-    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data, phase-3/backtest-simple-alpha, phase-4/strategy-risk-paper, phase-4/paper-observation, phase-5/offline-execution-foundation]
+    branches: [phase-1/engineering-foundation, phase-2/trustworthy-data, phase-3/backtest-simple-alpha, phase-4/strategy-risk-paper, phase-4/paper-observation, phase-5/offline-execution-foundation, phase-7/read-only-operator-terminal-foundation]
   pull_request:
     branches: [main]
 permissions:
@@ -13,17 +13,6 @@ jobs:
   checks:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3
-        env:
-          POSTGRES_USER: auvexo_admin
-          POSTGRES_PASSWORD: ci-synthetic-ephemeral-only
-          POSTGRES_DB: auvexo_test
-        ports: ['55432:5432']
-        options: >-
-          --health-cmd "pg_isready -U auvexo_admin -d auvexo_test"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -35,6 +24,23 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '24.20.0'
+      - name: Start pinned isolated PostgreSQL on actual loopback endpoint
+        run: |
+          docker run --detach --name auvexo-ci-postgres --network host \
+            --env POSTGRES_USER=auvexo_admin \
+            --env POSTGRES_PASSWORD=ci-synthetic-ephemeral-only \
+            --env POSTGRES_DB=auvexo_test \
+            --env POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
+            postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3 \
+            postgres -c listen_addresses=127.0.0.1 -c port=55432
+          for attempt in $(seq 1 30); do
+            if docker exec auvexo-ci-postgres pg_isready -h 127.0.0.1 -p 55432 -U auvexo_admin -d auvexo_test; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs auvexo-ci-postgres
+          exit 1
       - run: uv sync --locked
       - run: uv run --frozen python tools/ci_database.py
       - run: uv run --frozen ruff format --check src tests tools migrations
@@ -50,3 +56,19 @@ jobs:
       - run: uv export --frozen --all-groups --no-emit-project --output-file requirements-audit.txt
       - run: uv run --frozen pip-audit --disable-pip --require-hashes -r requirements-audit.txt
       - run: git diff --exit-code
+      - run: npm ci --ignore-scripts --no-fund
+        working-directory: web/operator-terminal
+      - run: npm run typecheck
+        working-directory: web/operator-terminal
+      - run: npm run lint
+        working-directory: web/operator-terminal
+      - run: npm test
+        working-directory: web/operator-terminal
+      - run: npm run build
+        working-directory: web/operator-terminal
+      - run: npm audit --audit-level=high
+        working-directory: web/operator-terminal
+      - run: git diff --exit-code
+      - name: Remove isolated PostgreSQL container
+        if: always()
+        run: docker rm --force auvexo-ci-postgres

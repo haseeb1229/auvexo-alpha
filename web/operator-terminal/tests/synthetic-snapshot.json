@@ -1,0 +1,76 @@
+{
+  "contract_version": "1",
+  "system": {
+    "contract_version": "1",
+    "version": "0.1.0",
+    "build": "PHASE7_READ_ONLY_FOUNDATION",
+    "mode": "RESEARCH",
+    "policy": "phase1.disabled.v1",
+    "execution_enabled": false,
+    "live_authority": "LOCKED",
+    "api": "ALIVE",
+    "database": "NOT_READY",
+    "source": "UNKNOWN",
+    "gateway": "SYNTHETIC_OFFLINE_ACCEPTED",
+    "freshness": {
+      "state": "AVAILABLE",
+      "observed_at": "2026-01-01T00:00:00Z",
+      "provenance": "LOCAL_DIAGNOSTICS",
+      "reason": "CURRENT"
+    }
+  },
+  "qualification": {
+    "phase2": "OPERATIONAL_OPEN",
+    "phase2_days": null,
+    "phase4": "OBSERVATION_ACTIVE_OPERATIONAL_OPEN",
+    "phase4_days": null,
+    "task": "UNKNOWN",
+    "phase5": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
+    "ds03": "BLOCKED",
+    "freshness": {
+      "state": "UNKNOWN",
+      "observed_at": null,
+      "provenance": "UNCONNECTED",
+      "reason": "NOT_CONNECTED"
+    }
+  },
+  "paper": {
+    "freshness": {
+      "state": "UNKNOWN",
+      "observed_at": null,
+      "provenance": "UNCONNECTED",
+      "reason": "NOT_CONNECTED"
+    },
+    "balance": null,
+    "equity": null,
+    "currency": null,
+    "kill": null,
+    "reconciled": null,
+    "unknown_orders": null,
+    "active_reservations": null,
+    "positions": [],
+    "pending": [],
+    "reservations": []
+  },
+  "research": {
+    "outcomes": [
+      "INCONCLUSIVE",
+      "INCONCLUSIVE",
+      "INCONCLUSIVE",
+      "INCONCLUSIVE"
+    ],
+    "oos": "BOTH_CONSUMED_FOREVER",
+    "candidate": "NONE",
+    "champion": "NONE",
+    "scope": "REVIEWED_NONPRODUCTION_SUMMARY"
+  },
+  "journal": {
+    "freshness": {
+      "state": "UNKNOWN",
+      "observed_at": null,
+      "provenance": "UNCONNECTED",
+      "reason": "NOT_CONNECTED"
+    },
+    "events": []
+  }
+}

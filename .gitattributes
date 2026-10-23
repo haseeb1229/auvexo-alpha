@@ -9,3 +9,9 @@
 *.yml text eol=lf
 *.ps1 text eol=lf
 *.ini text eol=lf
+
+# Preserve formatter input across Windows and Linux checkouts.
+web/operator-terminal/**/*.ts text eol=lf
+web/operator-terminal/**/*.tsx text eol=lf
+web/operator-terminal/**/*.css text eol=lf
+web/operator-terminal/**/*.html text eol=lf

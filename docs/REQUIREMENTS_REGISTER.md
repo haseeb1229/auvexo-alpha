@@ -112,3 +112,12 @@ Phase 4 Checkpoint A refines existing parents through [frozen child requirements
 R-021/R-022/R-023/R-024/R-029/R-031/R-035 for separate-clone synthetic execution foundations.
 No original numeric/calendar/activation gate is relaxed. Actual Phase5 commissioning,
 DS03/broker connection and money permission remain blocked; no Phase4 credit from tests.
+
+## Read-only terminal foundation amendment (2026-10-20)
+
+[ADR025](adr/025-read-only-private-operator-terminal.md) and [RO01-15](phase7/READ_ONLY_ACCEPTANCE.md)
+refine existing R003/006/018/019/022/023/024/025/027/029/031/035 for separate-clone query-only
+presentation. [Implementation checkpoint](phase7/READ_ONLY_IMPLEMENTATION.md) maps concrete
+modules/tests and pending full verification. The explicit owner-approved data-free static shell
+exception grants no API data access, financial authority or calendar credit. Original phases,
+numeric/source/activation gates and all historical accepted evidence remain unchanged.
