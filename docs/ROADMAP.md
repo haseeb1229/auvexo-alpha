@@ -1,13 +1,15 @@
 # Roadmap and proof gates
 
-PR #7 is normally merged at `1d6b08fc36884f1bc4845ac54111776d80df056b` after both
-administrative CI events/jobs/logs passed1594tests at `14254170de2fa3b7acd0f7edcd6e2a0211de5144`.
-Its executable tree equals the accepted source. Development is now on the separate Phase7 branch.
-Read-only implementation is a tested draft; full-suite/clean-clone/publication gates remain pending.
-The [read-only foundation design](adr/025-read-only-private-operator-terminal.md),
-[requirements](phase7/READ_ONLY_ACCEPTANCE.md) and [runbook](phase7/READ_ONLY_RUNBOOK.md)
-are FROZEN before implementation with the explicit data-free static-shell exception; all APIs remain protected.
-The active operational checkout remains clean/pinned9b9038b; no broker/money/commissioning authority.
+Phase 7 read-only foundation engineering is independently ACCEPTED/PASS at
+`4418df01128b08e6ac18a79e9f967f7c5364b1b3`; see the [acceptance record](reviews/PHASE_7_READ_ONLY_FOUNDATION_INDEPENDENT_ACCEPTANCE.md).
+ADR-025 is ACCEPTED/FROZEN with original bytes retained. Full Phase 7 operational
+acceptance remains OPEN. Owner authorizes documentation-only acceptance on PR #8,
+then exact-head push/PR CI and verified NORMAL merge. Operational release stays pinned
+at 9b9038b. Phase 2/4 full operational gates remain OPEN; Phase 5 commissioning and
+Phase 6 remain NOT STARTED. Read-only operational diagnosis follows merge. PRIVATE
+must be independently verified before any Phase6 branch is created or published;
+current entry is PUBLIC and no visibility change is authorized. Only DS-04 substep 6A
+is conditionally authorized; no macro/news/LLM, broker, money or collection START.
 
 Phase 5 offline foundation is independently ACCEPTED/PASS at `82601fa80a711ce3de66b4b8289ac0f9b679b298`;
 see the [independent acceptance](reviews/PHASE_5_OFFLINE_FOUNDATION_INDEPENDENT_ACCEPTANCE.md).
@@ -16,7 +18,7 @@ Actual Phase 5 commissioning NOT STARTED; sustained-demo clock zero and executio
 Owner-selected long-term repository disposition is PRIVATE; verified entry remains PUBLIC,
 so the temporary exception and 2026-10-24 governance gate remain active. No settings change.
 PR #7 administrative acceptance/CI/NORMAL merge are complete; separate-clone Phase 7 foundation
-is authorized under frozen ADR025. Its new PR must remain OPEN/UNMERGED after final verification.
+is authorized under frozen ADR025. PR #8 merge hold is superseded only by the acceptance sequence above.
 The active Phase 4 operational release remains separately pinned to `9b9038b` and untouched.
 
 Phase4 engineering is independently accepted; actual-feed observation is ACTIVE on the
@@ -307,4 +309,4 @@ Correctness precedes alpha claims. Useful accepted contracts allow unrelated non
 to overlap observation without granting activation. Safety monitoring is never deferred for UI work.
 
 Read-only terminal [implementation checkpoint](phase7/READ_ONLY_IMPLEMENTATION.md) records
-focused results and pending verification without claiming operational or independent acceptance.
+historical implementation results; the independent acceptance record above supplies the current disposition.

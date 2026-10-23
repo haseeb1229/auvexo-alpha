@@ -136,6 +136,19 @@ bearer. Every /api/v1 endpoint remains bearer-protected. Token runtime/memory/He
 no URL/storage/log/source/worker persistence, no public listener or wildcard CORS.
 See docs/reference/PHASE_7_STATIC_SHELL_CLARIFICATION.txt. Active runtime stays9b9038b.
 
+Phase 7 read-only foundation independently ACCEPTED/PASS at
+4418df01128b08e6ac18a79e9f967f7c5364b1b3; see
+ docs/reviews/PHASE_7_READ_ONLY_FOUNDATION_INDEPENDENT_ACCEPTANCE.md.
+Owner authorizes docs-only acceptance on PR #8, both exact-head CI events/logs PASS,
+then verified NORMAL merge with ordered parents prior main 1d6b08f and admin head.
+Frozen ADR025/requirements/runbook/shell bytes stay unchanged. Full Phase7 OPEN.
+After merge diagnose Phase2/4 read-only; no repair/task/config/activation/runtime writes.
+Material application defects STOP affected interpretation for separate remediation.
+PRIVATE must be verified before creating/publishing Phase6 branch; no visibility change.
+Only conditional DS04 derivatives-intelligence 6A is authorized after that gate,
+with frozen design/rights/preregistration first. No macro/news/LLM/task START/credit.
+Phase5 commissioning NOT STARTED; DS03/broker/money remain blocked.
+
 Before changes, read [constitution](docs/PRODUCT_CONSTITUTION.md),
 [architecture](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md),
 [engineering rules](docs/engineering/ENGINEERING_RULES.md), and the current
