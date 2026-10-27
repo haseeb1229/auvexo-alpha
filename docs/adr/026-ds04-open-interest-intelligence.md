@@ -1,7 +1,8 @@
 # ADR-026: proposed DS-04-A1 open-interest intelligence
 
-Status: PROPOSED — PENDING INDEPENDENT EXACT-SHA REVIEW.
-NO IMPLEMENTATION / COLLECTION / ACTIVATION AUTHORITY.
+Status: ACCEPTED/FROZEN for Phase 6A1 source/feature-foundation engineering design at
+887b6ac38636e07ff922d2ba2d0ec7b2063edd4f; independent GPT-5.6 Sol acceptance.
+Implementation requires the owner-authorized verified PR #9 merge sequence; NO COLLECTION / ACTIVATION AUTHORITY.
 Date: 2026-10-27.
 Requirements: R-003, R-005, R-006, R-014, R-015, R-018, R-022, R-023, R-025, R-029, R-030, R-031, R-035; proposed OI-01 through OI-16.
 

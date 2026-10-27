@@ -1,7 +1,8 @@
 # Proposed open-interest runbook and architecture
 
-Status: PROPOSED — PENDING INDEPENDENT EXACT-SHA REVIEW.
-NO IMPLEMENTATION / COLLECTION / ACTIVATION AUTHORITY. Date:2026-10-27.
+Status: ACCEPTED/FROZEN for Phase 6A1 source/feature-foundation engineering design at
+887b6ac38636e07ff922d2ba2d0ec7b2063edd4f; independent GPT-5.6 Sol acceptance.
+Implementation requires the owner-authorized verified PR #9 merge sequence; NO COLLECTION / ACTIVATION AUTHORITY. Date:2026-10-27.
 See [ADR026](../adr/026-ds04-open-interest-intelligence.md), [requirements](OPEN_INTEREST_ACCEPTANCE.md),
 [rights](SOURCES_AND_RIGHTS.md) and [experiment](EXPERIMENT_PREREGISTRATION.md).
 All procedures below describe future work; no executable schema, commands or task XML.

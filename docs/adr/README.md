@@ -47,4 +47,4 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 
 | [ADR-025](025-read-only-private-operator-terminal.md) | ACCEPTED/FROZEN at 4418df0; original bytes retained | [Independent acceptance](../reviews/PHASE_7_READ_ONLY_FOUNDATION_INDEPENDENT_ACCEPTANCE.md); read-only terminal, every API bearer-protected |
 
-| [ADR-026](026-ds04-open-interest-intelligence.md) | PROPOSED; independent exact-SHA review pending; no implementation/collection authority | DS-04-A1 OI snapshot only; [rights](../phase6/SOURCES_AND_RIGHTS.md) and [preregistration](../phase6/EXPERIMENT_PREREGISTRATION.md) |
+| [ADR-026](026-ds04-open-interest-intelligence.md) | ACCEPTED/FROZEN source/feature-foundation design at 887b6ac; executable implementation not yet accepted; no collection authority | DS-04-A1 OI snapshot only; [rights](../phase6/SOURCES_AND_RIGHTS.md) and [preregistration](../phase6/EXPERIMENT_PREREGISTRATION.md) |

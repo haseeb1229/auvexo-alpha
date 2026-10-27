@@ -1,10 +1,11 @@
 # Phase 6A1 proposed open-interest acceptance requirements
 
-Status: PROPOSED — PENDING INDEPENDENT EXACT-SHA REVIEW.
-NO IMPLEMENTATION / COLLECTION / ACTIVATION AUTHORITY. Date:2026-10-27.
+Status: ACCEPTED/FROZEN for Phase 6A1 source/feature-foundation engineering design at
+887b6ac38636e07ff922d2ba2d0ec7b2063edd4f; independent GPT-5.6 Sol acceptance.
+Implementation requires the owner-authorized verified PR #9 merge sequence; NO COLLECTION / ACTIVATION AUTHORITY. Date:2026-10-27.
 See [ADR026](../adr/026-ds04-open-interest-intelligence.md), [rights](SOURCES_AND_RIGHTS.md),
 [runbook](OPEN_INTEREST_RUNBOOK.md) and [preregistration](EXPERIMENT_PREREGISTRATION.md).
-These are future proposed proofs, not executed test claims or an accepted freeze.
+These are accepted/frozen engineering requirements, not executed test claims or collection authority.
 
 | ID | Proposed invariant and future evidence |
 | --- | --- |

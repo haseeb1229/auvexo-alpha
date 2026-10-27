@@ -1,7 +1,9 @@
 # DS-04-A1 proposed sources and rights
 
-Status: PROVISIONAL_SOURCE_SPECIFIC_RESEARCH_UNBLOCKING_CANDIDATE.
-PENDING_INDEPENDENT_EXACT_SHA_ACCEPTANCE; NO IMPLEMENTATION/COLLECTION AUTHORITY.
+Status: ACCEPTED_SOURCE_SPECIFIC_NONPRODUCTION_RESEARCH_UNBLOCKING at
+887b6ac38636e07ff922d2ba2d0ec7b2063edd4f by independent GPT-5.6 Sol review.
+Accepted/frozen DS-04-A1 scope only; implementation follows authorized PR #9 merge.
+NO COLLECTION/ACTIVATION AUTHORITY.
 Review version: ds04-a1-rights.20261027.v1. Reviewed2026-10-27 approximately11:08-11:12UTC
 (16:08-16:12Asia/Karachi); ignored Development .local/source-review/phase6 records
 exact local-copy retrieval timestamps/hashes when available. Full copyrighted PDFs never enter Git.

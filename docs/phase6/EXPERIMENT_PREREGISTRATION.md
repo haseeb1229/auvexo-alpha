@@ -1,7 +1,8 @@
 # OI-FWD-v1 proposed paired forward experiment preregistration
 
-Status: PROPOSED — PENDING INDEPENDENT EXACT-SHA REVIEW.
-NO IMPLEMENTATION / COLLECTION / ACTIVATION AUTHORITY. Date:2026-10-27.
+Status: ACCEPTED/FROZEN for Phase 6A1 source/feature-foundation engineering design at
+887b6ac38636e07ff922d2ba2d0ec7b2063edd4f; independent GPT-5.6 Sol acceptance.
+Implementation requires the owner-authorized verified PR #9 merge sequence; NO COLLECTION / ACTIVATION AUTHORITY. Date:2026-10-27.
 Protocol oi-fwd.v1, seed1229: one study, two symbols, two fixed models.
 See [rights](SOURCES_AND_RIGHTS.md), [runbook](OPEN_INTEREST_RUNBOOK.md) and
 [acceptance](OPEN_INTEREST_ACCEPTANCE.md). Bind the accepted document hash and later
