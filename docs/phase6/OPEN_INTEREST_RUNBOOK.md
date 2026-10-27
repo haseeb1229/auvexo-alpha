@@ -105,3 +105,10 @@ task/config -> separate future owner START. PHASE6_FORWARD_CLOCK=ZERO until all 
 No software pass/fixture/CI grants dates or operational enablement. Phase2/4 fullOPEN and
 current counts/span/replayUNKNOWN; Phase5 commissioningNOTSTARTED/DS03BLOCKED. No broker,
 MCP/account/order/money or runtime AI authority. No operational repair/DB startup here.
+
+Proposed [OI-16](OPEN_INTEREST_ACCEPTANCE.md) applies even after a future
+PASS_RESEARCH_PREDICTABILITY: OI-FWD-v1 is predictability-only; the canonical Phase 6
+incremental-value/module-enable/progression gate remains OPEN. No operational OI or
+strategy promotion follows. A separately preregistered future/unconsumed value ablation
+under current rights and accepted dependencies is required first, with no consumed
+Phase 3 OOS selection/reuse. That later study is not designed or authorized here.

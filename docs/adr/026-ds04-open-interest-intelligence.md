@@ -3,7 +3,7 @@
 Status: PROPOSED — PENDING INDEPENDENT EXACT-SHA REVIEW.
 NO IMPLEMENTATION / COLLECTION / ACTIVATION AUTHORITY.
 Date: 2026-10-27.
-Requirements: R-003, R-005, R-006, R-014, R-015, R-018, R-022, R-023, R-025, R-029, R-030, R-031, R-035; proposed OI-01 through OI-15.
+Requirements: R-003, R-005, R-006, R-014, R-015, R-018, R-022, R-023, R-025, R-029, R-030, R-031, R-035; proposed OI-01 through OI-16.
 
 ## Context
 
@@ -69,6 +69,24 @@ Binance live derivatives BLOCKED_BY_POLICY. No broker/MT5/Exness/session/order/m
 permit issuer, withdrawals/transfers, account/API key/OAuth/MCP/Agent Native/USER_DATA/
 USER_STREAM/TRADE, testnet account, runtime AI, macro/news or later Phase6 scope.
 No LLM-to-order path or new risk authority. Broader DS04 exclusions remain unresolved.
+
+## Proposed OI-16: predictability foundation and separate value gate
+
+OI-FWD-v1 is a SOURCE/FEATURE PREDICTABILITY FOUNDATION experiment only.
+PASS_RESEARCH_PREDICTABILITY proves neither price alpha, trading value, filter value,
+strategy promotion value, safety value nor the canonical Phase 6 incremental-value exit.
+A PASS cannot enable OI in operational decision-making, promote a strategy/candidate,
+satisfy Phase 6 module enablement or justify progression to macro/news/agents based on
+OI's demonstrated value. The canonical incremental-value gate remains OPEN after a PASS.
+
+Before any such claim, enablement or progression, require a SEPARATE preregistered,
+paired baseline-vs-OI augmented incremental-value ablation on admissible future/unconsumed
+evidence: causally correct, cost/latency aware where applicable, dependence-aware and
+no-retune, under then-current source rights and accepted dependencies. Its baseline must
+NOT be selected from Phase 3 consumed OOS performance. Both consumed Phase 3 OOS holdouts
+remain permanently unavailable for selection/reuse. This correction does NOT design or
+authorize that future value study; it adds no empirical thresholds for it. OI-FWD-v1's
+existing forecasting protocol, sample, metrics and decision thresholds remain unchanged.
 
 ## Alternatives
 

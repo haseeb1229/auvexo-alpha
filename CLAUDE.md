@@ -1,5 +1,18 @@
 # Project agent rules
 
+## CURRENT STATUS SUPERSESSION — 2026-10-27
+
+- Repository haseeb1229/auvexo-alpha is independently verified PRIVATE, reconfirmed by authenticated GitHub API for this correction. The former temporary PUBLIC exception/governance-return gate is resolved by the verified owner return to PRIVATE; prior public copies cannot be revoked.
+- Main remains 94b7d66d3c7531a513759bab202a13bf3c2500b0 while PR #9 / branch phase-6/ds04-open-interest-proposal is OPEN/UNMERGED. This documentation-only proposed Phase 6A1 DS-04-A1 OI-snapshot research-unblocking checkpoint is not accepted merely because it exists; fresh independent exact-SHA review is required.
+- Phase 6 executable implementation remains NOT STARTED. DS-04 data collection/task remain NOT STARTED; PHASE6_FORWARD_CLOCK=ZERO. Broad DS-04 rights remain unresolved/excluded; only the narrow OI-snapshot proposal is under review.
+- OI-FWD-v1 is SOURCE/FEATURE PREDICTABILITY FOUNDATION only. PASS_RESEARCH_PREDICTABILITY proves no price alpha, trading/filter/promotion/safety value or canonical Phase 6 incremental-value exit. It cannot enable operational OI, promote a strategy/candidate, enable a module or justify progression to macro/news/agents on OI-value grounds.
+- That value gate remains OPEN pending a separately authorized, preregistered paired baseline-vs-OI augmented ablation on admissible future/unconsumed evidence, causally correct, cost/latency aware where applicable, dependence-aware and no-retune, under then-current rights and accepted dependencies. No baseline selection from Phase 3 consumed OOS performance; both consumed holdouts remain permanently unavailable for selection/reuse. This correction neither designs nor authorizes that later study.
+- Phase 2 full operational acceptance remains OPEN; current genuine count UNKNOWN unless later independently proven. Phase 4 full operational acceptance remains OPEN; current qualifying count/span/replay UNKNOWN unless later independently proven. This correction earns ZERO calendar/qualification credit.
+- Phase 5 commissioning remains NOT STARTED; DS-03 remains BLOCKED. Binance live derivatives remain BLOCKED_BY_POLICY. No broker/MT5/Exness/order/money/runtime-AI authority; no macro/news/agent runtime.
+- Private hosted CI for PR #9 is EXTERNALLY_BLOCKED / PRIVATE_CI_UNAVAILABLE at reviewed run 40495351201 / job 122159293913: completed FAILURE with ZERO executable steps, no hosted test result and no hosted PASS. Codex observed the account billing/spending annotation; independent review confirmed the zero-step failure. Any automatic correction-head run requires separate factual reporting. No manual rerun or visibility/billing/settings/workflow change to manufacture CI.
+
+Older PUBLIC/current-entry, phase-status and governance wording below is retained as historical context and evidence. This dated block supersedes that wording ONLY for present status; it does not rewrite historical facts, frozen acceptances, source rights or operational/financial gates.
+
 Phase 3 provider-outage resume is authorized by docs/reference/PHASE_3_RESUME_BRIEF.txt.
 Preserve original docs/phase3/DATA_PLAN.md; freeze DATA_PLAN_V2.md before broad acquisition.
 Exact-source confirmed venue outages remain DEGRADED and explicitly unavailable, never candles.

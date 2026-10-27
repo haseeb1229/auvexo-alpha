@@ -114,6 +114,24 @@ No renaming studies to reuse holdouts. Safety monitoring may stop collection but
 earns replacement dates or selects a better confirmation window. No favourable interim
 primary-result inspection to decide stopping/extension.
 
+## Proposed OI-16: predictability foundation and separate value gate
+
+OI-FWD-v1 is a SOURCE/FEATURE PREDICTABILITY FOUNDATION experiment only.
+PASS_RESEARCH_PREDICTABILITY proves neither price alpha, trading value, filter value,
+strategy promotion value, safety value nor the canonical Phase 6 incremental-value exit.
+A PASS cannot enable OI in operational decision-making, promote a strategy/candidate,
+satisfy Phase 6 module enablement or justify progression to macro/news/agents based on
+OI's demonstrated value. The canonical incremental-value gate remains OPEN after a PASS.
+
+Before any such claim, enablement or progression, require a SEPARATE preregistered,
+paired baseline-vs-OI augmented incremental-value ablation on admissible future/unconsumed
+evidence: causally correct, cost/latency aware where applicable, dependence-aware and
+no-retune, under then-current source rights and accepted dependencies. Its baseline must
+NOT be selected from Phase 3 consumed OOS performance. Both consumed Phase 3 OOS holdouts
+remain permanently unavailable for selection/reuse. This correction does NOT design or
+authorize that future value study; it adds no empirical thresholds for it. OI-FWD-v1's
+existing forecasting protocol, sample, metrics and decision thresholds remain unchanged.
+
 ## Limitations and later gates
 
 Even90days/1500pairs may lack regimes/effective independent sample; independent review
