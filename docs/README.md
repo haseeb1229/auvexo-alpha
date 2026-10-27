@@ -1,5 +1,18 @@
 # Project document index
 
+## CURRENT STATUS SUPERSESSION — 2026-10-27
+
+- Repository haseeb1229/auvexo-alpha is independently verified PRIVATE, reconfirmed by authenticated GitHub API for this correction. The former temporary PUBLIC exception/governance-return gate is resolved by the verified owner return to PRIVATE; prior public copies cannot be revoked.
+- Phase 6A1 source/feature-foundation design is independently ACCEPTED/FROZEN at 887b6ac38636e07ff922d2ba2d0ec7b2063edd4f (GPT-5.6 Sol, founder-supplied disposition). Main remains 94b7d66d3c7531a513759bab202a13bf3c2500b0 before the authorized NORMAL PR #9 administrative acceptance merge. The documentation-only private-CI infrastructure exception is explicit, not an executable-CI waiver.
+- Phase 6 executable implementation remains NOT STARTED. DS-04 data collection/task remain NOT STARTED; PHASE6_FORWARD_CLOCK=ZERO. Broad DS-04 rights remain unresolved/excluded; only DS-04-A1 current OI snapshot source-specific NONPRODUCTION rights/design are accepted.
+- OI-FWD-v1 is SOURCE/FEATURE PREDICTABILITY FOUNDATION only. PASS_RESEARCH_PREDICTABILITY proves no price alpha, trading/filter/promotion/safety value or canonical Phase 6 incremental-value exit. It cannot enable operational OI, promote a strategy/candidate, enable a module or justify progression to macro/news/agents on OI-value grounds.
+- That value gate remains OPEN pending a separately authorized, preregistered paired baseline-vs-OI augmented ablation on admissible future/unconsumed evidence, causally correct, cost/latency aware where applicable, dependence-aware and no-retune, under then-current rights and accepted dependencies. No baseline selection from Phase 3 consumed OOS performance; both consumed holdouts remain permanently unavailable for selection/reuse. The consolidated owner brief permits outcome-blind preregistration of that later study if defensible, never execution or consumed-OOS reuse.
+- Phase 2 full operational acceptance remains OPEN; current genuine count UNKNOWN unless later independently proven. Phase 4 full operational acceptance remains OPEN; current qualifying count/span/replay UNKNOWN unless later independently proven. This correction earns ZERO calendar/qualification credit.
+- Phase 5 commissioning remains NOT STARTED; DS-03 remains BLOCKED. Binance live derivatives remain BLOCKED_BY_POLICY. No broker/MT5/Exness/order/money/runtime-AI authority; no macro/news/agent runtime.
+- Private hosted CI for PR #9 is EXTERNALLY_BLOCKED / PRIVATE_CI_UNAVAILABLE at reviewed run 40495351201 / job 122159293913: completed FAILURE with ZERO executable steps, no hosted test result and no hosted PASS. Codex observed the account billing/spending annotation; independent review confirmed the zero-step failure. Any automatic correction-head run requires separate factual reporting. No manual rerun or visibility/billing/settings/workflow change to manufacture CI.
+
+Older PUBLIC/current-entry, phase-status and governance wording below is retained as historical context and evidence. This dated block supersedes that wording ONLY for present status; it does not rewrite historical facts, frozen acceptances, source rights or operational/financial gates.
+
 Phase 7 read-only foundation engineering is independently ACCEPTED/PASS at
 `4418df01128b08e6ac18a79e9f967f7c5364b1b3`; see the [acceptance record](reviews/PHASE_7_READ_ONLY_FOUNDATION_INDEPENDENT_ACCEPTANCE.md).
 ADR-025 is ACCEPTED/FROZEN with original bytes retained. Full Phase 7 operational
@@ -91,7 +104,7 @@ Phase 3 implementation follows the authorized normal merge/new branch, not this 
 | [Client and UX direction](CLIENT_AND_UX_DIRECTION.md) | Future terminal, mobile, desktop and voice boundaries |
 | [Roadmap](ROADMAP.md) | Phases 0-9 and explicit proof/exit gates |
 | [Open decisions](OPEN_DECISIONS.md) | Status, owner and closure point for every open gate |
-| [ADR index](adr/README.md) | Decisions 001-023 with individual dates/statuses |
+| [ADR index](adr/README.md) | Decisions 001-026 with individual dates/statuses; ADR-026 PROPOSED |
 | [Self-review](PHASE_0_SELF_REVIEW.md) | Consistency findings and resolutions |
 | [Verification evidence](validation/PHASE_0_CHECKS.md) | Commands, results and limitations |
 | [Handoff template](HANDOFF_TEMPLATE.md) | Required future phase delivery fields |
@@ -118,3 +131,11 @@ retrospective coverage and remaining exit gates. It is not Phase 2 acceptance.
 
 Read-only terminal [implementation checkpoint](phase7/READ_ONLY_IMPLEMENTATION.md) records
 historical implementation results; the independent acceptance record above supplies the current disposition.
+
+## Phase 6A1 documentation proposal
+
+[Proposed ADR026](adr/026-ds04-open-interest-intelligence.md), [acceptance](phase6/OPEN_INTEREST_ACCEPTANCE.md),
+[runbook](phase6/OPEN_INTEREST_RUNBOOK.md), [rights](phase6/SOURCES_AND_RIGHTS.md) and
+[preregistration](phase6/EXPERIMENT_PREREGISTRATION.md) cover DS-04-A1 current OI only.
+PRIVATE verified2026-10-27. Proposal awaits independent exact-SHA acceptance; no code,
+data, collector, task or clock. Earlier broad DS04 rights stop and all other gates remain.
