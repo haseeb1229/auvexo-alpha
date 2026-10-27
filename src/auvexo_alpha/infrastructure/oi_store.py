@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Annotated, Literal
 from uuid import uuid4
 
 from pydantic import Field
-from sqlalchemy import Engine, text
+from sqlalchemy import Connection, Engine, text
 
 from auvexo_alpha.domain.contracts import Contract, Digest, utc_time
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, require_oi_rights
@@ -121,13 +121,62 @@ class OIStore:
                 or any(row[3:])
             ):
                 raise ValueError("OI_DATABASE_IDENTITY_MISMATCH")
-            if conn.scalar(
-                text("SELECT EXISTS(SELECT 1 FROM data_manifest WHERE logical_key NOT LIKE :p)"),
-                {"p": _PREFIX + "%"},
-            ):
-                raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
+            self._attest_dedicated_database(conn)
         self.root.mkdir(parents=True, exist_ok=True)
         self.check_quota(0)
+
+    def _attest_dedicated_database(self, conn: Connection) -> None:
+        """Read-only source isolation proof, repeated on every initialization/restart.
+
+        Prefix resemblance is not a namespace. Existing rows are never removed or
+        rewritten to obtain a pass, and continuation receipts are admitted only by
+        the exact externally accepted authority supplied to this store instance.
+        """
+        if (
+            conn.scalar(
+                text("SELECT EXISTS(SELECT 1 FROM data_manifest WHERE logical_key !~ :pattern)"),
+                {"pattern": "^ds04-a1:(BTCUSDT|ETHUSDT):[0-9]{13}:oi-snapshot[.]v1$"},
+            )
+            or conn.scalar(
+                text(
+                    "SELECT EXISTS(SELECT 1 FROM data_checkpoint "
+                    "WHERE feed_key NOT IN ('DS-04-A1:BTCUSDT','DS-04-A1:ETHUSDT'))"
+                )
+            )
+            or conn.scalar(
+                text(
+                    "SELECT EXISTS(SELECT 1 FROM data_event WHERE NOT ("
+                    "(feed_key='DS-04-A1:transport-budget' "
+                    "AND event_id ~ '^oi-budget:[0-9a-f]{64}$') OR "
+                    "(feed_key='DS-04-A1:quarantine' "
+                    "AND event_id ~ '^oi-quarantine:[0-9a-f]{64}:"
+                    "(SCHEMA|PARSER_REJECTED|SOURCE_REJECTED|RIGHTS_REJECTED)$') OR "
+                    "(feed_key IN ('DS-04-A1:ledger:STUDY','DS-04-A1:ledger:FEATURE',"
+                    "'DS-04-A1:ledger:FORECAST','DS-04-A1:ledger:SCORE') "
+                    "AND event_id ~ '^oi-ledger:(STUDY|FEATURE|FORECAST|SCORE):[0-9a-f]{64}$' "
+                    "AND split_part(feed_key,':',3)=split_part(event_id,':',2))))"
+                )
+            )
+        ):
+            raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
+        base = accepted_oi_rights()
+        permitted_reviews = {base.content_hash(): base.canonical_bytes().decode("ascii")}
+        if self.review_authority is not None:
+            supplied = self.review_authority
+            checked = OIReviewAuthority(
+                supplied.base, supplied.chain, supplied.accepted_digests, supplied.now
+            )
+            permitted_reviews.update(
+                (receipt.content_hash(), receipt.canonical_bytes().decode("ascii"))
+                for receipt in checked.chain
+            )
+        reviews = conn.execute(
+            text("SELECT review_hash,payload FROM data_source_review LIMIT 258")
+        ).all()
+        if len(reviews) > 257 or any(
+            permitted_reviews.get(digest) != payload for digest, payload in reviews
+        ):
+            raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
 
     def _path(self, relative: str) -> Path:
         parsed = PurePosixPath(relative)
@@ -289,6 +338,7 @@ class OIStore:
         )
         with self.engine.begin() as conn:
             conn.execute(text("SELECT pg_advisory_xact_lock(:n)"), {"n": _LOCK})
+            self._attest_dedicated_database(conn)
             existing = conn.execute(
                 text("SELECT payload,manifest_hash FROM data_manifest WHERE dataset_version=:v"),
                 {"v": version},
@@ -361,11 +411,6 @@ class OIStore:
             self._publish_file(manifest.raw_relative_path, raw)
             self._publish_file(manifest.normalized_relative_path, normalized)
             self.verify(manifest)
-            if conn.scalar(
-                text("SELECT EXISTS(SELECT 1 FROM data_manifest WHERE logical_key NOT LIKE :p)"),
-                {"p": _PREFIX + "%"},
-            ):
-                raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
             conn.execute(
                 text("INSERT INTO data_source_review VALUES (:h,:p) ON CONFLICT DO NOTHING"),
                 {"h": rights.content_hash(), "p": rights.canonical_bytes().decode("ascii")},

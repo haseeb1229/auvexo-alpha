@@ -573,8 +573,14 @@ def test_oi_store_refuses_foreign_manifest_metadata_and_cannot_wrap_spot(store):
         )
     with pytest.raises(ValueError, match="DEDICATED_DATABASE_REQUIRED"):
         OIStore(store.engine, store.root, store.managed_root)
+    original_artifacts = {
+        path: path.read_bytes() for path in store.root.rglob("*") if path.is_file()
+    }
     with pytest.raises(ValueError, match="DEDICATED_DATABASE_REQUIRED"):
         publish(store, slot=NOW + timedelta(hours=1))
+    assert {path: path.read_bytes() for path in store.root.rglob("*") if path.is_file()} == (
+        original_artifacts
+    )
     store.verify(first)
 
 
@@ -766,3 +772,188 @@ def test_oi_late_review_leaves_gap_and_cannot_backdate_or_forge_receipt_stamp(st
     with pytest.raises(ValueError, match="REVIEW_RECEIPT_BINDING"):
         continued.publish(forged, raw, now=forged.available_at)
     assert continued.manifests() == []
+
+
+def _generic_counts(store):
+    with store.engine.connect() as conn:
+        return tuple(
+            conn.scalar(text("SELECT count(*) FROM " + table))
+            for table in (
+                "data_manifest",
+                "data_checkpoint",
+                "data_event",
+                "data_source_review",
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "table,namespace",
+    [
+        ("data_manifest", "spot-fixture"),
+        ("data_manifest", "ds04-a1:spot-fixture"),
+        ("data_manifest", "ds04-a1:BTCUSDT:1793354401000:spot.v2"),
+        ("data_manifest", "ds04-a1:BTCUSDT:1793354401000:oi-snapshot.v1:extra"),
+        ("data_checkpoint", "DS-02:BTCUSDT"),
+        ("data_checkpoint", "DS-04-A1:BTCUSDT:extra"),
+        ("data_checkpoint", "DS-04-A1:SOLUSDT"),
+        ("data_event", "DS-02:transport-budget"),
+        ("data_event", "DS-04-A1:transport-budget:extra"),
+        ("data_event", "DS-04-A1:ledger:OTHER"),
+        ("data_source_review", "foreign-rights"),
+    ],
+)
+def test_oi_initialization_attests_every_generic_table_and_retains_foreign_rows(
+    store, table, namespace
+):
+    manifest = publish(store)
+    with store.engine.begin() as conn:
+        if table == "data_manifest":
+            conn.execute(
+                text("INSERT INTO data_manifest VALUES (:v,:k,:s,:t,NULL,:h,:p)"),
+                {
+                    "v": "9" * 64,
+                    "k": namespace,
+                    "s": "8" * 64,
+                    "t": NOW,
+                    "h": "7" * 64,
+                    "p": "{}",
+                },
+            )
+        elif table == "data_checkpoint":
+            conn.execute(
+                text("INSERT INTO data_checkpoint VALUES (:f,:n,:v,:t)"),
+                {
+                    "f": namespace,
+                    "n": NOW + timedelta(hours=1),
+                    "v": manifest.dataset_version,
+                    "t": NOW,
+                },
+            )
+        elif table == "data_event":
+            conn.execute(
+                text(
+                    "INSERT INTO data_event(event_id,feed_key,observed_at,payload) "
+                    "VALUES (:i,:f,:t,:p)"
+                ),
+                {"i": "oi-budget:" + "a" * 64, "f": namespace, "t": NOW, "p": "{}"},
+            )
+        else:
+            conn.execute(
+                text("INSERT INTO data_source_review VALUES (:h,:p)"),
+                {
+                    "h": "a" * 64,
+                    "p": json.dumps({"source": namespace}),
+                },
+            )
+    before = _generic_counts(store)
+    destination = store.root / "uncreated-restart-root"
+    with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
+        OIStore(store.engine, destination, store.managed_root)
+    assert not destination.exists()
+    assert _generic_counts(store) == before
+
+
+@pytest.mark.parametrize(
+    "feed,identifier",
+    [
+        ("DS-04-A1:transport-budget", "foreign-budget:" + "a" * 64),
+        ("DS-04-A1:transport-budget", "oi-budget:" + "a" * 64 + ":extra"),
+        ("DS-04-A1:quarantine", "oi-budget:" + "a" * 64),
+        ("DS-04-A1:quarantine", "oi-quarantine:" + "a" * 64 + ":UNKNOWN"),
+        ("DS-04-A1:ledger:FEATURE", "oi-ledger:FORECAST:" + "a" * 64),
+        ("DS-04-A1:ledger:STUDY", "oi-ledger:STUDY:" + "a" * 63),
+    ],
+)
+def test_oi_initialization_rejects_event_namespace_identifier_mismatches(store, feed, identifier):
+    with store.engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO data_event(event_id,feed_key,observed_at,payload) "
+                "VALUES (:i,:f,:t,'{}')"
+            ),
+            {"i": identifier, "f": feed, "t": NOW},
+        )
+    before = _generic_counts(store)
+    with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
+        OIStore(store.engine, store.root, store.managed_root)
+    assert _generic_counts(store) == before
+
+
+def test_oi_restart_accepts_exact_base_review_and_all_implemented_event_namespaces(store):
+    from auvexo_alpha.application.oi_research import score_forecast
+
+    base = accepted_oi_rights()
+    with store.engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO data_source_review VALUES (:h,:p)"),
+            {
+                "h": base.content_hash(),
+                "p": base.canonical_bytes().decode("ascii"),
+            },
+        )
+    restarted = OIStore(store.engine, store.root, store.managed_root)
+    study, current, _, forecast = research_chain(restarted)
+    target = publish(restarted, slot=NOW + timedelta(hours=1), value="102")
+    score = score_forecast(study, forecast, current, target, scored_at=target.created_at)
+    restarted.append_score(score)
+    state = reservation()
+    restarted.save_transport_state(state)
+    restarted.save_transport_state(complete(state))
+    restarted.quarantine(b"synthetic rejected bytes", NOW, "PARSER_REJECTED")
+    before = _generic_counts(restarted)
+    accepted = OIStore(store.engine, store.root, store.managed_root)
+    assert accepted.forecasts() == (forecast,)
+    assert accepted.scores() == (score,)
+    assert _generic_counts(accepted) == before
+
+
+@pytest.mark.parametrize("mutation", ["payload", "hash"])
+def test_oi_restart_requires_exact_canonical_base_review_hash_and_payload(store, mutation):
+    base = accepted_oi_rights()
+    digest = base.content_hash() if mutation == "payload" else "a" * 64
+    payload = base.canonical_bytes().decode("ascii") + (" " if mutation == "payload" else "")
+    with store.engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO data_source_review VALUES (:h,:p)"), {"h": digest, "p": payload}
+        )
+    before = _generic_counts(store)
+    with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
+        OIStore(store.engine, store.root, store.managed_root)
+    assert _generic_counts(store) == before
+
+
+def test_oi_restart_requires_supplied_external_acceptance_for_continuation_rows(store):
+    authority = synthetic_review_authority(datetime(2026, 11, 26, 12, tzinfo=UTC))
+    receipt = authority.chain[0]
+    with store.engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO data_source_review VALUES (:h,:p)"),
+            {
+                "h": receipt.content_hash(),
+                "p": receipt.canonical_bytes().decode("ascii"),
+            },
+        )
+    before = _generic_counts(store)
+    with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
+        OIStore(store.engine, store.root, store.managed_root)
+    restarted = OIStore(store.engine, store.root, store.managed_root, review_authority=authority)
+    assert restarted.review_authority == authority
+    assert _generic_counts(store) == before
+
+
+def test_oi_restart_rejects_continuation_not_in_supplied_accepted_chain(store):
+    authority = synthetic_review_authority(datetime(2026, 11, 26, 12, tzinfo=UTC))
+    unaccepted = authority.chain[0].model_copy(update={"review_ref": "synthetic-unaccepted"})
+    with store.engine.begin() as conn:
+        conn.execute(
+            text("INSERT INTO data_source_review VALUES (:h,:p)"),
+            {
+                "h": unaccepted.content_hash(),
+                "p": unaccepted.canonical_bytes().decode("ascii"),
+            },
+        )
+    before = _generic_counts(store)
+    with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
+        OIStore(store.engine, store.root, store.managed_root, review_authority=authority)
+    assert _generic_counts(store) == before

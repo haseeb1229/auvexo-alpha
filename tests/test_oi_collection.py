@@ -411,8 +411,11 @@ def test_cli_default_disabled_denies_before_database_or_clock(tmp_path, monkeypa
         module, "create_engine", lambda *_a, **_kw: pytest.fail("database before authority")
     )
     monkeypatch.setattr(module, "inspect_clock", lambda *_: pytest.fail("clock before enabled"))
+    monkeypatch.setattr(
+        module, "load_oi_database_password", lambda: pytest.fail("secret before enabled")
+    )
     monkeypatch.setattr(module.signal, "signal", lambda *_: None)
-    monkeypatch.setattr(module.os.sys, "argv", ["run_oi_collection", "--config", str(config)])
+    monkeypatch.setattr(module.sys, "argv", ["run_oi_collection", "--config", str(config)])
     assert module.main() == 2
     result = json.loads(capsys.readouterr().out)
     assert result["status"] == "BLOCKED" and result["forward_days"] == 0
@@ -704,9 +707,12 @@ def test_cli_schedule_denies_before_build_clock_or_database(at, tmp_path, monkey
     monkeypatch.setattr(
         module, "create_engine", lambda *_a, **_kw: pytest.fail("database before schedule gate")
     )
+    monkeypatch.setattr(
+        module, "load_oi_database_password", lambda: pytest.fail("secret before schedule gate")
+    )
     monkeypatch.setattr(module.signal, "signal", lambda *_: None)
     monkeypatch.setattr(
-        module.os.sys,
+        module.sys,
         "argv",
         [
             "run_oi_collection",
@@ -767,9 +773,9 @@ def test_cli_uses_dedicated_oi_managed_root_not_engineering_cache(tmp_path, monk
     monkeypatch.setattr(module, "OIHTTP", lambda *_a, **_kw: object())
     monkeypatch.setattr(module, "OICollectionJob", FakeJob)
     monkeypatch.setattr(module.signal, "signal", lambda *_: None)
-    monkeypatch.setenv("AUVEXO_OI_DB_PASSWORD", "synthetic-test-only")
+    monkeypatch.setattr(module, "load_oi_database_password", lambda: "SYNTHETIC_ONLY_" + "a" * 40)
     monkeypatch.setattr(
-        module.os.sys,
+        module.sys,
         "argv",
         [
             "run_oi_collection",
@@ -851,3 +857,329 @@ def test_untrusted_local_clock_source_cannot_be_declared_trusted(source, monkeyp
     )
     with pytest.raises(ValueError, match="OI_CLOCK_UNTRUSTED"):
         oi_runtime.inspect_clock(source)
+
+
+def _check_sensitive(condition):
+    if not condition:
+        raise AssertionError("synthetic secret/output assertion failed")
+
+
+def cli_authorized_fixture(tmp_path, monkeypatch, *, at=NOW, config=None):
+    """No real OS secret, DB, clock process, endpoint or activation in this CLI fixture."""
+    module = tool("run_oi_collection")
+    config = config or configuration(enabled=True)
+    config_path = tmp_path / "synthetic-config.json"
+    config_path.write_bytes(config.canonical_bytes())
+    envelope = authority(config, at)
+    envelope_path = tmp_path / "synthetic-start.json"
+    envelope_path.write_bytes(envelope.canonical_bytes())
+
+    class FixedTime:
+        @classmethod
+        def now(cls, _timezone):
+            return at
+
+    monkeypatch.setattr(module, "datetime", FixedTime)
+    monkeypatch.setattr(module.signal, "signal", lambda *_: None)
+    monkeypatch.setattr(module, "require_build", lambda *_: None)
+    monkeypatch.setattr(module, "inspect_clock", lambda *_: clock_proof(at))
+    argv = [
+        "run_oi_collection",
+        "--config",
+        str(config_path),
+        "--scheduled",
+        "--start-envelope",
+        str(envelope_path),
+        "--accepted-start-hash",
+        envelope.content_hash(),
+    ]
+    monkeypatch.setattr(module.sys, "argv", argv)
+    return module, config, config_path, envelope, envelope_path, argv
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        "disabled",
+        "manual",
+        "protected",
+        "late",
+        "rights_expired",
+        "config_invalid",
+        "start_missing",
+        "start_invalid",
+        "build_invalid",
+        "clock_inspection_failed",
+        "clock_untrusted",
+        "database_foreign",
+        "database_port_invalid",
+        "database_operational_port",
+        "review_chain_invalid",
+    ],
+)
+def test_cli_every_early_gate_prevents_persistent_secret_decryption(
+    case, tmp_path, monkeypatch, capsys
+):
+    at = (
+        NOW.replace(hour=16)
+        if case == "protected"
+        else NOW + timedelta(seconds=16)
+        if case == "late"
+        else datetime(2026, 11, 27, 12, tzinfo=UTC)
+        if case == "rights_expired"
+        else NOW
+    )
+    config = configuration(enabled=case != "disabled")
+    module, _, config_path, envelope, envelope_path, argv = cli_authorized_fixture(
+        tmp_path, monkeypatch, at=at, config=config
+    )
+    if case == "manual":
+        argv.remove("--scheduled")
+    elif case == "config_invalid":
+        config_path.write_bytes(b'{"unknown":"SYNTHETIC_SENSITIVE_FAILURE"}')
+    elif case == "start_missing":
+        argv.remove("--start-envelope")
+        argv.remove(str(envelope_path))
+    elif case == "start_invalid":
+        argv[-1] = "0" * 64
+    elif case == "build_invalid":
+
+        def bad_build(*_):
+            raise ValueError("SYNTHETIC_SENSITIVE_FAILURE")
+
+        monkeypatch.setattr(module, "require_build", bad_build)
+    elif case == "clock_inspection_failed":
+
+        def bad_clock(*_):
+            raise ValueError("SYNTHETIC_SENSITIVE_FAILURE")
+
+        monkeypatch.setattr(module, "inspect_clock", bad_clock)
+    elif case == "clock_untrusted":
+        monkeypatch.setattr(
+            module, "inspect_clock", lambda *_: clock_proof(at - timedelta(seconds=121))
+        )
+    elif case == "database_foreign":
+        argv.extend(["--database", "auvexo_paper"])
+    elif case == "database_port_invalid":
+        argv.extend(["--port", "0"])
+    elif case == "database_operational_port":
+        argv.extend(["--port", "55432"])
+    elif case == "review_chain_invalid":
+        path = tmp_path / "synthetic-unaccepted-review.json"
+        path.write_bytes(b"[]")
+        argv.extend(["--review-chain", str(path)])
+    monkeypatch.setattr(
+        module, "load_oi_database_password", lambda: pytest.fail("secret before gates")
+    )
+    monkeypatch.setattr(module, "create_engine", lambda *_a, **_kw: pytest.fail("DB before gates"))
+    status = module.main()
+    output = capsys.readouterr()
+    _check_sensitive(
+        not output.err
+        and "SYNTHETIC_SENSITIVE" not in output.out
+        and "IGNORED_ENV" not in output.out
+    )
+    _check_sensitive(
+        not output.err
+        and "SYNTHETIC_SENSITIVE" not in output.out
+        and "IGNORED_ENV" not in output.out
+    )
+    assert status == 2
+    assert json.loads(output.out) == {
+        "status": "BLOCKED",
+        "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
+        "forward_days": 0,
+    }
+    _check_sensitive(not output.err and "SYNTHETIC_SENSITIVE_FAILURE" not in output.out)
+
+
+def test_cli_os_secret_decrypts_after_clock_and_before_first_database_connection(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    module, config, _, _, _, _ = cli_authorized_fixture(tmp_path, monkeypatch)
+    calls = []
+    password = "SYNTHETIC_ONLY_" + "q" * 40
+    monkeypatch.setenv("AUVEXO_OI_DB_PASSWORD", "IGNORED_ENV_ONLY_" + "z" * 40)
+
+    def built(*_):
+        calls.append("build")
+
+    def inspected(*_):
+        calls.append("clock")
+        return clock_proof()
+
+    def secret():
+        calls.append("secret")
+        return password
+
+    class FakeStore:
+        def __init__(self, engine, root, managed_root, *, review_authority=None):
+            calls.append("store")
+
+        def load_transport_state(self, _):
+            return object()
+
+        def save_transport_state(self, _):
+            pytest.fail("no real persistence")
+
+    class FakeJob:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def run(self, **_kwargs):
+            calls.append("job")
+            return OIJobStatus("COMPLETE", "SYNTHETIC_NO_COLLECTION")
+
+    def engine(url, **kwargs):
+        _check_sensitive(url.password == password)
+        assert (
+            url.username == "auvexo_data_writer" and url.host == "127.0.0.1" and url.port == 55433
+        )
+        assert kwargs["hide_parameters"] is True
+        calls.append("connect")
+        return SimpleNamespace(dispose=lambda: calls.append("dispose"))
+
+    monkeypatch.setattr(module, "require_build", built)
+    monkeypatch.setattr(module, "inspect_clock", inspected)
+    monkeypatch.setattr(module, "load_oi_database_password", secret)
+    monkeypatch.setattr(module, "create_engine", engine)
+    monkeypatch.setattr(module, "OIStore", FakeStore)
+    monkeypatch.setattr(module, "OIHTTP", lambda *_a, **_kw: object())
+    monkeypatch.setattr(module, "OICollectionJob", FakeJob)
+    status = module.main()
+    output = capsys.readouterr()
+    _check_sensitive(
+        not output.err and password not in output.out and "IGNORED_ENV_ONLY" not in output.out
+    )
+    assert status == 0
+    assert calls == ["build", "clock", "secret", "connect", "store", "job", "dispose"]
+    assert json.loads(output.out)["forward_days"] == 0
+
+
+def test_cli_secret_failure_is_generic_no_environment_fallback_or_connection(
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    module, _, _, _, _, _ = cli_authorized_fixture(tmp_path, monkeypatch)
+    monkeypatch.setenv("AUVEXO_OI_DB_PASSWORD", "IGNORED_ENV_ONLY_" + "z" * 40)
+
+    def unavailable():
+        raise ValueError("SYNTHETIC_SENSITIVE_DPAPI_FAILURE_" + "q" * 40)
+
+    monkeypatch.setattr(module, "load_oi_database_password", unavailable)
+    monkeypatch.setattr(
+        module, "create_engine", lambda *_a, **_kw: pytest.fail("no secret fallback")
+    )
+    status = module.main()
+    output = capsys.readouterr()
+    _check_sensitive(
+        not output.err
+        and "SYNTHETIC_SENSITIVE" not in output.out
+        and "IGNORED_ENV" not in output.out
+    )
+    assert status == 2
+    assert json.loads(output.out) == {
+        "status": "BLOCKED",
+        "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
+        "forward_days": 0,
+    }
+
+
+def test_collector_source_has_no_environment_or_plaintext_password_argument():
+    source = (ROOT / "tools/run_oi_collection.py").read_text(encoding="utf8")
+    assert "AUVEXO_OI_DB_PASSWORD" not in source and "os.environ" not in source
+    assert 'add_argument("--password"' not in source
+    assert 'add_argument("--secret"' not in source
+
+
+@pytest.mark.parametrize("option", ["--password", "--port"])
+def test_cli_unrecognized_secret_argument_or_invalid_type_is_redacted(
+    option,
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    module, _, _, _, _, argv = cli_authorized_fixture(tmp_path, monkeypatch)
+    argv.extend([option, "SYNTHETIC_SENSITIVE_MUST_NOT_ECHO_" + "x" * 40])
+    monkeypatch.setattr(
+        module, "load_oi_database_password", lambda: pytest.fail("secret before parse")
+    )
+    monkeypatch.setattr(module, "create_engine", lambda *_a, **_kw: pytest.fail("DB before parse"))
+    status = module.main()
+    output = capsys.readouterr()
+    _check_sensitive(not output.err and "SYNTHETIC_SENSITIVE" not in output.out)
+    assert status == 2
+    assert json.loads(output.out)["reason"] == "OI_PREFLIGHT_OR_PERSISTENCE_FAILED"
+    _check_sensitive(not output.err and "SYNTHETIC_SENSITIVE" not in output.out)
+
+
+@pytest.mark.parametrize("gate", ["late", "start_expired", "rights_expired"])
+@pytest.mark.parametrize("inspection", ["build", "clock"])
+def test_cli_revalidates_time_sensitive_authority_before_secret_decryption(
+    gate,
+    inspection,
+    tmp_path,
+    monkeypatch,
+    capsys,
+):
+    initial = datetime(2026, 11, 26, 23, tzinfo=UTC) if gate == "rights_expired" else NOW
+    module, config, _, envelope, envelope_path, argv = cli_authorized_fixture(
+        tmp_path, monkeypatch, at=initial
+    )
+    if gate == "start_expired":
+        envelope = OIStartEnvelope.model_validate(
+            {**envelope.model_dump(mode="python"), "expires_at": initial + timedelta(seconds=1)}
+        )
+    elif gate == "rights_expired":
+        envelope = OIStartEnvelope.model_validate(
+            {**envelope.model_dump(mode="python"), "expires_at": config.rights.review_due}
+        )
+    envelope_path.write_bytes(envelope.canonical_bytes())
+    argv[-1] = envelope.content_hash()
+    clock = {"at": initial}
+    calls = []
+
+    class FreshTime:
+        @classmethod
+        def now(cls, _timezone):
+            return clock["at"]
+
+    def advance():
+        clock["at"] += (
+            timedelta(hours=1)
+            if gate == "rights_expired"
+            else timedelta(seconds=16)
+            if gate == "late"
+            else timedelta(seconds=2)
+        )
+
+    def build(*_):
+        calls.append("build")
+        if inspection == "build":
+            advance()
+
+    def inspect(*_):
+        calls.append("clock")
+        if inspection == "clock":
+            advance()
+        return clock_proof(clock["at"])
+
+    monkeypatch.setattr(module, "datetime", FreshTime)
+    monkeypatch.setattr(module, "require_build", build)
+    monkeypatch.setattr(module, "inspect_clock", inspect)
+    monkeypatch.setattr(
+        module, "load_oi_database_password", lambda: pytest.fail("expired secret gate")
+    )
+    monkeypatch.setattr(module, "create_engine", lambda *_a, **_kw: pytest.fail("expired DB gate"))
+    status = module.main()
+    output = capsys.readouterr()
+    _check_sensitive(not output.err and "SYNTHETIC_SENSITIVE" not in output.out)
+    assert status == 2 and calls == ["build", "clock"]
+    assert json.loads(output.out) == {
+        "status": "BLOCKED",
+        "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
+        "forward_days": 0,
+    }

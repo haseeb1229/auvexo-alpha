@@ -143,3 +143,8 @@ data, collector, task or clock. Earlier broad DS04 rights stop and all other gat
 ## Phase 6A1 engineering checkpoint
 
 [Implementation map](phase6/OPEN_INTEREST_IMPLEMENTATION.md), [same-evidence review verifier](phase6/RIGHTS_REVIEW_CONTINUITY.md), [value-mechanism disposition](phase6/VALUE_ABLATION_PREREGISTRATION.md) and [inherited security remediation](phase6/ENGINEERING_SECURITY_REMEDIATION.md). Proposal accepted at887b6ac and normally merged via PR #9; executable engineering requires independent exact-SHA review. No collection/task/clock START or value gate PASS.
+
+The [OI runtime commissioning contract](phase6/OI_RUNTIME_DEPLOYMENT.md) freezes the later
+third-checkout, independent Python, dedicated OI database, DPAPI-secret and recovery/START
+requirements. PR #10 hardens scheduled secrets and OI-only database attestation; it does
+not provision a runtime, secret, task or clock.

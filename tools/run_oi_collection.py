@@ -2,12 +2,13 @@
 
 import argparse
 import json
-import os
 import re
 import signal
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
+from typing import Never
 
 from sqlalchemy import URL, create_engine
 from sqlalchemy.exc import SQLAlchemyError
@@ -22,8 +23,14 @@ from auvexo_alpha.domain.oi_schedule import (
 from auvexo_alpha.infrastructure.oi_collection import OICollectionJob
 from auvexo_alpha.infrastructure.oi_http import OIHTTP
 from auvexo_alpha.infrastructure.oi_runtime import inspect_clock, require_build, resources_ready
+from auvexo_alpha.infrastructure.oi_secrets import load_oi_database_password
 from auvexo_alpha.infrastructure.oi_store import OIStore
 from auvexo_alpha.infrastructure.public_http import SourceError
+
+
+class _RedactedArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> Never:
+        raise ValueError("OI_CLI_ARGUMENTS_INVALID") from None
 
 
 def load_review_authority(
@@ -76,7 +83,7 @@ def load_review_authority(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = _RedactedArgumentParser(description=__doc__, exit_on_error=False)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--scheduled", action="store_true")
     parser.add_argument("--start-envelope", type=Path)
@@ -85,12 +92,12 @@ def main() -> int:
     parser.add_argument("--accepted-review-hash", action="append", default=[])
     parser.add_argument("--database", default="auvexo_dev_oiresearch")
     parser.add_argument("--port", type=int, default=55433)
-    args = parser.parse_args()
-    root = Path(__file__).resolve().parents[1]
-    cancel = Event()
-    signal.signal(signal.SIGINT, lambda *_: cancel.set())
     engine = None
     try:
+        args = parser.parse_args(sys.argv[1:])
+        root = Path(__file__).resolve().parents[1]
+        cancel = Event()
+        signal.signal(signal.SIGINT, lambda *_: cancel.set())
         if args.config.stat().st_size > 16384:
             raise ValueError("OI_CONFIG_INVALID")
         config = OICollectionConfig.model_validate_json(args.config.read_bytes())
@@ -110,11 +117,23 @@ def main() -> int:
         )
         require_build(root, config)
         clock = inspect_clock(config.clock_source)
-        if args.port == 55432 or not re.fullmatch(r"auvexo_dev_oi[a-z0-9]+", args.database):
+        clock.require_trusted(config, datetime.now(UTC))
+        if (
+            not 1 <= args.port <= 65535
+            or args.port == 55432
+            or not re.fullmatch(r"auvexo_dev_oi[a-z0-9]+", args.database)
+        ):
             raise ValueError("OI_DATABASE_SCOPE")
-        password = os.environ.get("AUVEXO_OI_DB_PASSWORD")
-        if not password:
-            raise ValueError("OI_DATABASE_IDENTITY_REQUIRED")
+        # Build/clock inspection can consume the launch or authorization interval.
+        # Recheck every time-sensitive gate together before decrypting a persistent secret.
+        decrypt_at = datetime.now(UTC)
+        scheduled_slot(config, decrypt_at)
+        require_scheduled_start(config, decrypt_at, review_authority)
+        envelope.require_start(config, args.accepted_start_hash, decrypt_at, review_authority)
+        clock.require_trusted(config, decrypt_at)
+        # Only the current-user Windows OS store supplies a real scheduled DB secret.
+        # No plaintext environment/config/task/CLI fallback and no interactive prompt.
+        password = load_oi_database_password()
         engine = create_engine(
             URL.create(
                 "postgresql+psycopg",
@@ -172,7 +191,7 @@ def main() -> int:
             )
         )
         return result.exit_code
-    except (ValueError, OSError, SQLAlchemyError, SourceError):
+    except (argparse.ArgumentError, ValueError, OSError, SQLAlchemyError, SourceError):
         # Never print DSNs, driver output, tokens, raw provider values or untrusted exceptions.
         print(
             json.dumps(
