@@ -118,3 +118,11 @@ retrospective coverage and remaining exit gates. It is not Phase 2 acceptance.
 
 Read-only terminal [implementation checkpoint](phase7/READ_ONLY_IMPLEMENTATION.md) records
 historical implementation results; the independent acceptance record above supplies the current disposition.
+
+## Phase 6A1 documentation proposal
+
+[Proposed ADR026](adr/026-ds04-open-interest-intelligence.md), [acceptance](phase6/OPEN_INTEREST_ACCEPTANCE.md),
+[runbook](phase6/OPEN_INTEREST_RUNBOOK.md), [rights](phase6/SOURCES_AND_RIGHTS.md) and
+[preregistration](phase6/EXPERIMENT_PREREGISTRATION.md) cover DS-04-A1 current OI only.
+PRIVATE verified2026-10-27. Proposal awaits independent exact-SHA acceptance; no code,
+data, collector, task or clock. Earlier broad DS04 rights stop and all other gates remain.
