@@ -1,6 +1,9 @@
 # OI runtime commissioning contract
 
-Status: FROZEN REQUIREMENTS for a later explicitly authorized commissioning/START run.
+Status: commissioning requirements retained; 2026-10-29 founder-authorized readiness
+hardening fixes the production DB identity and three CurrentUser slots as described in
+the [readiness correction](OI_COMMISSIONING_READINESS.md). Real commissioning/START
+requires separate authorization, independent implementation acceptance and native clock trust.
 Date: 2026-10-28 Asia/Karachi. This document provisions nothing and grants no START.
 PR #10 implementation remains OPEN/UNMERGED pending independent exact-SHA acceptance.
 Accepted source/feature design remains 887b6ac38636e07ff922d2ba2d0ec7b2063edd4f;
@@ -36,8 +39,9 @@ this OI runtime or a dedicated immutable toolchain location. Resolve the venv ba
 executable paths and hashes; neither base nor environment may depend on files under the
 Phase 2/4 operational checkout or mutable Development checkout. Use accepted Python and
 hash-pinned dependencies, including filelock 4.2.1; do not recreate or alter operational
-Python. Record installed/locked equality and a clean build-binding proof. No paid service,
-GPU or new dependency is required by the OI collector or its DPAPI secret boundary.
+Python. Record installed/locked equality and a clean build-binding proof. No paid service
+or GPU is required. The existing pinned `psutil==7.2.2` is an explicit runtime dependency
+for fail-closed resource measurement; DPAPI adds no dependency.
 
 ## Dedicated persistent PostgreSQL
 
@@ -45,7 +49,9 @@ Future OI persistence requires a separate PostgreSQL 17.11 accepted immutable to
 bound only to 127.0.0.1:55433, unless an exact reviewed nonconflicting replacement is
 accepted. Use its own persistent data directory and service/process identity; never
 reuse, start, stop, repair, connect to or share the operational 55432 instance or volume.
-The database is `auvexo_dev_oiresearch` or an exact reviewed allowed OI prefix/name.
+The production database is exactly `auvexo_dev_oiresearch`, with port exactly `55433`
+bound into the reviewed config hash/START. The collector and task have no independent
+database/port override. A different production target needs separately reviewed scope.
 Prove the actual server address/port, dedicated name and current migration head 0005
 under the accepted release, with all immutable data-table grants/triggers preserved.
 Do not create the persistent server/database/data directory in this remediation.
@@ -65,7 +71,9 @@ silent ignoring. A database-name prefix alone is insufficient dedication evidenc
 
 ## Scheduled-runtime database secret
 
-The collector password is loaded only by the narrow [OI secret module](../../src/auvexo_alpha/infrastructure/oi_secrets.py),
+All three fixed purposes and KnownFolder-relative paths are listed in the
+[readiness correction](OI_COMMISSIONING_READINESS.md). Admin/app owner APIs are separate
+from the collector. The collector password is loaded only by the narrow [OI secret module](../../src/auvexo_alpha/infrastructure/oi_secrets.py),
 using Windows DPAPI CurrentUser, UI forbidden and exact OI database-password purpose.
 Its deterministic encrypted location is under the current owner's LocalAppData, outside
 all Git checkouts; fixed-purpose entropy and restrictive Windows ACLs defend its boundary.

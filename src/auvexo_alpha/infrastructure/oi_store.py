@@ -66,6 +66,63 @@ def _link(path: Path) -> bool:
     )
 
 
+def attest_oi_database(conn: Connection, review_authority: OIReviewAuthority | None = None) -> None:
+    """Read-only source isolation proof, repeated on every initialization/restart.
+
+    Prefix resemblance is not a namespace. Existing rows are never removed or
+    rewritten to obtain a pass, and continuation receipts are admitted only by
+    the exact externally accepted authority supplied by the caller.
+    """
+    if (
+        # OI snapshots never produce instrument/spec receipts. Any such row is
+        # foreign source data, even when other generic tables are still empty.
+        conn.scalar(text("SELECT EXISTS(SELECT 1 FROM data_spec)"))
+        or conn.scalar(
+            text("SELECT EXISTS(SELECT 1 FROM data_manifest WHERE logical_key !~ :pattern)"),
+            {"pattern": "^ds04-a1:(BTCUSDT|ETHUSDT):[0-9]{13}:oi-snapshot[.]v1$"},
+        )
+        or conn.scalar(
+            text(
+                "SELECT EXISTS(SELECT 1 FROM data_checkpoint "
+                "WHERE feed_key NOT IN ('DS-04-A1:BTCUSDT','DS-04-A1:ETHUSDT'))"
+            )
+        )
+        or conn.scalar(
+            text(
+                "SELECT EXISTS(SELECT 1 FROM data_event WHERE NOT ("
+                "(feed_key='DS-04-A1:transport-budget' "
+                "AND event_id ~ '^oi-budget:[0-9a-f]{64}$') OR "
+                "(feed_key='DS-04-A1:quarantine' "
+                "AND event_id ~ '^oi-quarantine:[0-9a-f]{64}:"
+                "(SCHEMA|PARSER_REJECTED|SOURCE_REJECTED|RIGHTS_REJECTED)$') OR "
+                "(feed_key IN ('DS-04-A1:ledger:STUDY','DS-04-A1:ledger:FEATURE',"
+                "'DS-04-A1:ledger:FORECAST','DS-04-A1:ledger:SCORE') "
+                "AND event_id ~ '^oi-ledger:(STUDY|FEATURE|FORECAST|SCORE):[0-9a-f]{64}$' "
+                "AND split_part(feed_key,':',3)=split_part(event_id,':',2))))"
+            )
+        )
+    ):
+        raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
+    base = accepted_oi_rights()
+    permitted_reviews = {base.content_hash(): base.canonical_bytes().decode("ascii")}
+    if review_authority is not None:
+        supplied = review_authority
+        checked = OIReviewAuthority(
+            supplied.base, supplied.chain, supplied.accepted_digests, supplied.now
+        )
+        permitted_reviews.update(
+            (receipt.content_hash(), receipt.canonical_bytes().decode("ascii"))
+            for receipt in checked.chain
+        )
+    reviews = conn.execute(
+        text("SELECT review_hash,payload FROM data_source_review LIMIT 258")
+    ).all()
+    if len(reviews) > 257 or any(
+        permitted_reviews.get(digest) != payload for digest, payload in reviews
+    ):
+        raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
+
+
 class OIStore:
     """A source-specific store; requires a dedicated non-operational PostgreSQL DB.
 
@@ -126,57 +183,8 @@ class OIStore:
         self.check_quota(0)
 
     def _attest_dedicated_database(self, conn: Connection) -> None:
-        """Read-only source isolation proof, repeated on every initialization/restart.
-
-        Prefix resemblance is not a namespace. Existing rows are never removed or
-        rewritten to obtain a pass, and continuation receipts are admitted only by
-        the exact externally accepted authority supplied to this store instance.
-        """
-        if (
-            conn.scalar(
-                text("SELECT EXISTS(SELECT 1 FROM data_manifest WHERE logical_key !~ :pattern)"),
-                {"pattern": "^ds04-a1:(BTCUSDT|ETHUSDT):[0-9]{13}:oi-snapshot[.]v1$"},
-            )
-            or conn.scalar(
-                text(
-                    "SELECT EXISTS(SELECT 1 FROM data_checkpoint "
-                    "WHERE feed_key NOT IN ('DS-04-A1:BTCUSDT','DS-04-A1:ETHUSDT'))"
-                )
-            )
-            or conn.scalar(
-                text(
-                    "SELECT EXISTS(SELECT 1 FROM data_event WHERE NOT ("
-                    "(feed_key='DS-04-A1:transport-budget' "
-                    "AND event_id ~ '^oi-budget:[0-9a-f]{64}$') OR "
-                    "(feed_key='DS-04-A1:quarantine' "
-                    "AND event_id ~ '^oi-quarantine:[0-9a-f]{64}:"
-                    "(SCHEMA|PARSER_REJECTED|SOURCE_REJECTED|RIGHTS_REJECTED)$') OR "
-                    "(feed_key IN ('DS-04-A1:ledger:STUDY','DS-04-A1:ledger:FEATURE',"
-                    "'DS-04-A1:ledger:FORECAST','DS-04-A1:ledger:SCORE') "
-                    "AND event_id ~ '^oi-ledger:(STUDY|FEATURE|FORECAST|SCORE):[0-9a-f]{64}$' "
-                    "AND split_part(feed_key,':',3)=split_part(event_id,':',2))))"
-                )
-            )
-        ):
-            raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
-        base = accepted_oi_rights()
-        permitted_reviews = {base.content_hash(): base.canonical_bytes().decode("ascii")}
-        if self.review_authority is not None:
-            supplied = self.review_authority
-            checked = OIReviewAuthority(
-                supplied.base, supplied.chain, supplied.accepted_digests, supplied.now
-            )
-            permitted_reviews.update(
-                (receipt.content_hash(), receipt.canonical_bytes().decode("ascii"))
-                for receipt in checked.chain
-            )
-        reviews = conn.execute(
-            text("SELECT review_hash,payload FROM data_source_review LIMIT 258")
-        ).all()
-        if len(reviews) > 257 or any(
-            permitted_reviews.get(digest) != payload for digest, payload in reviews
-        ):
-            raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
+        """Share unchanged read-only namespace/review proof with owner restart tooling."""
+        attest_oi_database(conn, self.review_authority)
 
     def _path(self, relative: str) -> Path:
         parsed = PurePosixPath(relative)

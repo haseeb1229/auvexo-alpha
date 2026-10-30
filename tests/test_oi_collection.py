@@ -255,6 +255,135 @@ def test_clock_expiry_future_source_and_rights_failure():
 
 
 @pytest.mark.parametrize(
+    "source",
+    [
+        "time.windows.com,0x9",
+        "time.windows.com,0x8",
+        "time.cloudflare.com,0x8",
+        "time-server.example",
+        "VM IC Time Synchronization Provider",
+        "time-server.example:123 (NTP)",
+        " Exact Source Text ",
+        "x",
+        "x" * 128,
+    ],
+)
+def test_windows_clock_source_type_preserves_config_and_proof_exactly(source):
+    config = configuration(clock_source=source)
+    proof = OIClockProof.model_validate({**clock_proof().model_dump(), "source": source})
+    assert config.clock_source == proof.source == source
+    assert OICollectionConfig.model_validate_json(config.canonical_bytes()).clock_source == source
+    assert OIClockProof.model_validate_json(proof.canonical_bytes()).source == source
+    proof.require_trusted(config, NOW)
+    different = configuration(clock_source=source.swapcase())
+    with pytest.raises(ValueError, match="OI_CLOCK_UNTRUSTED"):
+        proof.require_trusted(different, NOW)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "",
+        "   ",
+        "x" * 129,
+        "time.example\x00",
+        "time.example\n",
+        "time.example\r",
+        "time.example\t",
+        "time.example\x1b",
+        "time.example\x7f",
+        "time.example\x85",
+        "time.example\u2028",
+        "time.example\u2029",
+        "time.example\u202e",
+        None,
+        123,
+    ],
+)
+def test_windows_clock_source_type_refuses_controls_and_invalid_bounds_in_both(source):
+    with pytest.raises(ValueError):
+        configuration(clock_source=source)
+    with pytest.raises(ValueError):
+        OIClockProof.model_validate({**clock_proof().model_dump(), "source": source})
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "time.windows.com,0x9",
+        "time.windows.com,0x8",
+        "time.cloudflare.com,0x8",
+        "time-server.example",
+        "VM IC Time Synchronization Provider",
+        "time-server.example:123 (NTP)",
+    ],
+)
+def test_native_clock_parser_accepts_exact_safe_source_with_synthetic_trust(source, monkeypatch):
+    output = (
+        "Leap Indicator: 0(no warning)\nStratum: 3 (secondary)\n"
+        "Time since Last Good Sync Time: 1.2s\nPhase Offset: -0.001s\n"
+        "Root Dispersion: 0.002s\nRoot Delay: 0.002s\nSource: " + source + "\n"
+    )
+
+    class FixedTime:
+        @classmethod
+        def now(cls, _timezone):
+            return NOW
+
+    monkeypatch.setattr(oi_runtime, "datetime", FixedTime)
+    monkeypatch.setattr(
+        oi_runtime.subprocess, "run", lambda *_a, **_kw: SimpleNamespace(stdout=output)
+    )
+    proof = oi_runtime.inspect_clock(source)
+    assert proof.source == source and proof.inspected_at == NOW
+    assert proof.offset_bound_ms == 4 and proof.time_since_sync_seconds == 2
+    proof.require_trusted(configuration(clock_source=source), NOW)
+    with pytest.raises(ValueError, match="OI_CLOCK_UNTRUSTED"):
+        oi_runtime.inspect_clock(source.swapcase())
+
+
+def test_start_binds_fixed_database_config_and_refuses_pre_database_hash():
+    config = configuration(enabled=True)
+    assert config.database_name == "auvexo_dev_oiresearch" and config.database_port == 55433
+    payload = json.loads(config.canonical_bytes())
+    assert payload.pop("database_name") == "auvexo_dev_oiresearch"
+    assert payload.pop("database_port") == 55433
+    legacy_hash = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+    assert legacy_hash != config.content_hash()
+    envelope = authority(config)
+    legacy = OIStartEnvelope.model_validate({**envelope.model_dump(), "config_hash": legacy_hash})
+    with pytest.raises(ValueError, match="OI_START_AUTHORITY_INVALID"):
+        legacy.require_start(config, legacy.content_hash(), NOW)
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"database_name": "auvexo_dev_oialternate"},
+        {"database_name": "auvexo_paper"},
+        {"database_name": "auvexo_test_oisynthetic"},
+        {"database_port": 55432},
+        {"database_port": 55435},
+        {"database_port": "55433"},
+        {"database_port": True},
+        {"database_host": "remote.invalid"},
+    ],
+)
+def test_database_identity_config_is_fixed_and_constructed_start_bypass_denied(changes):
+    config = configuration(enabled=True)
+    envelope = authority(config)
+    with pytest.raises(ValueError):
+        configuration(**changes)
+    # Even a caller skipping Pydantic validation cannot replay accepted START elsewhere.
+    if "database_host" not in changes:
+        tampered = config.model_copy(update=changes)
+        with pytest.raises(ValueError):
+            envelope.require_start(tampered, envelope.content_hash(), NOW)
+
+
+@pytest.mark.parametrize(
     "case,reason",
     [
         ("disabled", "OI_COLLECTOR_DISABLED"),
@@ -616,14 +745,12 @@ def test_task_optional_reviewed_start_inputs_remain_disabled(tmp_path):
         **args,
         start_envelope=tmp_path / "synthetic-start.json",
         accepted_start_hash="a" * 64,
-        database="auvexo_dev_oifuture",
-        port=55435,
     )
     root = ElementTree.fromstring(xml)
     ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
     arguments = root.find("t:Actions/t:Exec/t:Arguments", ns).text
     assert "--start-envelope" in arguments and "--accepted-start-hash" in arguments
-    assert "--database auvexo_dev_oifuture --port 55435" in arguments
+    assert "--database" not in arguments and "--port" not in arguments
     assert root.find("t:Settings/t:Enabled", ns).text == "false"
     assert root.find("t:Triggers/t:TimeTrigger/t:Enabled", ns).text == "false"
     for changes in (
@@ -631,12 +758,18 @@ def test_task_optional_reviewed_start_inputs_remain_disabled(tmp_path):
         {"accepted_start_hash": "a" * 64},
         {"start_envelope": Path("relative.json"), "accepted_start_hash": "a" * 64},
         {"start_envelope": tmp_path / "synthetic-start.json", "accepted_start_hash": "invalid"},
-        {"database": "auvexo_paper"},
-        {"database": "auvexo_dev_oi_bad"},
-        {"port": 55432},
-        {"port": True},
     ):
         with pytest.raises(ValueError, match="OI_TASK_CONFIG"):
+            module.task_definition(**args, **changes)
+    # Database identity belongs only to the config accepted by START, never the task.
+    for changes in (
+        {"database": "auvexo_dev_oiresearch"},
+        {"database": "auvexo_dev_oifuture"},
+        {"database": "auvexo_paper"},
+        {"port": 55433},
+        {"port": 55432},
+    ):
+        with pytest.raises(TypeError):
             module.task_definition(**args, **changes)
 
 
@@ -844,7 +977,15 @@ def test_receipt_after_owner_expiry_is_quarantined_without_manifest():
 
 
 @pytest.mark.parametrize(
-    "source", ["Local CMOS Clock", "Free-running System Clock", "localhost", "127.0.0.1", "::1"]
+    "source",
+    [
+        "Local CMOS Clock",
+        "Free-running System Clock",
+        "local clock",
+        "localhost",
+        "127.0.0.1",
+        "::1",
+    ],
 )
 def test_untrusted_local_clock_source_cannot_be_declared_trusted(source, monkeypatch):
     output = (
@@ -1035,7 +1176,10 @@ def test_cli_os_secret_decrypts_after_clock_and_before_first_database_connection
     def engine(url, **kwargs):
         _check_sensitive(url.password == password)
         assert (
-            url.username == "auvexo_data_writer" and url.host == "127.0.0.1" and url.port == 55433
+            url.username == "auvexo_data_writer"
+            and url.host == "127.0.0.1"
+            and url.port == config.database_port == 55433
+            and url.database == config.database_name == "auvexo_dev_oiresearch"
         )
         assert kwargs["hide_parameters"] is True
         calls.append("connect")

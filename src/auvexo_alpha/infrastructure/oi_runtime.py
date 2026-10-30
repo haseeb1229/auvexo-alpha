@@ -63,7 +63,7 @@ class _ResourceProbe(Protocol):
 
 
 def resources_ready(root: Path) -> bool:
-    # psutil is an existing optional development capability, not a new core dependency.
+    # psutil is a pinned runtime dependency for the fail-closed resource preflight.
     # Missing or failed measurement yields rather than assuming resource headroom.
     try:
         probe = cast(_ResourceProbe, importlib.import_module("psutil"))

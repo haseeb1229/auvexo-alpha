@@ -2,7 +2,6 @@
 
 import argparse
 import json
-import re
 import signal
 import sys
 from datetime import UTC, datetime
@@ -90,8 +89,6 @@ def main() -> int:
     parser.add_argument("--accepted-start-hash")
     parser.add_argument("--review-chain", type=Path)
     parser.add_argument("--accepted-review-hash", action="append", default=[])
-    parser.add_argument("--database", default="auvexo_dev_oiresearch")
-    parser.add_argument("--port", type=int, default=55433)
     engine = None
     try:
         args = parser.parse_args(sys.argv[1:])
@@ -118,12 +115,6 @@ def main() -> int:
         require_build(root, config)
         clock = inspect_clock(config.clock_source)
         clock.require_trusted(config, datetime.now(UTC))
-        if (
-            not 1 <= args.port <= 65535
-            or args.port == 55432
-            or not re.fullmatch(r"auvexo_dev_oi[a-z0-9]+", args.database)
-        ):
-            raise ValueError("OI_DATABASE_SCOPE")
         # Build/clock inspection can consume the launch or authorization interval.
         # Recheck every time-sensitive gate together before decrypting a persistent secret.
         decrypt_at = datetime.now(UTC)
@@ -140,8 +131,8 @@ def main() -> int:
                 username="auvexo_data_writer",
                 password=password,
                 host="127.0.0.1",
-                port=args.port,
-                database=args.database,
+                port=config.database_port,
+                database=config.database_name,
             ),
             pool_size=2,
             max_overflow=0,

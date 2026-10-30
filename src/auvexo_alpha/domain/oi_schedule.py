@@ -3,11 +3,28 @@
 from datetime import datetime, timedelta
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import BeforeValidator, Field, model_validator
 
 from auvexo_alpha.domain.contracts import Contract, Digest, Label, UTCTime, utc_time
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, require_oi_rights
 from auvexo_alpha.domain.open_interest import OIRights, OISourceIdentity, OISymbol
+
+
+def windows_clock_source(value: object) -> str:
+    """Preserve bounded Windows source text as data, without label normalization."""
+    if (
+        not isinstance(value, str)
+        or not value.strip()
+        or len(value) > 128
+        or not value.isprintable()
+    ):
+        raise ValueError("OI_CLOCK_SOURCE_INVALID")
+    return value
+
+
+WindowsClockSource = Annotated[
+    str, BeforeValidator(windows_clock_source), Field(min_length=1, max_length=128)
+]
 
 
 def slot_allowed(slot: datetime) -> bool:
@@ -37,7 +54,9 @@ class OICollectionConfig(Contract):
     source: OISourceIdentity = Field(default_factory=OISourceIdentity)
     rights: OIRights = Field(default_factory=OIRights)
     study_id: Label
-    clock_source: Label
+    clock_source: WindowsClockSource
+    database_name: Literal["auvexo_dev_oiresearch"] = "auvexo_dev_oiresearch"
+    database_port: Literal[55433] = 55433
     max_start_lateness_seconds: Literal[15] = 15
     max_slot_seconds: Literal[60] = 60
     max_workers: Literal[1] = 1
@@ -102,7 +121,7 @@ class OIStartEnvelope(Contract):
 class OIClockProof(Contract):
     """Bounded local Windows Time Service inspection, never a new provider endpoint."""
 
-    source: Label
+    source: WindowsClockSource
     inspected_at: UTCTime
     time_since_sync_seconds: Annotated[int, Field(ge=0, le=3600)]
     offset_bound_ms: Annotated[int, Field(ge=0, le=1000)]

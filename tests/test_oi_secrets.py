@@ -1,5 +1,6 @@
 """Synthetic secrets only; native DPAPI uses a disposable UUID leaf outside checkouts."""
 
+import ast
 import base64
 import getpass
 import hashlib
@@ -15,6 +16,7 @@ from uuid import uuid4
 
 import pytest
 
+from auvexo_alpha.infrastructure import oi_owner_secrets as owner
 from auvexo_alpha.infrastructure import oi_secrets as implementation
 from auvexo_alpha.infrastructure.oi_secrets import OISecretUnavailable
 
@@ -32,6 +34,11 @@ class MemoryFiles:
     def write(self, data):
         self.blob = data
         self.writes += 1
+
+    def create(self, data):
+        if self.blob is not None:
+            raise FileExistsError("synthetic occupied slot")
+        self.write(data)
 
     def delete(self):
         if self.blob is None:
@@ -52,6 +59,14 @@ class SyntheticCrypto:
 def make_store():
     files = MemoryFiles()
     return implementation._SecretStore(files, SyntheticCrypto()), files
+
+
+def native_factory(slot):
+    return {
+        "writer": implementation.make_test_oi_secret_store,
+        "admin": owner.make_test_oi_admin_secret_store,
+        "app": owner.make_test_oi_app_secret_store,
+    }[slot]
 
 
 def check(condition):
@@ -244,10 +259,14 @@ def test_cli_only_generic_status_no_secret_arguments(operation, status, monkeypa
     os.name != "nt",
     reason="real CurrentUser DPAPI and NTFS handle/ACL proof requires native Windows",
 )
-def test_native_current_user_dpapi_disposable_roundtrip_rotate_child_delete(monkeypatch, capsys):
+@pytest.mark.parametrize("slot", ["writer", "admin", "app"])
+def test_native_current_user_dpapi_disposable_roundtrip_rotate_child_delete(
+    slot, monkeypatch, capsys
+):
     test_id = uuid4()
     # The factory permits only a UUID leaf beneath the OS-known fixed application root.
-    store = implementation.make_test_oi_secret_store(test_id)
+    factory = native_factory(slot)
+    store = factory(test_id)
     files = store._files
     secret, rotated = secrets.token_urlsafe(40), secrets.token_urlsafe(40)
     created = False
@@ -270,7 +289,7 @@ def test_native_current_user_dpapi_disposable_roundtrip_rotate_child_delete(monk
         files.path.write_bytes(first)
         check(store.verify())
         monkeypatch.setenv("LOCALAPPDATA", str(Path.cwd()))
-        other = implementation.make_test_oi_secret_store(test_id)
+        other = factory(test_id)
         check(hmac.compare_digest(other.load(), secret))
         check(not files.path.is_relative_to(Path.cwd()))
         original_information = files.api.kernel.SetFileInformationByHandle
@@ -290,13 +309,15 @@ def test_native_current_user_dpapi_disposable_roundtrip_rotate_child_delete(monk
         check(hmac.compare_digest(store.load(), rotated))
         expected = hashlib.sha256(rotated.encode()).hexdigest()
         code = (
-            "import hashlib,sys;from uuid import UUID;"
-            "from auvexo_alpha.infrastructure.oi_secrets import make_test_oi_secret_store;"
-            "v=make_test_oi_secret_store(UUID(sys.argv[1])).load();"
+            "import hashlib,sys;from uuid import UUID;from importlib import import_module;"
+            "factory=getattr(import_module(sys.argv[2]),sys.argv[3]);"
+            "v=factory(UUID(sys.argv[1])).load();"
             "sys.exit(0 if hashlib.sha256(v.encode()).hexdigest()==sys.stdin.read().strip() else 2)"
         )
+        module_name = factory.__module__
+        factory_name = factory.__name__
         child = subprocess.run(
-            [sys.executable, "-B", "-c", code, str(test_id)],
+            [sys.executable, "-B", "-c", code, str(test_id), module_name, factory_name],
             input=expected,
             capture_output=True,
             text=True,
@@ -393,15 +414,271 @@ def test_knownfolder_location_rule_never_reads_environment_or_checkout(monkeypat
     )
     with pytest.raises(OISecretUnavailable):
         implementation.make_test_oi_secret_store("caller-controlled-path")
+    for slot in implementation._Slot:
+        files = implementation._WindowsFiles(slot=slot)
+        assert files.path == base / "AuvexoAlpha/phase6" / slot.filename
+    failure(lambda: owner.make_test_oi_admin_secret_store("caller-controlled-path"))
+    failure(lambda: owner.make_test_oi_app_secret_store("caller-controlled-path"))
+
+
+def test_only_three_fixed_slots_preserve_writer_and_reject_arbitrary_values():
+    assert set(implementation._Slot.__members__) == {"WRITER", "ADMIN", "APP"}
+    assert implementation._Slot.WRITER.purpose == implementation._PURPOSE
+    assert implementation._Slot.WRITER.filename == "oi-db-password.v1.dpapi"
+    assert implementation._Slot.ADMIN.purpose == (
+        b"auvexo-alpha:phase6:ds04-a1:oi-db-admin-password:v1"
+    )
+    assert implementation._Slot.APP.purpose == b"auvexo-alpha:phase6:ds04-a1:oi-db-app-password:v1"
+    assert len({slot.filename for slot in implementation._Slot}) == 3
+    for invalid in (None, "admin", "writer", b"custom-purpose", Path("custom")):
+        failure(
+            lambda value=invalid: implementation._SecretStore(
+                MemoryFiles(), SyntheticCrypto(), value
+            )
+        )
+        failure(lambda value=invalid: implementation._DPAPI(value))
+        failure(lambda value=invalid: implementation._WindowsFiles(slot=value))
+
+
+def test_reviewed_writer_v1_envelope_remains_readable_without_recreation():
+    store, files = make_store()
+    secret = secrets.token_urlsafe(40)
+    # Construct the exact reviewed pre-three-slot envelope independently of the new
+    # slot selector. No real credential or host-dependent ciphertext is retained.
+    reviewed = json.dumps(
+        {
+            "purpose": "auvexo-alpha:phase6:ds04-a1:oi-db-password:v1",
+            "version": 1,
+            "password": secret,
+        },
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("ascii")
+    files.blob = b"AUVEXO-OI-DPAPI-V1\x00" + SyntheticCrypto().protect(reviewed)
+    before = files.blob
+    check(hmac.compare_digest(store.load(), secret))
+    check(files.blob == before and files.writes == 0)
+
+
+@pytest.mark.parametrize("slot", list(implementation._Slot))
+def test_each_slot_envelope_rejects_other_slot_even_with_synthetic_crypto(slot):
+    files = MemoryFiles()
+    secret = secrets.token_urlsafe(40)
+    store = implementation._SecretStore(files, SyntheticCrypto(), slot)
+    store.store(secret)
+    check(hmac.compare_digest(store.load(), secret))
+    for other_slot in implementation._Slot:
+        if other_slot is not slot:
+            other = implementation._SecretStore(files, SyntheticCrypto(), other_slot)
+            failure(other.load)
+
+
+def test_owner_apis_have_fixed_slots_and_generic_failures(monkeypatch):
+    calls = []
+
+    class Unavailable:
+        def create(self, _secret):
+            raise RuntimeError("synthetic-backend-detail")
+
+        def store(self, _secret):
+            raise RuntimeError("synthetic-backend-detail")
+
+        def load(self):
+            raise RuntimeError("synthetic-backend-detail")
+
+        def verify(self):
+            raise RuntimeError("synthetic-backend-detail")
+
+        def delete(self):
+            raise RuntimeError("synthetic-backend-detail")
+
+    def fixed(slot):
+        calls.append(slot)
+        return Unavailable()
+
+    monkeypatch.setattr(owner, "_owner_store", fixed)
+    for name, slot in (("admin", implementation._Slot.ADMIN), ("app", implementation._Slot.APP)):
+        failure(
+            lambda slot_name=name: getattr(owner, f"create_oi_database_{slot_name}_password")(
+                "synthetic"
+            )
+        )
+        failure(
+            lambda slot_name=name: getattr(owner, f"store_oi_database_{slot_name}_password")(
+                "synthetic"
+            )
+        )
+        failure(getattr(owner, f"load_oi_database_{name}_password"))
+        failure(getattr(owner, f"verify_oi_database_{name}_password"))
+        failure(getattr(owner, f"delete_oi_database_{name}_password"))
+        assert calls[-5:] == [slot] * 5
+    monkeypatch.setattr(owner, "_production_store", Unavailable)
+    failure(lambda: owner.create_oi_database_writer_password("synthetic"))
+
+
+def test_create_only_secret_operation_does_not_overwrite_or_remove_prior_secret():
+    store, files = make_store()
+    secret, candidate = secrets.token_urlsafe(40), secrets.token_urlsafe(40)
+    store.create(secret)
+    before = files.blob
+    failure(lambda: store.create(candidate))
+    check(files.blob == before and files.writes == 1)
+    check(hmac.compare_digest(store.load(), secret))
+    # Explicit reviewed rotation retains its separate overwrite semantics.
+    store.store(candidate)
+    check(hmac.compare_digest(store.load(), candidate))
+
+
+@pytest.mark.skipif(os.name != "nt", reason="atomic native no-replace rename requires Windows")
+@pytest.mark.parametrize("slot", ["writer", "admin", "app"])
+def test_native_create_only_refuses_preexisting_and_snapshot_race(slot, monkeypatch, capsys):
+    identity = uuid4()
+    store = native_factory(slot)(identity)
+    competing = native_factory(slot)(identity)
+    files = store._files
+    first, candidate, raced = (secrets.token_urlsafe(40) for _ in range(3))
+    try:
+        files.require_absent()
+        store.create(first)
+        before = files.path.read_bytes()
+        failure(lambda: store.create(candidate))
+        check(files.path.read_bytes() == before and hmac.compare_digest(store.load(), first))
+        store.delete()
+        files.require_absent()
+        native_information = files.api.kernel.SetFileInformationByHandle
+        introduced = False
+
+        def race_at_atomic_commit(handle, operation, data, size):
+            nonlocal introduced
+            if operation == 3 and not introduced:
+                introduced = True
+                # A different explicitly owned test writer creates the slot after
+                # the absence snapshot and native precheck but before commit.
+                competing.create(raced)
+            return native_information(handle, operation, data, size)
+
+        with monkeypatch.context() as race:
+            race.setattr(files.api.kernel, "SetFileInformationByHandle", race_at_atomic_commit)
+            failure(lambda: store.create(candidate))
+        check(introduced and hmac.compare_digest(store.load(), raced))
+        check(list(files.path.parent.iterdir()) == [files.path])
+        output = capsys.readouterr()
+        check(all(secret not in output.out + output.err for secret in (first, candidate, raced)))
+    finally:
+        # The competing write is also this test's own disposable fixture, and is
+        # removed only after assertions prove failed create left it intact.
+        if files.path.exists():
+            store.delete()
+        if files.path.parent.exists():
+            files.path.parent.rmdir()
+
+
+def test_owner_absent_preflight_checks_exact_three_slots_without_decryption(monkeypatch):
+    calls = []
+
+    class Absent:
+        def __init__(self, *, slot):
+            calls.append(slot)
+
+        def require_absent(self):
+            return None
+
+    monkeypatch.setattr(owner, "_WindowsFiles", Absent)
+    owner.require_oi_database_credentials_absent()
+    assert calls == [
+        implementation._Slot.ADMIN,
+        implementation._Slot.APP,
+        implementation._Slot.WRITER,
+    ]
+
+    class Occupied(Absent):
+        def require_absent(self):
+            raise RuntimeError("synthetic-existing-or-corrupt-secret")
+
+    monkeypatch.setattr(owner, "_WindowsFiles", Occupied)
+    failure(owner.require_oi_database_credentials_absent)
+
+
+def test_collector_imports_writer_loader_only_and_no_owner_secret_module():
+    root = Path(__file__).resolve().parents[1]
+    files = [
+        root / "tools/run_oi_collection.py",
+        root / "src/auvexo_alpha/infrastructure/oi_collection.py",
+        root / "src/auvexo_alpha/infrastructure/oi_runtime.py",
+        root / "src/auvexo_alpha/infrastructure/oi_store.py",
+    ]
+    secret_imports = []
+    for path in files:
+        source = path.read_text(encoding="utf-8")
+        assert "oi_owner_secrets" not in source
+        for node in ast.walk(ast.parse(source)):
+            if isinstance(node, ast.ImportFrom) and node.module and "oi_secrets" in node.module:
+                secret_imports.extend(alias.name for alias in node.names)
+    assert secret_imports == ["load_oi_database_password"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native cross-slot CurrentUser DPAPI requires Windows")
+def test_native_three_slots_refuse_cross_slot_ciphertext_and_cleanup(capsys):
+    identity = uuid4()
+    stores = [native_factory(name)(identity) for name in ("writer", "admin", "app")]
+    created = []
+    secrets_by_slot = [secrets.token_urlsafe(40) for _ in stores]
+    try:
+        for store, secret in zip(stores, secrets_by_slot, strict=True):
+            store._files.require_absent()
+            store.store(secret)
+            created.append(store)
+            failure(store._files.require_absent)
+        blobs = [store._files.path.read_bytes() for store in stores]
+        for index, store in enumerate(stores):
+            for other_index, blob in enumerate(blobs):
+                if index == other_index:
+                    continue
+                # Copy only synthetic ciphertext into this test UUID's fixed slot.
+                store._files.path.write_bytes(blob)
+                failure(store.load)
+                store._files.path.write_bytes(blobs[index])
+            check(hmac.compare_digest(store.load(), secrets_by_slot[index]))
+        captured = capsys.readouterr()
+        check(all(secret not in captured.out + captured.err for secret in secrets_by_slot))
+    finally:
+        for store in created:
+            if store._files.path.exists():
+                store.delete()
+        parent = stores[0]._files.path.parent
+        if parent.exists() and parent.name == "test-" + str(identity):
+            parent.rmdir()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="native fixed-slot absence checks require Windows")
+def test_native_absence_preflight_refuses_existing_corrupt_slot_without_repair():
+    identity = uuid4()
+    store = owner.make_test_oi_admin_secret_store(identity)
+    files = store._files
+    try:
+        files.require_absent()
+        check(not files.path.parent.exists())
+        store.store(secrets.token_urlsafe(40))
+        files.path.write_bytes(b"synthetic-corrupt-ciphertext")
+        before = files.path.read_bytes()
+        failure(files.require_absent)
+        check(files.path.read_bytes() == before)
+        failure(store.load)
+    finally:
+        if files.path.exists():
+            store.delete()
+        if files.path.parent.exists():
+            files.path.parent.rmdir()
 
 
 @pytest.mark.skipif(
     os.name != "nt", reason="real NTFS junction ancestor refusal requires native Windows"
 )
-def test_native_junction_ancestor_is_rejected_and_target_untouched():
+@pytest.mark.parametrize("slot", ["writer", "admin", "app"])
+def test_native_junction_ancestor_is_rejected_and_target_untouched(slot):
     identity, alias_identity = uuid4(), uuid4()
-    target = implementation.make_test_oi_secret_store(identity)
-    redirected = implementation.make_test_oi_secret_store(alias_identity)
+    target = native_factory(slot)(identity)
+    redirected = native_factory(slot)(alias_identity)
     target_files, alias_files = target._files, redirected._files
     secret = secrets.token_urlsafe(40)
     linked = False
@@ -426,6 +703,7 @@ def test_native_junction_ancestor_is_rejected_and_target_untouched():
         )
         check(result.returncode == 0)
         linked = True
+        failure(alias_files.require_absent)
         failure(redirected.load)
         failure(lambda: redirected.store(secrets.token_urlsafe(40)))
         failure(redirected.delete)

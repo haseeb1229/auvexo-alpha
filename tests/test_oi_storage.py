@@ -779,6 +779,7 @@ def _generic_counts(store):
         return tuple(
             conn.scalar(text("SELECT count(*) FROM " + table))
             for table in (
+                "data_spec",
                 "data_manifest",
                 "data_checkpoint",
                 "data_event",
@@ -790,6 +791,7 @@ def _generic_counts(store):
 @pytest.mark.parametrize(
     "table,namespace",
     [
+        ("data_spec", "foreign-instrument-spec"),
         ("data_manifest", "spot-fixture"),
         ("data_manifest", "ds04-a1:spot-fixture"),
         ("data_manifest", "ds04-a1:BTCUSDT:1793354401000:spot.v2"),
@@ -808,7 +810,12 @@ def test_oi_initialization_attests_every_generic_table_and_retains_foreign_rows(
 ):
     manifest = publish(store)
     with store.engine.begin() as conn:
-        if table == "data_manifest":
+        if table == "data_spec":
+            conn.execute(
+                text("INSERT INTO data_spec VALUES (:h,:s,:p)"),
+                {"h": "6" * 64, "s": json.dumps({"source": namespace}), "p": b"{}"},
+            )
+        elif table == "data_manifest":
             conn.execute(
                 text("INSERT INTO data_manifest VALUES (:v,:k,:s,:t,NULL,:h,:p)"),
                 {
@@ -847,11 +854,20 @@ def test_oi_initialization_attests_every_generic_table_and_retains_foreign_rows(
                 },
             )
     before = _generic_counts(store)
+    files_before = {
+        p.relative_to(store.root): p.read_bytes() for p in store.root.rglob("*") if p.is_file()
+    }
     destination = store.root / "uncreated-restart-root"
     with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
         OIStore(store.engine, destination, store.managed_root)
     assert not destination.exists()
     assert _generic_counts(store) == before
+    with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
+        publish(store, slot=NOW + timedelta(hours=1))
+    assert _generic_counts(store) == before
+    assert {
+        p.relative_to(store.root): p.read_bytes() for p in store.root.rglob("*") if p.is_file()
+    } == files_before
 
 
 @pytest.mark.parametrize(

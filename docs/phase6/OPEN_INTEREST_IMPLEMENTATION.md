@@ -24,7 +24,7 @@ Engineering branch: phase-6/ds04-open-interest-engineering; executable PR stays 
 | OI-16 | Typed result permissions remain literal false for operational enablement, value approval, promotion and progression. PASS_RESEARCH_PREDICTABILITY cannot satisfy the canonical Phase 6 incremental-value exit or upgrade data-use rights. |
 | [Schedule/START contracts](../../src/auvexo_alpha/domain/oi_schedule.py) | Exact hourly slots, UTC 16/17/18 exclusion, ETH >= h+2 s, 15-second launch lateness/no catch-up. Default disabled; separate owner envelope and externally accepted digest bind config/build/source/rights/preregistration/review references. No START issuer exists. |
 | [One-slot job](../../src/auvexo_alpha/infrastructure/oi_collection.py) | Immediate source-global PostgreSQL lease, no queue/busy loop; resource/clock/rights/START/deadline gates rechecked after waits. No collection before T0 or after fixed evaluation end. Restart cannot repeat a successful symbol slot. Optional research yields first. |
-| [Runtime preflight](../../src/auvexo_alpha/infrastructure/oi_runtime.py) | Exact clean Git/build/lock/preregistration hash checks; bounded read-only Windows time-service inspection; unknown/localized clock evidence blocks. Missing optional resource probe yields rather than starting. No clock/power/service change. |
+| [Runtime preflight](../../src/auvexo_alpha/infrastructure/oi_runtime.py) | Exact clean Git/build/lock/preregistration hash checks; bounded read-only Windows time-service inspection; unknown/localized clock evidence blocks. The pinned psutil runtime probe is required; unavailable measurements yield rather than starting. No clock/power/service change. |
 | [Future task renderer](../../tools/oi_task.py) and [collector CLI](../../tools/run_oi_collection.py) | Render-only disabled XML, InteractiveToken/LeastPrivilege, IgnoreNew, no wake/catch-up/on-demand. Reviewed START arguments may be represented later; no task registration/start or real activation was performed. CLI requires external accepted START and loads only the narrow current-user DPAPI OI DB secret after authority/build/clock gates; no environment or operational-secret fallback. |
 
 ## PR #10 scheduled-secret and runtime hardening
@@ -46,6 +46,13 @@ checkout may host the campaign. Commissioning and all calendar/value gates remai
 
 ## Source rights and migration disposition
 
+The founder-authorized [commissioning-readiness correction](OI_COMMISSIONING_READINESS.md)
+adds the programmatic migration seam, fixed admin/app/writer credential slots and future
+owner provisioner, explicit psutil runtime dependency, exact-preserving clock-source type
+and config/START-bound production database identity. Historical implementation evidence
+below is not a current-SHA test result. The new source remains pending independent review;
+the unresolved native clock blocks real commissioning/START, not synthetic engineering.
+
 Only DS-04-A1 Binance USDⓈ-M current OI snapshots for BTCUSDT/ETHUSDT are admitted for
 personal noncommercial NONPRODUCTION research. [Accepted rights](SOURCES_AND_RIGHTS.md)
 remain exact-source bounded, review due 2026-11-27 or earlier relevant change. Raw,
@@ -55,11 +62,13 @@ status alignment. No base quantity/contracts/notional conversion is inferred.
 
 No migration: the accepted data_manifest/data_event/data_checkpoint/data_source_review tables
 already bind immutable payloads/hashes and source-scoped checkpoints. Root parser_version
-is explicit OI, preserving the existing generic index. OI uses dedicated names
-auvexo_dev_oi<alphanumeric> or auvexo_test_oi<alphanumeric>, compatible with the unchanged
-migrator allowlist. Never mix spot manifests or use the active Phase 4 database. Runtime
-accepts only the data-writer LOGIN and rejects 55432 even when a URL appears otherwise safe.
-Existing append-only grants/triggers remain intact. No schema/role/grant workflow change.
+is explicit OI, preserving the existing generic index. Production collection is fixed to
+`auvexo_dev_oiresearch:55433` through config/START. The store also retains its defensive
+OI-prefix allowlist for isolated engineering fixtures. Never mix spot manifests/specs
+or use the active Phase4 database. Runtime accepts only the data-writer LOGIN and rejects
+55432 even when a URL appears otherwise safe. Existing append-only grants/triggers remain
+intact; the readiness provisioner creates the required existing role/grant model on its
+new dedicated cluster through the supplied-Connection seam. No schema migration is added.
 
 The standalone collector checks disabled/protected-window/late-launch schedule gates
 before build inspection, clock subprocess or any database connection. Its new-source

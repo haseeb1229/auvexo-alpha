@@ -1,7 +1,9 @@
-"""Only the DS-04-A1 database password: CurrentUser DPAPI, fixed purpose and location.
+"""DS-04-A1 fixed database slots: CurrentUser DPAPI, fixed purpose and location.
 
 No environment/config/command-line fallback or credential issuer. The same Windows user
 can decrypt; local owner/admin compromise is outside the DPAPI identity guarantee.
+The scheduled collector imports only the compatible writer loader. Explicit admin/app
+owner APIs are in oi_owner_secrets, outside that collector import path.
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
 from ctypes import wintypes
+from enum import Enum
 from pathlib import Path
 from typing import Protocol
 from uuid import UUID, uuid4
@@ -29,6 +32,35 @@ class OISecretUnavailable(ValueError):
         super().__init__(_ERROR)
 
 
+class _Slot(Enum):
+    WRITER = "writer"
+    ADMIN = "admin"
+    APP = "app"
+
+    @property
+    def purpose(self) -> bytes:
+        if self is _Slot.WRITER:
+            # Preserve the reviewed writer entropy/envelope byte-for-byte.
+            return _PURPOSE
+        if self is _Slot.ADMIN:
+            return b"auvexo-alpha:phase6:ds04-a1:oi-db-admin-password:v1"
+        return b"auvexo-alpha:phase6:ds04-a1:oi-db-app-password:v1"
+
+    @property
+    def filename(self) -> str:
+        if self is _Slot.WRITER:
+            return "oi-db-password.v1.dpapi"
+        if self is _Slot.ADMIN:
+            return "oi-db-admin-password.v1.dpapi"
+        return "oi-db-app-password.v1.dpapi"
+
+
+def _fixed_slot(slot: _Slot) -> _Slot:
+    if type(slot) is not _Slot:
+        raise OISecretUnavailable() from None
+    return slot
+
+
 class _Crypto(Protocol):
     def protect(self, data: bytes) -> bytes: ...
     def unprotect(self, data: bytes) -> bytes: ...
@@ -37,6 +69,7 @@ class _Crypto(Protocol):
 class _Files(Protocol):
     def read(self) -> bytes: ...
     def write(self, data: bytes) -> None: ...
+    def create(self, data: bytes) -> None: ...
     def delete(self) -> None: ...
 
 
@@ -51,21 +84,32 @@ def _valid_secret(value: object) -> str:
 class _SecretStore:
     """Explicit dependency seam for tests; production always constructs native backends."""
 
-    def __init__(self, files: _Files, crypto: _Crypto) -> None:
+    def __init__(self, files: _Files, crypto: _Crypto, slot: _Slot = _Slot.WRITER) -> None:
         self._files, self._crypto = files, crypto
+        self._slot = _fixed_slot(slot)
 
     def store(self, value: object) -> None:
+        self._save(value, create_only=False)
+
+    def create(self, value: object) -> None:
+        """Provisioning only: native atomic no-replace, separate from explicit rotation."""
+        self._save(value, create_only=True)
+
+    def _save(self, value: object, *, create_only: bool) -> None:
         try:
             secret = _valid_secret(value)
             plain = json.dumps(
-                {"purpose": _PURPOSE.decode("ascii"), "version": 1, "password": secret},
+                {"purpose": self._slot.purpose.decode("ascii"), "version": 1, "password": secret},
                 separators=(",", ":"),
                 ensure_ascii=True,
             ).encode("ascii")
             encrypted = self._crypto.protect(plain)
             if not encrypted or len(encrypted) + len(_MAGIC) > _LIMIT:
                 raise OISecretUnavailable()
-            self._files.write(_MAGIC + encrypted)
+            if create_only:
+                self._files.create(_MAGIC + encrypted)
+            else:
+                self._files.write(_MAGIC + encrypted)
         except Exception:
             # Deliberate single redaction boundary: never propagate backend/path/plaintext details.
             raise OISecretUnavailable() from None
@@ -94,7 +138,7 @@ class _SecretStore:
                 or type(data["version"]) is not int
                 or data["version"] != 1
                 or not isinstance(data["purpose"], str)
-                or not hmac.compare_digest(data["purpose"], _PURPOSE.decode("ascii"))
+                or not hmac.compare_digest(data["purpose"], self._slot.purpose.decode("ascii"))
             ):
                 raise OISecretUnavailable()
             return _valid_secret(data["password"])
@@ -353,16 +397,18 @@ class _WindowsAPI:
 
 
 class _DPAPI:
-    def __init__(self) -> None:
+    def __init__(self, slot: _Slot = _Slot.WRITER) -> None:
+        self._slot = _fixed_slot(slot)
         self.api = _WindowsAPI()
 
     def _transform(self, data: bytes, decrypt: bool) -> bytes:
         if not 0 < len(data) <= _LIMIT:
             raise OISecretUnavailable()
         source_buffer = ctypes.create_string_buffer(data)
-        entropy_buffer = ctypes.create_string_buffer(_PURPOSE)
+        purpose = self._slot.purpose
+        entropy_buffer = ctypes.create_string_buffer(purpose)
         source = _Blob(len(data), ctypes.cast(source_buffer, ctypes.POINTER(ctypes.c_ubyte)))
-        entropy = _Blob(len(_PURPOSE), ctypes.cast(entropy_buffer, ctypes.POINTER(ctypes.c_ubyte)))
+        entropy = _Blob(len(purpose), ctypes.cast(entropy_buffer, ctypes.POINTER(ctypes.c_ubyte)))
         output = _Blob()
         try:
             if decrypt:
@@ -378,7 +424,7 @@ class _DPAPI:
             else:
                 ok = self.api.crypt.CryptProtectData(
                     ctypes.byref(source),
-                    _PURPOSE.decode("ascii"),
+                    purpose.decode("ascii"),
                     ctypes.byref(entropy),
                     None,
                     None,
@@ -403,7 +449,8 @@ class _DPAPI:
 
 
 class _WindowsFiles:
-    def __init__(self, test_id: UUID | None = None) -> None:
+    def __init__(self, test_id: UUID | None = None, *, slot: _Slot = _Slot.WRITER) -> None:
+        slot = _fixed_slot(slot)
         self.api = _WindowsAPI()
         self.base = self.api.known_local_appdata()
         self.sid = self.api.current_sid()
@@ -412,7 +459,7 @@ class _WindowsFiles:
             if not isinstance(test_id, UUID):
                 raise OISecretUnavailable()
             parent = parent / ("test-" + str(test_id))
-        self.path = parent / "oi-db-password.v1.dpapi"
+        self.path = parent / slot.filename
 
     def _open(
         self, path: Path, access: int, creation: int = 3, descriptor: ctypes.c_void_p | None = None
@@ -451,7 +498,7 @@ class _WindowsFiles:
         ):
             raise OISecretUnavailable()
 
-    def _restrict_owner(self, handle: int, descriptor: ctypes.c_void_p) -> None:
+    def _check_owner(self, handle: int) -> None:
         owner, security = ctypes.c_void_p(), ctypes.c_void_p()
         result = self.api.advapi.GetSecurityInfo(
             handle, 1, 1, ctypes.byref(owner), None, None, None, ctypes.byref(security)
@@ -462,17 +509,30 @@ class _WindowsFiles:
         finally:
             if security:
                 self.api.kernel.LocalFree(security)
+
+    def _restrict_owner(self, handle: int, descriptor: ctypes.c_void_p) -> None:
+        self._check_owner(handle)
         if not self.api.advapi.SetKernelObjectSecurity(handle, 1 | 4 | 0x80000000, descriptor):
             raise OISecretUnavailable()
 
     @contextmanager
-    def _parent(self, create: bool) -> Iterator[ctypes.c_void_p]:
+    def _parent(self, create: bool, *, absent_check: bool = False) -> Iterator[ctypes.c_void_p]:
         handles: list[int] = []
         with self.api.descriptor(self.sid) as descriptor:
             try:
                 for path in reversed((self.path.parent, *self.path.parent.parents)):
                     scoped = path.is_relative_to(self.base) and path != self.base
-                    if not path.exists():
+                    try:
+                        path.lstat()
+                        exists = True
+                    except FileNotFoundError:
+                        exists = False
+                    if not exists:
+                        if absent_check and scoped:
+                            # Only scoped missing ancestors mean an absent slot. Existing
+                            # ancestors stay opened and checked without following reparses.
+                            yield descriptor
+                            return
                         if not create or not scoped:
                             raise OISecretUnavailable()
                         attributes = _SecurityAttributes(
@@ -486,14 +546,34 @@ class _WindowsFiles:
                     handle = self._open(path, access)
                     handles.append(handle)
                     self._check(handle, path, directory=True)
-                    if scoped:
+                    if scoped and absent_check:
+                        self._check_owner(handle)
+                    elif scoped:
                         self._restrict_owner(handle, descriptor)
                 yield descriptor
             finally:
                 for handle in reversed(handles):
                     self.api.kernel.CloseHandle(handle)
 
-    def _target(self, descriptor: ctypes.c_void_p, *, missing_ok: bool = False) -> int | None:
+    def require_absent(self) -> None:
+        """Read-only preflight, not a lease or permission to overwrite an existing slot."""
+        try:
+            with self._parent(False, absent_check=True):
+                try:
+                    self.path.lstat()
+                except FileNotFoundError:
+                    return
+                raise OISecretUnavailable()
+        except Exception:
+            raise OISecretUnavailable() from None
+
+    def _target(
+        self,
+        descriptor: ctypes.c_void_p,
+        *,
+        missing_ok: bool = False,
+        restrict_owner: bool = True,
+    ) -> int | None:
         try:
             handle = self._open(self.path, 0x80000000 | 0x10000 | 0x20000 | 0x40000 | 0x80000)
         except OISecretUnavailable:
@@ -502,7 +582,10 @@ class _WindowsFiles:
             raise
         try:
             self._check(handle, self.path, directory=False)
-            self._restrict_owner(handle, descriptor)
+            if restrict_owner:
+                self._restrict_owner(handle, descriptor)
+            else:
+                self._check_owner(handle)
             return handle
         except Exception:
             self.api.kernel.CloseHandle(handle)
@@ -527,12 +610,20 @@ class _WindowsFiles:
                 self.api.kernel.CloseHandle(handle)
 
     def write(self, data: bytes) -> None:
+        self._write(data, replace=True)
+
+    def create(self, data: bytes) -> None:
+        self._write(data, replace=False)
+
+    def _write(self, data: bytes, *, replace: bool) -> None:
         if not 0 < len(data) <= _LIMIT:
             raise OISecretUnavailable()
         with self._parent(True) as descriptor:
-            existing = self._target(descriptor, missing_ok=True)
+            existing = self._target(descriptor, missing_ok=True, restrict_owner=replace)
             if existing is not None:
                 self.api.kernel.CloseHandle(existing)
+                if not replace:
+                    raise OISecretUnavailable()
             stage = self.path.parent / (".oi-secret-" + uuid4().hex + ".stage")
             handle = self._open(
                 stage,
@@ -557,7 +648,7 @@ class _WindowsFiles:
                 size = ctypes.sizeof(_RenameInfo) + len(name) + 2
                 rename_buffer = ctypes.create_string_buffer(size)
                 rename = _RenameInfo.from_buffer(rename_buffer)
-                rename.replace, rename.root, rename.name_length = True, None, len(name)
+                rename.replace, rename.root, rename.name_length = replace, None, len(name)
                 ctypes.memmove(
                     ctypes.addressof(rename_buffer) + _RenameInfo.name.offset, name, len(name)
                 )
@@ -592,12 +683,24 @@ def _production_store() -> _SecretStore:
     return _SecretStore(_WindowsFiles(), _DPAPI())
 
 
+def _owner_store(slot: _Slot) -> _SecretStore:
+    slot = _fixed_slot(slot)
+    if slot is _Slot.WRITER:
+        raise OISecretUnavailable()
+    return _SecretStore(_WindowsFiles(slot=slot), _DPAPI(slot), slot)
+
+
+def _test_store(test_id: UUID, slot: _Slot) -> _SecretStore:
+    if not isinstance(test_id, UUID):
+        raise OISecretUnavailable()
+    slot = _fixed_slot(slot)
+    return _SecretStore(_WindowsFiles(test_id, slot=slot), _DPAPI(slot), slot)
+
+
 def make_test_oi_secret_store(test_id: UUID) -> _SecretStore:
     """Explicit disposable native-test UUID leaf; never changes the production path rule."""
     try:
-        if not isinstance(test_id, UUID):
-            raise OISecretUnavailable()
-        return _SecretStore(_WindowsFiles(test_id), _DPAPI())
+        return _test_store(test_id, _Slot.WRITER)
     except Exception:
         raise OISecretUnavailable() from None
 

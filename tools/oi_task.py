@@ -19,8 +19,6 @@ def task_definition(
     start: datetime,
     start_envelope: Path | None = None,
     accepted_start_hash: str | None = None,
-    database: str = "auvexo_dev_oiresearch",
-    port: int = 55433,
     review_chain: Path | None = None,
     accepted_review_hashes: tuple[str, ...] = (),
 ) -> str:
@@ -54,10 +52,6 @@ def task_definition(
             accepted_start_hash is not None
             and not re.fullmatch(r"[0-9a-f]{64}", accepted_start_hash)
         )
-        or not re.fullmatch(r"auvexo_dev_oi[a-z0-9]+", database)
-        or type(port) is not int
-        or not 1024 <= port <= 65535
-        or port == 55432
     ):
         raise ValueError("OI_TASK_CONFIG")
     if (
@@ -109,10 +103,6 @@ def task_definition(
         "--config",
         str(config),
         "--scheduled",
-        "--database",
-        database,
-        "--port",
-        str(port),
     ]
     if start_envelope is not None and accepted_start_hash is not None:
         arguments.extend(
@@ -137,8 +127,6 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--start-envelope", type=Path)
     parser.add_argument("--accepted-start-hash")
-    parser.add_argument("--database", default="auvexo_dev_oiresearch")
-    parser.add_argument("--port", type=int, default=55433)
     parser.add_argument("--review-chain", type=Path)
     parser.add_argument("--accepted-review-hash", action="append", default=[])
     args = parser.parse_args()
@@ -154,8 +142,6 @@ def main() -> None:
         start=args.start,
         start_envelope=args.start_envelope,
         accepted_start_hash=args.accepted_start_hash,
-        database=args.database,
-        port=args.port,
         review_chain=args.review_chain,
         accepted_review_hashes=tuple(args.accepted_review_hash),
     )
