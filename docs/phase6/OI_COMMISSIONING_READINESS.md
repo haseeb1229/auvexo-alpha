@@ -144,3 +144,32 @@ exact server, trading password, account type/currency/leverage, dedicated local 
 profile and secure local onboarding authority. Credentials belong only in future accepted
 local encrypted storage, never chat, Git, logs, CLI or plaintext configuration. No REAL
 account, funding or broker connection is requested in PR10.
+
+## Public CI platform correction — 2026-10-31
+
+The owner-authorized temporary public CI exception permitted one unchanged-head rerun
+of implementation `6b93b507865df54bcc519b61576781daa0c5cbd5`. Run
+[41062301152, attempt 2](https://github.com/haseeb1229/auvexo-alpha/actions/runs/41062301152/attempts/2),
+job 124546323790, executed real steps and failed strict Linux mypy with eight errors
+for Windows-only ctypes/subprocess attributes. Tests and later checks did not run.
+The former zero-step infrastructure failure is retained separately; this is an actual
+verification defect, not a hosted test PASS. Conditional acceptance of the old exact
+implementation cannot cover this correction; fresh independent exact-SHA review is required.
+
+Explicit `sys.platform` guards now delimit native Windows APIs. The loader attributes
+use their portable `ctypes.CDLL` base type while actual Windows construction retains
+`WinDLL`, its calling convention and last-error handling. Windows child processes retain
+`CREATE_NO_WINDOW`; unsupported native secret/clock operations refuse before API access.
+No typing suppression, dynamic attribute fallback, workflow/test weakening, dependency
+change or security/clock threshold change is introduced. Strict mypy is checked for both
+Linux and Windows, together with native credential/provisioner and full regression evidence.
+
+Temporary public scope permits only sanitized engineering and synthetic fixtures; the
+owner separately authorized retaining already-public historical machine/user metadata,
+without publishing new identifiers. No new acceptance or temporary-public ADR is
+materialized before the release gates pass. PR #10 remains open/unmerged for review;
+runtime preparation and DS-03 implementation still require its verified normal merge.
+Actual broker credential/session onboarding requires a return to PRIVATE and accepted
+source/security gates. Auvexo must never ingest a Personal Area or trading password;
+future DS-03 uses an owner-created DEMO account and separately supported read-only access.
+Real OI commissioning/START remains clock-gated and `PHASE6_FORWARD_CLOCK=ZERO`.

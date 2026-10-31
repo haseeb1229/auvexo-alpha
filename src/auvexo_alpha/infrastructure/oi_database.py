@@ -15,6 +15,7 @@ import secrets
 import socket
 import stat
 import subprocess
+import sys
 import tempfile
 import time
 from collections.abc import Iterator
@@ -169,13 +170,16 @@ def _run(executable: Path, arguments: list[str], *, password: str | None = None)
         password in item for item in [str(executable), *arguments, *environment.values()]
     ):
         raise OIDatabaseUnavailable()
+    creationflags = 0
+    if sys.platform == "win32":
+        creationflags = subprocess.CREATE_NO_WINDOW
     try:
         result = _supervised_run(
             [str(executable), *arguments],
             input=(password + "\n" + password + "\n").encode("ascii") if password else None,
             capture_output=True,
             env=environment,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            creationflags=creationflags,
             timeout=90,
             check=False,
         )
@@ -397,6 +401,8 @@ class OIRuntimeDatabase:
         self._guard_target()
         if self.test_id is not None:
             return
+        if sys.platform != "win32":
+            raise OIDatabaseUnavailable()
         from auvexo_alpha.infrastructure.oi_runtime import inspect_clock
 
         try:

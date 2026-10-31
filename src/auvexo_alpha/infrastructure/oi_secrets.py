@@ -12,6 +12,7 @@ import ctypes
 import hmac
 import json
 import os
+import sys
 import unicodedata
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -202,8 +203,16 @@ class _RenameInfo(ctypes.Structure):
 
 
 class _WindowsAPI:
+    # WinDLL subclasses CDLL; this common type is available to non-Windows checkers.
+    # Construction still requires the native Windows loader and calling convention.
+    kernel: ctypes.CDLL
+    advapi: ctypes.CDLL
+    crypt: ctypes.CDLL
+    shell: ctypes.CDLL
+    ole: ctypes.CDLL
+
     def __init__(self) -> None:
-        if os.name != "nt":
+        if sys.platform != "win32":
             raise OISecretUnavailable()
         self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
         self.advapi = ctypes.WinDLL("advapi32", use_last_error=True)
@@ -574,6 +583,8 @@ class _WindowsFiles:
         missing_ok: bool = False,
         restrict_owner: bool = True,
     ) -> int | None:
+        if sys.platform != "win32":
+            raise OISecretUnavailable()
         try:
             handle = self._open(self.path, 0x80000000 | 0x10000 | 0x20000 | 0x40000 | 0x80000)
         except OISecretUnavailable:
