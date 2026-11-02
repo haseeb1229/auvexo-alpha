@@ -52,3 +52,5 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 | [ADR-027](027-temporary-public-ci-and-sanitized-engineering.md) | ACCEPTED / TEMPORARY / OWNER-APPROVED / independently reviewed | Temporary public CI/sanitized engineering; PRIVATE return before actual broker onboarding/confidential alpha |
 
 | [ADR-028](028-ds03-synthetic-readonly-foundation.md) | ACCEPTED/FROZEN synthetic engineering at ba66f44; original design bytes retained | Synthetic-only DS-03 read-only boundary; actual account onboarding requires PRIVATE return |
+
+| [ADR-029](029-ds03-mt5-readonly-adapter.md) | FROZEN_BEFORE_IMPLEMENTATION; ENGINEERING_ONLY; NO_ACTUAL_ACCOUNT_SESSION | Actual MT5 read-only adapter code; no account activation; PR12 independent exact-SHA review required |
