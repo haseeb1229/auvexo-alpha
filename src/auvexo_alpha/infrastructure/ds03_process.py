@@ -178,7 +178,9 @@ class Ds03Process:
             raise Ds03Error()
         try:
             key, session, binding = new_pipe_key(), uuid4(), source_binding()
-            flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+            flags = 0
+            if sys.platform == "win32":
+                flags = subprocess.CREATE_NO_WINDOW
             process = subprocess.Popen(
                 [
                     sys.executable,
