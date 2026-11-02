@@ -1,5 +1,52 @@
 # Architecture
 
+## CURRENT STATUS SUPERSESSION — 2026-11-03
+
+The latest owner-supplied macro records GPT-5.6 Sol's fresh independent acceptance of
+`ba66f44fd38c761821913f5b9ef6c7dcf485ed2a`, tree
+`d57091a9a488744b1050d652d876f94253b11656`:
+PHASE2_DS03_SYNTHETIC_READONLY_ENGINEERING_ACCEPTED_PASS. See the acceptance record
+at `docs/reviews/PHASE_2_DS03_SYNTHETIC_READONLY_INDEPENDENT_ACCEPTANCE.md` (repository-root
+path). This accepts generic/synthetic engineering only. Actual DS-03 account/source/rights/
+terminal/history qualification, Phase 2 exit, Phase 4 closure and Phase 5 commissioning
+remain OPEN or NOT STARTED as applicable; synthetic evidence earns ZERO genuine credit.
+
+PR #10 normal merge remains verified at `f47770d7886d12240e24390e23f939cb49535a31`.
+The owner authorizes a docs-only administrative child on PR #11, actual green public CI,
+then NORMAL merge with ordered parents that prior main and exact administrative head,
+and equal merge/head trees. Retain frozen ADR-028/DS03 design/provider/runbook bytes and
+all five frozen OI research files. No executable/test/dependency/workflow/migration change
+in that acceptance step. Do not request another review merely to accept exact ba66.
+
+After verified PR #11 merge only, create `phase-2/ds03-mt5-readonly-adapter`, freeze
+ADR-029/actual-adapter requirements/provider review/runbook BEFORE code, and implement
+production-capable read-only adapter CODE, fixed production DPAPI/local metadata and
+onboarding-authority contracts. Exact official MetaTrader5 5.0.6231 Windows-only package
+adoption/import-only proof is authorized; it is not a read-only security boundary.
+No actual initialize/login/terminal session, account input, real secret storage or broker
+data in this public engineering. Every future initialize requires explicit fixed terminal,
+login/read-only password/server/timeout/portable choice; no discovery/account fallback or
+trade operation. The new PR stays OPEN/UNMERGED for fresh exact-SHA independent review.
+
+ADR-027 temporary PUBLIC governance continues through sanitized adapter engineering and
+free CI. No new machine identifiers, real secrets/private broker data/confidential alpha;
+source/history scans before every public push. No settings, billing, runner, permission,
+visibility or branch-protection changes. Existing historical metadata retention remains
+owner-authorized. PRIVATE return is required only before later actual account/session/
+credential onboarding after PR12 acceptance and separate authority; do not ask earlier.
+LIVE_RELEASE_INTEGRITY_CONTROL_REQUIRED_BEFORE_PHASE8 remains a future gate.
+
+Operational release/tasks remain pinned to `9b9038b6966843805c99f15e1c37cdba7c026679`
+and untouched; current Phase 2 genuine credit and Phase 4 count/span/replay/mismatch UNKNOWN,
+not ZERO. Independent OI Runtime stays prepared/pinned to f47770d with Python3.13.16 and
+PG17.11; no update, real OI DB/secrets/config/task/START. CLOCK_EXTERNAL_BLOCKED and
+PHASE6_FORWARD_CLOCK=ZERO; no deep clock loop, at most one fresh read-only status.
+Clock failure does not block this safe engineering. Protect20:45–22:15 and22:45–23:20 PKT.
+Four Phase 3 outcomes INCONCLUSIVE, both OOS permanently consumed, no candidate/champion;
+OI-FWD-v1/OI-16 unchanged and value gate OPEN. No actual Phase5 orders before full Phase4,
+accepted actual DS03 and explicit authority. No REAL/money/live/runtime-AI authority.
+Earlier dated sections retain historical facts and are superseded only for current scope.
+
 ## CURRENT STATUS SUPERSESSION — 2026-11-02
 
 The owner-supplied latest macro brief records GPT-5.6 Sol's fresh exact-SHA independent
