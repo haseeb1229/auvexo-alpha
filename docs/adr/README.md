@@ -51,4 +51,4 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 
 | [ADR-027](027-temporary-public-ci-and-sanitized-engineering.md) | ACCEPTED / TEMPORARY / OWNER-APPROVED / independently reviewed | Temporary public CI/sanitized engineering; PRIVATE return before actual broker onboarding/confidential alpha |
 
-| [ADR-028](028-ds03-synthetic-readonly-foundation.md) | FROZEN BEFORE IMPLEMENTATION; executable review pending | Synthetic-only DS-03 read-only boundary; actual account onboarding requires PRIVATE return |
+| [ADR-028](028-ds03-synthetic-readonly-foundation.md) | ACCEPTED/FROZEN synthetic engineering at ba66f44; original design bytes retained | Synthetic-only DS-03 read-only boundary; actual account onboarding requires PRIVATE return |
