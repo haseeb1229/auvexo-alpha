@@ -50,3 +50,5 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 | [ADR-026](026-ds04-open-interest-intelligence.md) | ACCEPTED/FROZEN source/feature-foundation design at 887b6ac; executable engineering ACCEPTED/PASS at b3e8cc1; no collection authority | DS-04-A1 OI snapshot only; [rights](../phase6/SOURCES_AND_RIGHTS.md) and [preregistration](../phase6/EXPERIMENT_PREREGISTRATION.md) |
 
 | [ADR-027](027-temporary-public-ci-and-sanitized-engineering.md) | ACCEPTED / TEMPORARY / OWNER-APPROVED / independently reviewed | Temporary public CI/sanitized engineering; PRIVATE return before actual broker onboarding/confidential alpha |
+
+| [ADR-028](028-ds03-synthetic-readonly-foundation.md) | FROZEN BEFORE IMPLEMENTATION; executable review pending | Synthetic-only DS-03 read-only boundary; actual account onboarding requires PRIVATE return |
