@@ -1,12 +1,56 @@
 # Auvexo Alpha
 
+## CURRENT STATUS SUPERSESSION — 2026-11-02
+
+The owner-supplied latest macro brief records GPT-5.6 Sol's fresh exact-SHA independent
+review: `b3e8cc1cfa503b1fecfec980e266345280f8dbd6` is
+PHASE6A1_EXECUTABLE_ENGINEERING_ACCEPTED_PASS. See the implementation acceptance
+record in `docs/reviews/PHASE_6A1_OI_IMPLEMENTATION_INDEPENDENT_ACCEPTANCE.md` and
+ADR-027 in `docs/adr/027-temporary-public-ci-and-sanitized-engineering.md` (paths from
+repository root). This is executable engineering acceptance only; OI collection,
+commissioning, task registration and owner START are not established by this PASS.
+
+Repository visibility is owner-authorized TEMPORARY PUBLIC for standard free hosted CI
+and sanitized generic/synthetic engineering. Long-term intent remains PRIVATE. This
+supersedes earlier present-tense PRIVATE claims and the old October 24 public-return gate
+only within ADR-027's scope. No billing, runner, workflow, permissions or visibility change
+is authorized. Prior public copies cannot be revoked. Retention of existing historical
+machine/user metadata is owner-authorized; publish no NEW machine identifiers, real
+secrets, private broker/account/session data or proprietary confidential alpha.
+
+Materialize this acceptance with a docs-only child on PR #10; require actual passing
+hosted executable CI, then NORMAL merge with ordered parents old main `63fd627d0166efcfe716886af31ba96f299c79da`
+and exact administrative head, and equal merge/head trees. No executable or frozen OI
+file changes in that administrative step. After verified merge only, prepare a separate
+merge-pinned OI runtime and generic/synthetic DS-03 read-only engineering on
+`phase-2/ds03-exness-demo-readonly`; keep its PR OPEN/UNMERGED for exact-SHA review.
+Actual MT5 account/session/credential onboarding and confidential alpha require PRIVATE
+return and separate accepted onboarding authority. No actual broker connection here.
+
+OI-FWD-v1 and OI-16 remain exact. PHASE6_FORWARD_CLOCK=ZERO until independently accepted
+owner START. Clock trust is required for real OI commissioning/START; clock failure does
+not block unrelated safe engineering. No predictability-to-price/trading/filter/safety
+value inference or Phase 6 completion. VALUE_ABLATION_PREREGISTRATION_BLOCKED_MECHANISM
+remains OPEN. Four Phase 3 outcomes remain INCONCLUSIVE; both OOS holdouts are permanently
+consumed; no candidate/champion exists. Phase 2/4 full operational gates remain OPEN and
+current genuine credit/count/span/replay/mismatch UNKNOWN, not ZERO. Phase 5 actual
+commissioning is NOT STARTED; full Phase 7 remains OPEN; Phases 8/9 NOT STARTED.
+
+Operational release remains pinned at `9b9038b6966843805c99f15e1c37cdba7c026679` and
+untouched: no update, task/config/activation changes, backfill, catch-up or retiming.
+Protect 20:45–22:15 and 22:45–23:20 Asia/Karachi from heavy local work. No broker trading
+credentials, REAL account, funding, order, withdrawal, runtime AI or money authority.
+Binance live derivatives remain BLOCKED_BY_POLICY. SYSTEM_READY is not LIVE_CERTIFIED;
+no edge means no live launch. Earlier dated sections below retain historical facts and
+are superseded only for present status and the precise authority stated here.
+
 ## CURRENT STATUS SUPERSESSION — 2026-10-27
 
 - Repository haseeb1229/auvexo-alpha is independently verified PRIVATE, reconfirmed by authenticated GitHub API for this correction. The former temporary PUBLIC exception/governance-return gate is resolved by the verified owner return to PRIVATE; prior public copies cannot be revoked.
-- Phase 6A1 source/feature-foundation design is independently ACCEPTED/FROZEN at 887b6ac38636e07ff922d2ba2d0ec7b2063edd4f (GPT-5.6 Sol, founder-supplied disposition). Main remains 94b7d66d3c7531a513759bab202a13bf3c2500b0 before the authorized NORMAL PR #9 administrative acceptance merge. The documentation-only private-CI infrastructure exception is explicit, not an executable-CI waiver.
-- Phase 6 executable implementation remains NOT STARTED. DS-04 data collection/task remain NOT STARTED; PHASE6_FORWARD_CLOCK=ZERO. Broad DS-04 rights remain unresolved/excluded; only DS-04-A1 current OI snapshot source-specific NONPRODUCTION rights/design are accepted.
+- Phase 6A1 source/feature-foundation design is independently ACCEPTED/FROZEN at 887b6ac38636e07ff922d2ba2d0ec7b2063edd4f (GPT-5.6 Sol, founder-supplied disposition). PR #9 normally merged at 63fd627d0166efcfe716886af31ba96f299c79da; main is pinned there for this engineering checkpoint. The documentation-only private-CI infrastructure exception is explicit, not an executable-CI waiver.
+- Phase 6A1 source/feature-foundation executable engineering is implemented on phase-6/ds04-open-interest-engineering, pending independent exact-SHA code review; it is NOT accepted or enabled. DS-04 data collection/task remain NOT STARTED; PHASE6_FORWARD_CLOCK=ZERO. Broad DS-04 rights remain unresolved/excluded; only DS-04-A1 current OI snapshot source-specific NONPRODUCTION rights/design are accepted.
 - OI-FWD-v1 is SOURCE/FEATURE PREDICTABILITY FOUNDATION only. PASS_RESEARCH_PREDICTABILITY proves no price alpha, trading/filter/promotion/safety value or canonical Phase 6 incremental-value exit. It cannot enable operational OI, promote a strategy/candidate, enable a module or justify progression to macro/news/agents on OI-value grounds.
-- That value gate remains OPEN pending a separately authorized, preregistered paired baseline-vs-OI augmented ablation on admissible future/unconsumed evidence, causally correct, cost/latency aware where applicable, dependence-aware and no-retune, under then-current rights and accepted dependencies. No baseline selection from Phase 3 consumed OOS performance; both consumed holdouts remain permanently unavailable for selection/reuse. The consolidated owner brief permits outcome-blind preregistration of that later study if defensible, never execution or consumed-OOS reuse.
+- That value gate remains OPEN pending a separately authorized, preregistered paired baseline-vs-OI augmented ablation on admissible future/unconsumed evidence, causally correct, cost/latency aware where applicable, dependence-aware and no-retune, under then-current rights and accepted dependencies. No baseline selection from Phase 3 consumed OOS performance; both consumed holdouts remain permanently unavailable for selection/reuse. The authorized outcome-blind mechanism review records VALUE_ABLATION_PREREGISTRATION_BLOCKED_MECHANISM; no OI-to-price rule or later study execution is invented.
 - Phase 2 full operational acceptance remains OPEN; current genuine count UNKNOWN unless later independently proven. Phase 4 full operational acceptance remains OPEN; current qualifying count/span/replay UNKNOWN unless later independently proven. This correction earns ZERO calendar/qualification credit.
 - Phase 5 commissioning remains NOT STARTED; DS-03 remains BLOCKED. Binance live derivatives remain BLOCKED_BY_POLICY. No broker/MT5/Exness/order/money/runtime-AI authority; no macro/news/agent runtime.
 - Private hosted CI for PR #9 is EXTERNALLY_BLOCKED / PRIVATE_CI_UNAVAILABLE at reviewed run 40495351201 / job 122159293913: completed FAILURE with ZERO executable steps, no hosted test result and no hosted PASS. Codex observed the account billing/spending annotation; independent review confirmed the zero-step failure. Any automatic correction-head run requires separate factual reporting. No manual rerun or visibility/billing/settings/workflow change to manufacture CI.
