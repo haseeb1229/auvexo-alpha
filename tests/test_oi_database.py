@@ -232,13 +232,33 @@ def test_windows_partial_create_keeps_success_and_concurrent_slot(monkeypatch, f
     os.name != "nt", reason="native Windows production clock path with synthetic failure"
 )
 @pytest.mark.parametrize("operation", ["provision", "start"])
-def test_production_clock_failure_precedes_every_mutating_effect(monkeypatch, operation):
+@pytest.mark.parametrize("existing", [False, True])
+def test_production_clock_failure_precedes_every_mutating_effect(
+    monkeypatch, tmp_path, operation, existing
+):
     from auvexo_alpha.infrastructure import oi_runtime
 
+    # Stage C may already have prepared the real fixed runtime. Exercise the same
+    # production clock path in an isolated synthetic home; never touch that runtime.
+    real_target = Path.home() / "Desktop" / "Auvexo Alpha OI Runtime"
+    synthetic_home = tmp_path / "synthetic-user"
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: synthetic_home))
     expected = Path.home() / "Desktop" / "Auvexo Alpha OI Runtime"
-    assert not expected.exists()
+    assert expected != real_target
+    if existing:
+        expected.mkdir(parents=True)
+        (expected / "fixture.txt").write_bytes(b"SYNTHETIC_TEST_ONLY")
+    assert expected.exists() is existing
+    before = {
+        p.relative_to(expected): None if p.is_dir() else p.read_bytes() for p in expected.rglob("*")
+    }
 
     instance = OIRuntimeDatabase(expected)
+    assert instance.test_id is None
+    assert instance.root == instance.source == expected
+    assert instance.pg == expected / ".local/toolchains/postgres/pgsql/bin"
+    assert (instance.database, instance.port) == ("auvexo_dev_oiresearch", 55433)
+    assert isinstance(instance.slots, _WindowsSlots)
     monkeypatch.setattr(
         module.subprocess, "check_output", lambda *args, **kwargs: "Local CMOS Clock"
     )
@@ -252,9 +272,14 @@ def test_production_clock_failure_precedes_every_mutating_effect(monkeypatch, op
     monkeypatch.setattr(instance.slots, "require_absent", slots)
     with pytest.raises(OIDatabaseUnavailable):
         getattr(instance, operation)()
+    oi_runtime.inspect_clock.assert_called_once_with("Local CMOS Clock")
     for effect in (exclusive, tools, native, slots):
         effect.assert_not_called()
-    assert not expected.exists()
+    assert expected.exists() is existing
+    after = {
+        p.relative_to(expected): None if p.is_dir() else p.read_bytes() for p in expected.rglob("*")
+    }
+    assert after == before
 
 
 @pytest.mark.parametrize("inspection", ["initial_process", "children"])
