@@ -410,11 +410,14 @@ class _DPAPI:
         self._slot = _fixed_slot(slot)
         self.api = _WindowsAPI()
 
+    def _purpose(self) -> bytes:
+        return self._slot.purpose
+
     def _transform(self, data: bytes, decrypt: bool) -> bytes:
         if not 0 < len(data) <= _LIMIT:
             raise OISecretUnavailable()
         source_buffer = ctypes.create_string_buffer(data)
-        purpose = self._slot.purpose
+        purpose = self._purpose()
         entropy_buffer = ctypes.create_string_buffer(purpose)
         source = _Blob(len(data), ctypes.cast(source_buffer, ctypes.POINTER(ctypes.c_ubyte)))
         entropy = _Blob(len(purpose), ctypes.cast(entropy_buffer, ctypes.POINTER(ctypes.c_ubyte)))
