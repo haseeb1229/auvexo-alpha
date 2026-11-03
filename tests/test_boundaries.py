@@ -1,5 +1,6 @@
 import ast
 import importlib.metadata
+import sys
 from pathlib import Path
 
 
@@ -38,9 +39,11 @@ def test_r019_p1_import_direction() -> None:
 
 def test_r022_p1_no_broker_dependencies() -> None:
     packages = {str(d.metadata["Name"]).lower() for d in importlib.metadata.distributions()}
-    assert not packages.intersection(
-        {"metatrader5", "ccxt", "python-binance", "binance-connector", "pybit"}
-    )
+    # ADR-029 permits only the exact Windows provider; every other broker ban remains.
+    assert not packages.intersection({"ccxt", "python-binance", "binance-connector", "pybit"})
+    if "metatrader5" in packages:
+        assert sys.platform == "win32"
+        assert importlib.metadata.version("metatrader5") == "5.0.6231"
     for file in Path("src").rglob("*.py"):
         tree = ast.parse(file.read_text())
         for node in ast.walk(tree):
@@ -51,9 +54,11 @@ def test_r022_p1_no_broker_dependencies() -> None:
                 if isinstance(node, ast.ImportFrom)
                 else []
             )
-            assert not any(
-                m.lower().startswith(("metatrader5", "ccxt", "binance", "pybit")) for m in modules
-            )
+            for module in modules:
+                assert not module.lower().startswith(("ccxt", "binance", "pybit")), file
+                if module.lower().startswith("metatrader5"):
+                    assert module == "MetaTrader5"
+                    assert file.as_posix() == "src/auvexo_alpha/infrastructure/ds03_mt5.py"
 
 
 def test_r032_agent_instructions_aligned() -> None:

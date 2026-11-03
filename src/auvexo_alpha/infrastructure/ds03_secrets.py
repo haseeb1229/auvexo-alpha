@@ -1,7 +1,7 @@
-"""Fixed DS-03 synthetic secret proofs; actual onboarding operations remain inert.
+"""Fixed future DS-03 password lifecycle; effect requires scoped owner admission.
 
-Only disposable UUID leaves are available to native tests. There is no production
-secret selector, enable flag, environment fallback, CLI or general credential API.
+Public verification uses only identical native mechanics under disposable UUID leaves.
+No CLI, environment fallback, arbitrary path/purpose or authority issuer.
 """
 
 from __future__ import annotations
@@ -9,9 +9,10 @@ from __future__ import annotations
 import hmac
 import json
 import string
-from typing import Never
+from datetime import datetime
 from uuid import UUID
 
+from auvexo_alpha.domain.ds03_authority import Ds03OnboardingAdmission
 from auvexo_alpha.infrastructure.oi_secrets import _DPAPI, _Crypto, _Files, _WindowsAPI
 from auvexo_alpha.infrastructure.oi_secrets import _WindowsFiles as _OIWindowsFiles
 
@@ -41,7 +42,7 @@ def _valid_secret(value: object) -> str:
 
 
 class _SecretStore:
-    """Synthetic dependency seam; public production operations cannot construct it."""
+    """Shared production/native-test envelope; callers own admission before effects."""
 
     def __init__(self, files: _Files, crypto: _Crypto) -> None:
         self._files, self._crypto = files, crypto
@@ -124,15 +125,16 @@ class _DS03DPAPI(_DPAPI):
 
 
 class _DS03WindowsFiles(_OIWindowsFiles):
-    def __init__(self, test_id: UUID) -> None:
-        if type(test_id) is not UUID:
+    def __init__(self, test_id: UUID | None = None) -> None:
+        if test_id is not None and type(test_id) is not UUID:
             raise Ds03SecretUnavailable()
         self.api = _WindowsAPI()
         self.base = self.api.known_local_appdata()
         self.sid = self.api.current_sid()
-        self.path = (
-            self.base / "AuvexoAlpha" / "phase2" / "ds03" / ("test-" + str(test_id)) / _FILENAME
-        )
+        parent = self.base / "AuvexoAlpha" / "phase2" / "ds03"
+        if test_id is not None:
+            parent = parent / ("test-" + str(test_id))
+        self.path = parent / _FILENAME
 
 
 def make_test_ds03_secret_store(test_id: UUID) -> _SecretStore:
@@ -145,27 +147,97 @@ def make_test_ds03_secret_store(test_id: UUID) -> _SecretStore:
         raise Ds03SecretUnavailable() from None
 
 
-def _onboarding_not_accepted() -> Never:
-    # PRIVATE return plus independent actual-onboarding acceptance must precede a
-    # separately reviewed implementation. No caller-controlled switch bypasses it.
-    raise Ds03SecretUnavailable() from None
+def _require_admission(
+    admission: Ds03OnboardingAdmission | None, now: datetime | None
+) -> Ds03OnboardingAdmission:
+    try:
+        if type(admission) is not Ds03OnboardingAdmission or not isinstance(now, datetime):
+            raise Ds03SecretUnavailable()
+        admission.verify(now)
+        from auvexo_alpha.infrastructure.ds03_mt5_binding import verify_runtime_binding
+
+        verify_runtime_binding(admission.binding)
+        return admission
+    except Exception:
+        raise Ds03SecretUnavailable() from None
 
 
-def create_ds03_readonly_password(secret: object) -> None:
-    _onboarding_not_accepted()
+def _production_store() -> _SecretStore:
+    return _SecretStore(_DS03WindowsFiles(), _DS03DPAPI())
 
 
-def rotate_ds03_readonly_password(secret: object) -> None:
-    _onboarding_not_accepted()
+def _bound_production_store(
+    admission: Ds03OnboardingAdmission | None, now: datetime | None
+) -> _SecretStore:
+    checked = _require_admission(admission, now)
+    # Local import avoids a module cycle; metadata itself imports only native mechanics.
+    from auvexo_alpha.infrastructure.ds03_metadata import load_ds03_account_metadata
+
+    load_ds03_account_metadata(checked, now=now)
+    return _production_store()
 
 
-def load_ds03_readonly_password() -> str:
-    _onboarding_not_accepted()
+def require_ds03_readonly_password_absent(
+    admission: Ds03OnboardingAdmission | None = None, *, now: datetime | None = None
+) -> None:
+    try:
+        _require_admission(admission, now)
+        _DS03WindowsFiles().require_absent()
+    except Exception:
+        raise Ds03SecretUnavailable() from None
 
 
-def verify_ds03_readonly_password() -> bool:
-    _onboarding_not_accepted()
+def create_ds03_readonly_password(
+    secret: object,
+    admission: Ds03OnboardingAdmission | None = None,
+    *,
+    now: datetime | None = None,
+) -> None:
+    try:
+        _require_admission(admission, now)
+        _bound_production_store(admission, now).create(secret)
+    except Exception:
+        raise Ds03SecretUnavailable() from None
 
 
-def delete_ds03_readonly_password() -> None:
-    _onboarding_not_accepted()
+def rotate_ds03_readonly_password(
+    secret: object,
+    admission: Ds03OnboardingAdmission | None = None,
+    *,
+    now: datetime | None = None,
+) -> None:
+    try:
+        _require_admission(admission, now)
+        _bound_production_store(admission, now).rotate(secret)
+    except Exception:
+        raise Ds03SecretUnavailable() from None
+
+
+def load_ds03_readonly_password(
+    admission: Ds03OnboardingAdmission | None = None, *, now: datetime | None = None
+) -> str:
+    try:
+        _require_admission(admission, now)
+        return _bound_production_store(admission, now).load()
+    except Exception:
+        raise Ds03SecretUnavailable() from None
+
+
+def verify_ds03_readonly_password(
+    admission: Ds03OnboardingAdmission | None = None, *, now: datetime | None = None
+) -> bool:
+    try:
+        _require_admission(admission, now)
+        return _bound_production_store(admission, now).verify()
+    except Exception:
+        raise Ds03SecretUnavailable() from None
+
+
+def delete_ds03_readonly_password(
+    admission: Ds03OnboardingAdmission | None = None, *, now: datetime | None = None
+) -> None:
+    try:
+        _require_admission(admission, now)
+        _bound_production_store(admission, now).delete()
+    except Exception:
+        raise Ds03SecretUnavailable() from None

@@ -1,5 +1,19 @@
 # Project agent rules
 
+## CURRENT IMPLEMENTATION STATUS — 2026-11-03
+
+PR11 is verified NORMAL MERGED at `fa0915130c9572c9c2a4a260b20abeaefc2c62f5`, following
+all-step passing administrative CI41516596112 at f9a8609. Original DS03/OI design freezes
+remain unchanged. ADR029/actual requirements/provider/runbook froze BEFORE code at
+`aa1c5f4b4f003b660bd1a584647e62093894bb6c`. Actual MT5 read-only CODE, Windows-only pinned
+SDK/NumPy, fixed native DPAPI/metadata/authority and isolated provider child are implemented
+on `phase-2/ds03-mt5-readonly-adapter`; fresh independent executable review remains pending.
+See `docs/phase2/DS03_ACTUAL_ADAPTER_IMPLEMENTATION.md` (repository-root path). Keep new PR
+OPEN/UNMERGED. No actual SDK initialize/login/session, production credential API or broker
+account data in public verification. SDK import-only and synthetic/native proofs confer no
+actual qualification or trading authority. All existing operational, PRIVATE-onboarding,
+OI clock/START, phase/value/live and money gates below remain unchanged.
+
 ## CURRENT STATUS SUPERSESSION — 2026-11-03
 
 The latest owner-supplied macro records GPT-5.6 Sol's fresh independent acceptance of

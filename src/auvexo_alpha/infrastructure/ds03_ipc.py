@@ -7,13 +7,26 @@ import hmac
 import json
 import secrets
 from dataclasses import dataclass
+from enum import Enum
 from typing import Literal, cast
 from uuid import UUID
 
 from auvexo_alpha.domain.ds03 import MAX_FRAME_BYTES, MAX_REQUESTS
 
 REQUEST_TIMEOUT_SECONDS = 10
-_PROTOCOL = "auvexo.ds03.synthetic.v1"
+
+
+class ProtocolFamily(Enum):
+    SYNTHETIC = "auvexo.ds03.synthetic.v1"
+    MT5_READONLY = "auvexo.ds03.mt5-readonly.v1"
+
+
+def _protocol(family: ProtocolFamily) -> str:
+    if type(family) is not ProtocolFamily:
+        raise Ds03ProtocolError()
+    return family.value
+
+
 _KEYS = {"protocol", "kind", "session", "sequence", "request_id", "payload", "mac"}
 FrameKind = Literal["HELLO", "REQUEST", "REPLY", "ERROR"]
 
@@ -95,14 +108,16 @@ def _uuid(value: object) -> UUID:
     return parsed
 
 
-def bootstrap_frame(key: bytes, session: UUID, binding: str) -> bytes:
+def bootstrap_frame(
+    key: bytes, session: UUID, binding: str, *, family: ProtocolFamily = ProtocolFamily.SYNTHETIC
+) -> bytes:
     _key(key)
     if not isinstance(session, UUID):
         raise Ds03ProtocolError()
     return (
         canonical(
             {
-                "protocol": _PROTOCOL,
+                "protocol": _protocol(family),
                 "key": key.hex(),
                 "session": str(session),
                 "binding": _digest(binding),
@@ -112,9 +127,13 @@ def bootstrap_frame(key: bytes, session: UUID, binding: str) -> bytes:
     )
 
 
-def read_bootstrap(raw: bytes, expected_binding: str) -> tuple[bytes, UUID]:
+def read_bootstrap(
+    raw: bytes, expected_binding: str, *, family: ProtocolFamily = ProtocolFamily.SYNTHETIC
+) -> tuple[bytes, UUID]:
     frame = _load(raw)
-    if set(frame) != {"protocol", "key", "session", "binding"} or frame["protocol"] != _PROTOCOL:
+    if set(frame) != {"protocol", "key", "session", "binding"} or frame["protocol"] != _protocol(
+        family
+    ):
         raise Ds03ProtocolError()
     key = bytes.fromhex(_digest(frame["key"]))
     _key(key)
@@ -138,6 +157,7 @@ def encode_frame(
     session: UUID,
     sequence: int,
     request_id: UUID | None,
+    family: ProtocolFamily = ProtocolFamily.SYNTHETIC,
 ) -> bytes:
     _key(key)
     if kind not in {"HELLO", "REQUEST", "REPLY", "ERROR"}:
@@ -151,7 +171,7 @@ def encode_frame(
     if not isinstance(payload, dict):
         raise Ds03ProtocolError()
     body = {
-        "protocol": _PROTOCOL,
+        "protocol": _protocol(family),
         "kind": kind,
         "session": str(session),
         "sequence": sequence,
@@ -168,7 +188,13 @@ def encode_frame(
 
 
 def decode_frame(
-    raw: bytes, *, key: bytes, session: UUID, sequence: int, kind: FrameKind
+    raw: bytes,
+    *,
+    key: bytes,
+    session: UUID,
+    sequence: int,
+    kind: FrameKind,
+    family: ProtocolFamily = ProtocolFamily.SYNTHETIC,
 ) -> Ds03Frame:
     _key(key)
     frame = _load(raw)
@@ -180,7 +206,7 @@ def decode_frame(
     ):
         raise Ds03ProtocolError()
     if (
-        frame["protocol"] != _PROTOCOL
+        frame["protocol"] != _protocol(family)
         or frame["kind"] != kind
         or type(frame["sequence"]) is not int
         or frame["sequence"] != sequence

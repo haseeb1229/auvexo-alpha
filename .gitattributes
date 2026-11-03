@@ -4,6 +4,7 @@
 *.mjs text eol=lf
 *.txt text eol=lf
 *.py text eol=lf
+*.pyi text eol=lf
 *.toml text eol=lf
 *.lock text eol=lf
 *.yml text eol=lf

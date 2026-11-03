@@ -56,6 +56,7 @@ def source_binding() -> str:
     names = (
         "domain/contracts.py",
         "domain/ds03.py",
+        "domain/ds03_actual.py",
         "application/ds03.py",
         "application/ds03_ports.py",
         "infrastructure/ds03_fake.py",
