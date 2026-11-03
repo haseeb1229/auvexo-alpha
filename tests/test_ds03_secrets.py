@@ -1,7 +1,9 @@
 """D3-07: synthetic passwords only; native UUID leaves never select real slots."""
 
+import ast
 import base64
 import hmac
+import inspect
 import json
 import os
 from pathlib import Path
@@ -186,7 +188,9 @@ def test_backend_failures_and_failed_rotation_never_disclose_or_destroy():
     assert files.blob == before
 
 
-def test_production_is_inert_before_native_or_environment_access(monkeypatch):
+def test_production_admission_gate_and_wrapper_order_before_native_or_environment_access(
+    monkeypatch,
+):
     calls = []
 
     def deny():
@@ -197,14 +201,30 @@ def test_production_is_inert_before_native_or_environment_access(monkeypatch):
     monkeypatch.setenv("AUVEXO_DS03_PASSWORD", FIRST)
     monkeypatch.setenv("AUVEXO_DS03_ENABLE", "true")
     monkeypatch.setenv("LOCALAPPDATA", str(Path.cwd()))
-    for operation in (
-        lambda: secret.create_ds03_readonly_password(FIRST),
-        lambda: secret.rotate_ds03_readonly_password(SECOND),
-        secret.load_ds03_readonly_password,
-        secret.verify_ds03_readonly_password,
-        secret.delete_ds03_readonly_password,
+    # PR12 prohibits even public verification invoking a production API. Preserve
+    # denied-admission/no-effects proof at the shared private gate, and statically
+    # prove every thin production wrapper reaches that gate before native access.
+    for invalid in (None, True, object(), FIRST):
+        failure(lambda value=invalid: secret._require_admission(value, None))
+    for name in (
+        "create_ds03_readonly_password",
+        "rotate_ds03_readonly_password",
+        "load_ds03_readonly_password",
+        "verify_ds03_readonly_password",
+        "delete_ds03_readonly_password",
     ):
-        failure(operation)
+        source = inspect.getsource(vars(secret)[name])
+        parsed = ast.parse(source)
+        direct = [
+            node.func.id
+            for node in ast.walk(parsed)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        ]
+        assert "_require_admission" in direct
+        assert "_bound_production_store" in direct
+        assert source.index("_require_admission(") < source.index("_bound_production_store(")
+    source = inspect.getsource(secret.require_ds03_readonly_password_absent)
+    assert source.index("_require_admission(") < source.index("_DS03WindowsFiles()")
     for invalid in (None, "custom/path", b"purpose", Path.cwd(), 0):
         failure(lambda value=invalid: secret.make_test_ds03_secret_store(value))
     assert calls == []
