@@ -217,10 +217,15 @@ def test_open_holdout_verifies_the_frozen_selection_artifact_and_its_phase(ledge
     validate_grid(ledger, tampered)
     selected = one_per_family(tampered)
     digest = freeze(ledger, tampered, selected)
-    ledger.path(digest).write_bytes(artifact_bytes({"selected": selected[:1]}))
+    artifact = ledger.path(digest)
+    original = artifact.read_bytes()
+    artifact.write_bytes(artifact_bytes({"selected": selected[:1]}))
     with pytest.raises(ValueError, match="CORRUPT_RESEARCH_ARTIFACT"):
         ledger.open_holdout(tampered.study_id, selected)
     assert sealed(ledger, tampered)
+    # Artifacts are content-addressed and shared: the later scenarios record the same
+    # selection bytes, which the store would rightly refuse while this copy is corrupt.
+    artifact.write_bytes(original)
     # A selection recorded outside the validation phase was not frozen from validation.
     misfiled = synthetic_study(configs=frozen_configs())
     ledger.register(misfiled)
