@@ -1,5 +1,8 @@
 # Checkpoint B observation implementation map
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 The [frozen requirements](OBSERVATION_ACCEPTANCE.md), [ADR-023](../adr/023-paper-observation-qualification.md)
 and [future runbook](OBSERVATION_RUNBOOK.md) govern this implementation. No persistent
 task is registered and no campaign is activated. Genuine observation_days = 0.

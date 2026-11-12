@@ -23,7 +23,7 @@ from auvexo_alpha.application.research_study import screen, select_validation
 from auvexo_alpha.domain.market_data import Candle
 from auvexo_alpha.domain.research import StrategyConfig
 from auvexo_alpha.infrastructure.research_data import ResearchDataReader
-from auvexo_alpha.infrastructure.research_ledger import ResearchLedger
+from auvexo_alpha.infrastructure.research_ledger import SELECTION_TRIAL, ResearchLedger
 
 
 class ResearchWorker:
@@ -128,7 +128,7 @@ class ResearchWorker:
         # Selection metadata is returned before consumption; no OOS prices are read here.
         self.ledger.record(
             study_id,
-            "selection.pre_holdout",
+            SELECTION_TRIAL,
             "VALIDATION",
             study.configs[0].content_hash(),
             artifact_bytes({"fitted": asdict(fitted), "selected": selected, "stable": stable}),
@@ -140,7 +140,7 @@ class ResearchWorker:
         study_id: str,
     ) -> dict[str, object]:
         study = self.ledger.study(study_id)
-        frozen = json.loads(self.ledger.read_trial(study_id, "selection.pre_holdout"))
+        frozen = json.loads(self.ledger.read_trial(study_id, SELECTION_TRIAL))
         stored_fit = frozen["fitted"]
         fitted = FittedFeatures(
             datetime.fromisoformat(stored_fit["train_start"]),
@@ -149,16 +149,20 @@ class ResearchWorker:
         )
         selected = tuple(frozen["selected"])
         stable = frozen["stable"]
+        # The ledger re-reads the frozen selection itself and refuses any other set.
         self.ledger.open_holdout(study_id, selected)
         rows = self.reader.read(study_id, "OOS", study.split.oos_start, study.split.oos_end)
         outages = tuple(
             {o.content_hash(): o for item in study.inputs for o in item.outages}.values()
         )
+        # The registered block length decides the verdict; 7/28 days are reported sensitivity.
+        blocks = sorted({7, study.bootstrap_block_days, 28})
         reports: dict[str, object] = {}
         for cfg in study.configs:
             if cfg.content_hash() not in selected:
                 continue
             results = []
+            uncertainties = []
             for multiplier in study.stress_multipliers:
                 costs = study.costs.model_copy(update={"multiplier": multiplier})
                 result = simulate(
@@ -180,8 +184,9 @@ class ResearchWorker:
                         block_days=block,
                         comparisons=study.comparisons,
                     )
-                    for block in (7, 14, 28)
+                    for block in blocks
                 }
+                uncertainties.append(uncertainty)
                 book = resolve_counterfactuals(
                     result, rows, cfg, study.availability, costs, fitted, outages
                 )
@@ -200,17 +205,46 @@ class ResearchWorker:
                     cfg.content_hash(),
                     artifact_bytes(payload),
                 )
+            # The manifest guarantees the first multiplier is the unstressed cost model.
             primary = results[0]
+            verdict: dict[str, object] = {"verdict": "BASELINE_ONLY", "promotion_eligible": False}
+            if cfg.family in ("BREAKOUT", "MEAN_REVERSION"):
+                # Same stored bootstrap as the recorded primary trial; no unregistered defaults.
+                verdict = screen(
+                    primary,
+                    uncertainties[0][str(study.bootstrap_block_days)],
+                    tuple(results),
+                    stable.get(cfg.family, False),
+                    max_drawdown=study.max_drawdown,
+                )
+                self.ledger.record(
+                    study_id,
+                    f"verdict.{cfg.family}",
+                    "OOS",
+                    cfg.content_hash(),
+                    artifact_bytes(
+                        {
+                            "family": cfg.family,
+                            "config_hash": cfg.content_hash(),
+                            "screen": verdict,
+                            "registered": {
+                                "seed": study.seed,
+                                "bootstrap_samples": study.bootstrap_samples,
+                                "bootstrap_block_days": study.bootstrap_block_days,
+                                "comparisons": study.comparisons,
+                                "max_drawdown": study.max_drawdown,
+                                "stress_multipliers": study.stress_multipliers,
+                            },
+                            "trials": tuple(
+                                f"oos.{cfg.family}.{multiplier}"
+                                for multiplier in study.stress_multipliers
+                            ),
+                        }
+                    ),
+                )
             reports[cfg.family] = {
                 "config_hash": cfg.content_hash(),
                 "metrics": metrics(primary),
-                "screen": screen(
-                    primary,
-                    block_uncertainty(primary),
-                    tuple(results),
-                    stable.get(cfg.family, False),
-                )
-                if cfg.family in ("BREAKOUT", "MEAN_REVERSION")
-                else {"verdict": "BASELINE_ONLY", "promotion_eligible": False},
+                "screen": verdict,
             }
         return reports

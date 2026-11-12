@@ -15,6 +15,7 @@ from uuid import uuid4
 import psutil
 from local_db import LOCAL, ROOT
 
+from auvexo_alpha.application.data_reporting import stable_code
 from auvexo_alpha.application.data_schedule import (
     SCHEDULE_DESCRIPTION,
     SCHEDULE_ID,
@@ -24,6 +25,22 @@ from auvexo_alpha.application.data_schedule import (
 LOG_LIMIT = 1024 * 1024
 DIRECTORY_LIMIT = 20 * LOG_LIMIT
 LOG_NAME = re.compile(r"\d{8}T\d{12}Z-[0-9a-f]{12}(?:-warmup)?\.log")
+REASON_TAIL = 4096
+
+
+def child_reason(log: Path) -> str | None:
+    """Stable code from the child's final JSON line; child text is never copied."""
+    with log.open("rb") as stream:
+        stream.seek(max(0, log.stat().st_size - REASON_TAIL))
+        lines = [line for line in stream.read(REASON_TAIL).splitlines() if line.strip()]
+    if not lines:
+        return None
+    try:
+        payload = json.loads(lines[-1])
+    except (ValueError, RecursionError):
+        # Tracebacks and multi-line success output carry no reason; the summary says so.
+        return None
+    return stable_code(payload.get("reason")) if isinstance(payload, dict) else None
 
 
 def storage_budget(directory: Path, now: datetime) -> int:
@@ -125,6 +142,7 @@ def run_bounded(arguments: list[str], log: Path, timeout: int) -> dict[str, obje
         "seconds": round(time.monotonic() - started, 3),
         "errors": errors,
         "log": log.name,
+        "reason": child_reason(log),
     }
 
 
@@ -150,40 +168,54 @@ def main() -> int:
         )
         return 0
     now = datetime.now(UTC)
-    target = target_window(now) if args.scheduled else None
     directory = LOCAL / "scheduled-data"
     protect(directory)
     run_id = now.strftime("%Y%m%dT%H%M%S%fZ") + "-" + uuid4().hex[:12]
     report: dict[str, object] = {
         "started_at": now.isoformat(),
         "schedule_id": SCHEDULE_ID,
-        "mode": "scheduled" if target else "preflight",
+        "mode": "scheduled" if args.scheduled else "preflight",
     }
-    if target:
-        report["warmup"] = run_bounded(
-            ["collect", "--enable-public-data", "--cycles", "2"],
-            directory / (run_id + "-warmup.log"),
-            150,
-        )
-        while datetime.now(UTC) < target:
-            time.sleep(0.5)
-        if datetime.now(UTC) - target > timedelta(seconds=15):
-            report["status"] = "MISSED_START"
-        else:
-            storage_budget(directory, datetime.now(UTC))
-            report["collection"] = run_bounded(
-                ["collect", "--enable-public-data", "--cycles", "12"],
-                directory / (run_id + ".log"),
-                780,
+    target = None
+    if args.scheduled:
+        try:
+            target = target_window(now)
+        except ValueError as error:
+            # Evidence only: a refused start still collects nothing and is never retried.
+            report["status"] = "REFUSED_OUTSIDE_PREWINDOW"
+            report["reason"] = stable_code(str(error)) or "UNCLASSIFIED"
+    try:
+        if target:
+            report["warmup"] = run_bounded(
+                ["collect", "--enable-public-data", "--cycles", "2", "--catchup"],
+                directory / (run_id + "-warmup.log"),
+                150,
             )
-    else:
-        report["collection"] = run_bounded(["verify"], directory / (run_id + ".log"), 90)
+            while datetime.now(UTC) < target:
+                time.sleep(0.5)
+            if datetime.now(UTC) - target > timedelta(seconds=15):
+                report["status"] = "MISSED_START"
+            else:
+                storage_budget(directory, datetime.now(UTC))
+                report["collection"] = run_bounded(
+                    ["collect", "--enable-public-data", "--cycles", "12"],
+                    directory / (run_id + ".log"),
+                    780,
+                )
+        elif not args.scheduled:
+            report["collection"] = run_bounded(["verify"], directory / (run_id + ".log"), 90)
+    except (OSError, ValueError, subprocess.SubprocessError, psutil.Error) as error:
+        # A wrapper fault after the start is a recorded failed night, not a missing one.
+        report["status"] = "FAILED"
+        report["reason"] = stable_code(str(error)) or "WINDOW_WRAPPER_FAILED"
+    # Without a collection the status is already refused, missed or a wrapper fault.
     result = report.get("collection")
-    report["status"] = (
-        "COMMAND_COMPLETE"
-        if isinstance(result, dict) and result["returncode"] == 0 and not result["errors"]
-        else report.get("status", "FAILED")
-    )
+    if isinstance(result, dict) and result["returncode"] == 0 and not result["errors"]:
+        report["status"] = "COMMAND_COMPLETE"
+    elif isinstance(result, dict):
+        report["status"] = "FAILED"
+        # The wrapper's own stop cause first, otherwise the child's reported code.
+        report["reason"] = next(iter(result["errors"]), None) or result["reason"] or "UNREPORTED"
     report["finished_at"] = datetime.now(UTC).isoformat()
     report["qualification"] = "NOT_INFERRED; use verified calendar qualification command"
     with (directory / (run_id + ".json")).open("x", encoding="utf-8") as stream:

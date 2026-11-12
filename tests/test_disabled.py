@@ -60,3 +60,24 @@ def test_r022_p1_untrusted_json_fuzz_is_always_denied(payload: object) -> None:
     result = deny_execution(payload)
     assert result.status == "DENIED"
     assert result.retryable is False
+
+
+def test_withdraw_verb_has_no_handler_anywhere_in_source() -> None:
+    # Review G-6: WITHDRAW exists only as a typed verb so that it can be refused. Every
+    # mode denies it above; this proves no module branches on it or on a transfer verb.
+    import ast
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "src/auvexo_alpha"
+    offenders = []
+    for path in root.rglob("*.py"):
+        relative = path.relative_to(root).as_posix()
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr == "WITHDRAW":
+                offenders.append(relative)
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if node.value.upper() in {"WITHDRAW", "WITHDRAWAL", "TRANSFER"}:
+                    if not (relative == "domain/contracts.py" and node.value == "WITHDRAW"):
+                        offenders.append(relative)
+    assert offenders == []

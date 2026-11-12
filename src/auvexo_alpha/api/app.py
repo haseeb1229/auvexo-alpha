@@ -12,9 +12,8 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from pydantic import BaseModel, ConfigDict
-from starlette.responses import Response
 
 from auvexo_alpha import __version__
 from auvexo_alpha.api.terminal import terminal_router
@@ -23,6 +22,19 @@ from auvexo_alpha.application.safety import POLICY_VERSION
 from auvexo_alpha.application.terminal_reads import TerminalReadPort, UnconnectedTerminalReads
 from auvexo_alpha.config import Settings
 from auvexo_alpha.infrastructure.database import DatabaseProbe, make_engine
+
+CONTENT_SECURITY_POLICY = (
+    "default-src 'none'; script-src 'self'; style-src 'self'; "
+    "connect-src 'self'; img-src 'self'; base-uri 'none'; form-action "
+    "'none'; frame-ancestors 'none'"
+)
+# The read-only terminal uses no device, payment or capture capability.
+PERMISSIONS_POLICY = (
+    "accelerometer=(), autoplay=(), camera=(), display-capture=(), encrypted-media=(), "
+    "fullscreen=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), "
+    "midi=(), payment=(), picture-in-picture=(), publickey-credentials-get=(), "
+    "screen-wake-lock=(), usb=(), xr-spatial-tracking=()"
+)
 
 
 class Health(BaseModel):
@@ -80,10 +92,13 @@ def create_app(
     ) -> Response:
         try:
             return await call_next(request)
-        except Exception:
+        except Exception as error:
             # Presentation-only boundary: stable unavailable response and redacted alert.
             # Never log request headers, tokens, raw driver errors or private payloads.
-            logging.getLogger(__name__).error("PRESENTATION_READ_UNAVAILABLE")
+            # The exception class alone separates a persistent defect from an outage.
+            logging.getLogger(__name__).error(
+                "PRESENTATION_READ_UNAVAILABLE error_class=%s", type(error).__name__
+            )
             return JSONResponse({"code": "READ_UNAVAILABLE"}, status_code=503)
 
     @app.middleware("http")
@@ -133,11 +148,10 @@ def create_app(
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Referrer-Policy"] = "no-referrer"
         response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'none'; script-src 'self'; style-src 'self'; "
-            "connect-src 'self'; img-src 'self'; base-uri 'none'; form-action "
-            "'none'; frame-ancestors 'none'"
-        )
+        response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+        response.headers["Permissions-Policy"] = PERMISSIONS_POLICY
         if allow_dev_origin and supplied_origin == dev_origin:
             response.headers["Access-Control-Allow-Origin"] = dev_origin
             response.headers["Vary"] = "Origin"
@@ -179,7 +193,7 @@ def create_app(
 
     @app.get("/api/v1/version")
     def version() -> dict[str, str]:
-        return {"version": __version__, "contract_version": "1.0", "phase": "1"}
+        return {"version": __version__, "contract_version": "1.0"}
 
     @app.get("/api/v1/policy")
     def policy() -> dict[str, str | bool]:

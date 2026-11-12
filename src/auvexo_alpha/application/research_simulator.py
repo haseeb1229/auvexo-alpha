@@ -18,6 +18,7 @@ from auvexo_alpha.domain.research_gaps import VenueUnavailable
 
 Q = Decimal("0.00000001")
 ZERO = Decimal(0)
+DECIMAL_PRECISION = 50
 
 
 def money(value: Decimal, up: bool = False) -> Decimal:
@@ -63,7 +64,7 @@ def fit_features(
     if phase != "TRAIN" or not bars or any(not start <= b.open_at < end for b in bars):
         raise ValueError("FEATURE_FIT_REQUIRES_TRAIN_ONLY")
     with localcontext() as context:
-        context.prec = 50
+        context.prec = DECIMAL_PRECISION
         values = [
             volatility(bars[i - 24 : i + 1])
             for i in range(24, len(bars))
@@ -96,7 +97,8 @@ def baseline_signal(
     if config.family == "FIXED_RULE":
         return close > previous[0].close, None
     mean = sum((b.close for b in previous), ZERO) / len(previous)
-    raw = close < mean * (1 - config.deviation_fraction)
+    # Frozen rule: a close at least the deviation below the window mean, equality included.
+    raw = close <= mean * (1 - config.deviation_fraction)
     return raw, "VOLATILITY_FILTER" if raw and volatility(
         history
     ) > fitted.volatility_threshold else None
@@ -159,7 +161,7 @@ class RejectedCandidate:
     features: tuple[tuple[str, str], ...]
     reason_order: tuple[str, ...]
     horizon_bars: int
-    outcome: Literal["UNOBSERVABLE", "SIMULATED"]
+    outcome: Literal["UNOBSERVABLE", "SIMULATED", "NOT_SIMULATED"]
     forward_net_return: Decimal | None
     limitation: str = "Individual overlapping counterfactuals are never portfolio profit"
 
@@ -253,7 +255,7 @@ def simulate(
     if fitted.train_end > bars[0].open_at:
         raise ValueError("FEATURE_FIT_OVERLAPS_EVALUATION")
     with localcontext() as context:
-        context.prec = 50
+        context.prec = DECIMAL_PRECISION
         return _replay(
             bars,
             config,
@@ -295,7 +297,7 @@ def _replay(
     gap_stop_pending = False
     last_mark = bars[0].open
     history: deque[Candle] = deque(maxlen=169)
-    pending: tuple[datetime, datetime] | None = None
+    pending: tuple[datetime, datetime, Decimal] | None = None
     entry_at, entry_price, initial_risk = bars[0].open_at, ZERO, ZERO
     entry_regime = "UNKNOWN"
     step = bars[0].end_at - bars[0].open_at
@@ -303,6 +305,30 @@ def _replay(
     fee_rate = costs.fee_bps * costs.multiplier / 10000
     spread_rate = costs.spread_bps * costs.multiplier / 20000
     slip_rate = costs.slippage_bps * costs.multiplier / 10000
+    config_hash = config.content_hash()
+
+    def reject(
+        decision: datetime,
+        price: Decimal,
+        reasons: tuple[str, ...],
+        outcome: Literal["UNOBSERVABLE", "NOT_SIMULATED"],
+        *detail: tuple[str, str],
+    ) -> None:
+        candidate = rejected_candidate(
+            decision, bars[0].instrument_id, evidence_hash, reasons[0], price, config.holding_bars
+        )
+        rejections.append(
+            replace(
+                candidate,
+                features=(
+                    ("config_hash", config_hash),
+                    ("simulator_version", "spot-event.v1"),
+                    *detail,
+                ),
+                reason_order=reasons,
+                outcome=outcome,
+            )
+        )
 
     def fill(
         side: Literal["BUY", "SELL"],
@@ -310,7 +336,7 @@ def _replay(
         at: datetime,
         decision: datetime,
         reason: str,
-    ) -> None:
+    ) -> str | None:
         nonlocal cash, quantity, basis, realized, entry_at, entry_price, initial_risk, entry_regime
         if any(o.contains(at) for o in outages):
             raise ValueError("FILL_DURING_VENUE_UNAVAILABLE")
@@ -326,7 +352,9 @@ def _replay(
         notional = money(size * price, buy)
         fee = money(notional * fee_rate, True)
         if size <= 0 or (buy and notional + fee > cash):
-            return
+            # A SELL is only ever attempted on a positive open quantity, so only entries refuse.
+            assert buy
+            return "ENTRY_SIZE_NOT_POSITIVE" if size <= 0 else "ENTRY_COST_EXCEEDS_CASH"
         digest = hashlib.sha256(
             artifact_bytes(
                 [
@@ -395,6 +423,7 @@ def _replay(
                 )
             )
             quantity, basis = ZERO, ZERO
+        return None
 
     # At equal timestamps a completed bar is settled BEFORE the next open, then publications.
     events = sorted(
@@ -412,6 +441,14 @@ def _replay(
             raise ValueError("RESEARCH_CHECKPOINT_DEADLINE")
         if kind == -1:
             outage = outages[i]
+            if pending is not None:
+                reject(
+                    pending[0],
+                    pending[2],
+                    ("PENDING_ENTRY_EXPIRED_VENUE_UNAVAILABLE",),
+                    "UNOBSERVABLE",
+                    ("expired_at", at.isoformat()),
+                )
             pending = None
             history.clear()
             rejections.append(
@@ -456,9 +493,19 @@ def _replay(
                     "TERMINAL_OPEN" if terminal else "HOLDING_HORIZON",
                 )
             if pending is not None and not quantity and not terminal:
-                decision, eligible = pending
+                decision, eligible, observed = pending
                 if at >= eligible and at > decision:
-                    fill("BUY", bar.open, at, decision, "NEXT_ELIGIBLE_OPEN")
+                    refusal = fill("BUY", bar.open, at, decision, "NEXT_ELIGIBLE_OPEN")
+                    if refusal:
+                        reject(
+                            decision,
+                            observed,
+                            (refusal,),
+                            "NOT_SIMULATED",
+                            ("refused_at", at.isoformat()),
+                            ("reference_open", format(bar.open, "f")),
+                            ("cash", format(cash, "f")),
+                        )
                     pending = None
         elif kind == 0:
             if unavailable or any(o.overlaps(bar.open_at, bar.end_at) for o in outages):
@@ -493,22 +540,24 @@ def _replay(
             if raw and not quantity and pending is None:
                 decisions.append((at, reason or "LONG_PROPOSAL"))
                 if reason:
-                    candidate = rejected_candidate(
-                        at, bar.instrument_id, evidence_hash, reason, bar.close, config.holding_bars
-                    )
-                    rejections.append(
-                        replace(
-                            candidate,
-                            features=(
-                                ("config_hash", config.content_hash()),
-                                ("simulator_version", "spot-event.v1"),
-                                ("volatility", str(volatility(tuple(history)))),
-                                ("training_threshold", str(fitted.volatility_threshold)),
-                            ),
-                        )
+                    reject(
+                        at,
+                        bar.close,
+                        (reason,),
+                        "UNOBSERVABLE",
+                        ("volatility", str(volatility(tuple(history)))),
+                        ("training_threshold", str(fitted.volatility_threshold)),
                     )
                 else:
-                    pending = (at, at + timedelta(microseconds=costs.latency_microseconds))
+                    pending = (
+                        at,
+                        at + timedelta(microseconds=costs.latency_microseconds),
+                        bar.close,
+                    )
+            elif raw:
+                # Capacity is evaluated before the rule's own filter; neither may vanish.
+                blocked = "POSITION_ALREADY_OPEN" if quantity else "ENTRY_ALREADY_PENDING"
+                reject(at, bar.close, (blocked, *((reason,) if reason else ())), "NOT_SIMULATED")
     last_value = money(quantity * last_mark)
     unrealized = last_value - basis
     final = cash + last_value
@@ -574,11 +623,8 @@ def resolve_counterfactuals(
             signal=only_candidate,
             outages=outages,
         )
-        resolved.append(
-            replace(
-                candidate,
-                outcome="SIMULATED",
-                forward_net_return=hypothetical.final_equity / hypothetical.initial_cash - 1,
-            )
-        )
+        with localcontext() as context:
+            context.prec = DECIMAL_PRECISION
+            forward = hypothetical.final_equity / hypothetical.initial_cash - 1
+        resolved.append(replace(candidate, outcome="SIMULATED", forward_net_return=forward))
     return tuple(resolved)

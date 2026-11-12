@@ -11,6 +11,18 @@ import psycopg
 from psycopg import sql
 
 IMAGE = "postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3"
+OPERATIONAL_PORT = 55432
+# The fixed production OI runtime port on the owner's machine. Only the disposable CI
+# container below may listen there; a local test must never reach the real runtime.
+OI_RUNTIME_PORT = 55433
+
+
+def _test_port_allowed(port: int) -> bool:
+    return (
+        1024 <= port <= 65535
+        and port != OPERATIONAL_PORT
+        and (port != OI_RUNTIME_PORT or os.environ.get("GITHUB_ACTIONS") == "true")
+    )
 
 
 @contextmanager
@@ -20,19 +32,19 @@ def oi_test_server() -> Iterator[int]:
         if not override.isascii() or not override.isdecimal() or len(override) > 5:
             raise ValueError("OI_TEST_PORT_INVALID")
         port = int(override)
-        if not 1024 <= port <= 65535 or port == 55432:
+        if not _test_port_allowed(port):
             raise ValueError("OI_TEST_PORT_INVALID")
         yield port
         return
     port = int(os.environ.get("TEST_PG_PORT", "55432"))
-    if port != 55432:
-        if not 1024 <= port <= 65535:
+    if port != OPERATIONAL_PORT:
+        if not _test_port_allowed(port):
             raise ValueError("OI_TEST_PORT_INVALID")
         yield port
         return
     if os.environ.get("GITHUB_ACTIONS") != "true" or os.name == "nt":
         raise RuntimeError("ISOLATED_PG_UNAVAILABLE: explicit separate TEST_PG_PORT required")
-    port = 55433
+    port = OI_RUNTIME_PORT
     name = "auvexo-oi-ci-" + uuid4().hex
     passwords = {
         "admin": "ci-synthetic-oi-admin-only-20261027",

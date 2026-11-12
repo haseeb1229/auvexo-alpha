@@ -1,14 +1,57 @@
 """Coverage and actual calendar-day qualification; absent observations remain absent."""
 
+import re
+from collections.abc import Sequence
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 from auvexo_alpha.application.data_schedule import (
     FIRST_SCHEDULED_DAY,
     SCHEDULE_DESCRIPTION,
     SCHEDULE_ID,
+    prewindow,
     qualification_window,
 )
+from auvexo_alpha.domain.contracts import utc_time
 from auvexo_alpha.domain.market_data import DatasetManifest, IngestionEvent
+
+STABLE_CODE = re.compile(r"[A-Z][A-Z0-9_]{2,63}")
+
+
+def stable_code(value: object) -> str | None:
+    """Pass a project UPPER_SNAKE code through; exception or child text is never evidence."""
+    return value if isinstance(value, str) and STABLE_CODE.fullmatch(value) else None
+
+
+@dataclass(frozen=True)
+class ScheduledSummary:
+    """Wrapper receipt fields parsed by the outer layer. Not proof Task Scheduler ran it."""
+
+    started_at: datetime
+    schedule_id: str
+    mode: str
+    status: str
+
+
+def scheduled_binding(day: date, summaries: Sequence[ScheduledSummary]) -> str:
+    """Require the day's single scheduled wrapper receipt: on time and COMMAND_COMPLETE."""
+    found = [
+        s
+        for s in summaries
+        if s.mode == "scheduled"
+        and s.schedule_id == SCHEDULE_ID
+        and utc_time(s.started_at).date() == day
+    ]
+    if not found:
+        return "MISSING"
+    if len(found) > 1:
+        return "DUPLICATE"
+    earliest, target = prewindow(day)
+    if found[0].status != "COMMAND_COMPLETE":
+        return "NOT_COMPLETE"
+    if not earliest <= utc_time(found[0].started_at) < target:
+        return "OUTSIDE_PREWINDOW"
+    return "MATCHED"
 
 
 def coverage_matrix(manifests: list[DatasetManifest]) -> list[dict[str, object]]:
@@ -69,8 +112,13 @@ def qualification(
     start: date,
     now: datetime,
     verified_manifests: list[DatasetManifest],
+    summaries: Sequence[ScheduledSummary],
 ) -> dict[str, object]:
-    """Qualify observations only against caller-verified stored artifacts, never IDs alone."""
+    """Qualify observations only against caller-verified stored artifacts, never IDs alone.
+
+    Stored events cannot tell a manual in-window run from the scheduled one, so each day
+    also needs its single on-time completed wrapper receipt from the caller.
+    """
     by_version = {m.dataset_version: m for m in verified_manifests}
 
     def verified(event: IngestionEvent) -> bool:
@@ -128,12 +176,15 @@ def qualification(
                     for a, b in zip(feed, feed[1:], strict=False)
                 )
         closed = now >= window_end
+        binding = scheduled_binding(day, summaries)
+        good = good and binding == "MATCHED"
         days.append(
             dict(
                 day=day.isoformat(),
                 events=len(selected),
                 verified_events=sum(verified(e) for e in selected),
                 invalid_event_ids=[e.event_id for e in selected if not verified(e)],
+                scheduled_summary=binding,
                 status="PASS" if good and closed else "OPEN" if not closed else "INCOMPLETE",
                 first=selected[0].observed_at.isoformat() if selected else None,
                 last=selected[-1].observed_at.isoformat() if selected else None,
@@ -147,4 +198,6 @@ def qualification(
         days=days,
         scope="Public scheduled 12-minute UTC windows only; "
         "not continuous uptime or Exness qualification",
+        scheduled_provenance="One on-time COMMAND_COMPLETE wrapper summary per day; "
+        "a local receipt, not proof that Task Scheduler launched the run",
     )

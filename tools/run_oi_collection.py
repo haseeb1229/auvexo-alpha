@@ -3,12 +3,14 @@
 import argparse
 import json
 import signal
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from threading import Event
 from typing import Never
 
+import psutil
 from sqlalchemy import URL, create_engine
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -25,6 +27,14 @@ from auvexo_alpha.infrastructure.oi_runtime import inspect_clock, require_build,
 from auvexo_alpha.infrastructure.oi_secrets import load_oi_database_password
 from auvexo_alpha.infrastructure.oi_store import OIStore
 from auvexo_alpha.infrastructure.public_http import SourceError
+
+# git or w32tm exiting nonzero or hanging, and a failed resource measurement, are
+# refusals like every other gate: never a traceback with exit code 1.
+_PROCESS_OR_RESOURCE_ERRORS = (
+    subprocess.CalledProcessError,
+    subprocess.TimeoutExpired,
+    psutil.Error,
+)
 
 
 class _RedactedArgumentParser(argparse.ArgumentParser):
@@ -177,22 +187,30 @@ def main() -> int:
                     "status": result.code,
                     "reason": result.reason,
                     "manifest_hashes": result.manifests,
+                    "research_failures": result.research_failures,
                     "forward_days": 0,
                 }
             )
         )
         return result.exit_code
-    except (argparse.ArgumentError, ValueError, OSError, SQLAlchemyError, SourceError):
+    except (
+        argparse.ArgumentError,
+        ValueError,
+        OSError,
+        SQLAlchemyError,
+        SourceError,
+        *_PROCESS_OR_RESOURCE_ERRORS,
+    ) as error:
         # Never print DSNs, driver output, tokens, raw provider values or untrusted exceptions.
-        print(
-            json.dumps(
-                {
-                    "status": "BLOCKED",
-                    "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
-                    "forward_days": 0,
-                }
-            )
-        )
+        blocked: dict[str, object] = {
+            "status": "BLOCKED",
+            "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
+            "forward_days": 0,
+        }
+        if isinstance(error, _PROCESS_OR_RESOURCE_ERRORS):
+            # The class name only: its text can carry a command line, output or a path.
+            blocked["error_class"] = type(error).__name__
+        print(json.dumps(blocked))
         return 2
     finally:
         if engine is not None:

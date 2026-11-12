@@ -2,6 +2,7 @@ from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from research_fixtures import synthetic_study
 from test_data_gates import observation_fixtures
 from test_data_parser import bar
 
@@ -11,6 +12,7 @@ from auvexo_alpha.domain.research import (
     PriceAvailability,
     ResearchInput,
     ResearchSplit,
+    StudyManifest,
     classify_manifest,
     inherited_use,
 )
@@ -105,3 +107,29 @@ def test_binding_hash_and_split_separation():
 def test_costs_require_finite_exact_nonnegative_money(value):
     with pytest.raises(ValueError):
         CostModel(fee_bps=value)
+
+
+@pytest.mark.parametrize(
+    "multipliers",
+    [
+        (),
+        ("1.5", "2"),  # no unstressed primary result
+        ("2", "1"),  # the primary would be the doubled-cost run
+        ("1", "1"),
+        ("1", "2", "1.5"),
+        ("1", "1.5", "2", "2"),
+    ],
+)
+def test_stress_multipliers_must_start_at_one_and_strictly_ascend(multipliers):
+    study = synthetic_study()
+    with pytest.raises(ValueError, match="STRESS_MULTIPLIERS_MUST_START_AT_ONE_AND_ASCEND"):
+        StudyManifest.model_validate(study.model_dump() | {"stress_multipliers": multipliers})
+
+
+@pytest.mark.parametrize("multipliers", [("1",), ("1", "1.5", "2"), ("1", "3")])
+def test_registered_stress_ladders_are_accepted(multipliers):
+    study = StudyManifest.model_validate(
+        synthetic_study().model_dump() | {"stress_multipliers": multipliers}
+    )
+    assert study.stress_multipliers == tuple(Decimal(m) for m in multipliers)
+    assert StudyManifest.model_validate_json(study.canonical_bytes()) == study

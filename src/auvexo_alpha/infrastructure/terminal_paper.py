@@ -2,10 +2,11 @@
 
 import hashlib
 import re
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from types import MappingProxyType
+from typing import Any, Final, cast
 
 from pydantic import ValidationError
 from sqlalchemy import Connection, Engine, text
@@ -14,6 +15,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from auvexo_alpha.application.terminal_models import (
     Freshness,
     JournalEvent,
+    JournalReason,
     JournalView,
     PaperView,
     PendingView,
@@ -75,6 +77,33 @@ SELECT
         WHERE p.prosecdef AND n.nspname NOT IN ('pg_catalog','information_schema')
         AND has_function_privilege(current_user,p.oid,'EXECUTE'))
 """)
+
+# Every kind PaperStore writes, mapped to the closed reviewed presentation vocabulary.
+_JOURNAL_REASONS: Final[Mapping[str, JournalReason]] = MappingProxyType(
+    {
+        "AUTHORIZED": "AUTHORIZED",
+        "DENIED": "DENIED",
+        "KILL_STATE": "KILL_STATE",
+        "RECONCILIATION": "RECONCILIATION",
+        "RECONCILED_ORDER": "RECONCILIATION",
+        "UNKNOWN_RECONCILE_ONLY": "UNKNOWN_ORDER",
+        "LOSS_BREACH_LATCH": "LOSS_LATCH",
+        "DISPATCH_ATTEMPT": "DISPATCH_ATTEMPT",
+        "OWNER_PAPER_RESUME": "OWNER_RESUME",
+        "MARK_HEALTH": "MARK_HEALTH",
+        "WRITER_ACQUIRED_PAUSE_NEW": "WRITER_ACQUIRED",
+        "OWNER_RELEASE_PIN": "OWNER_PIN",
+        "OWNER_POLICY_PIN": "OWNER_PIN",
+        "EDGE_STATE": "EDGE_STATE",
+        "UTC_DAY_ROLLOVER": "DAY_ROLLOVER",
+        "INITIALIZED": "INITIALIZED",
+    }
+)
+
+
+def journal_reason(kind: str) -> JournalReason:
+    """Closed mapping only; an unrecognised stored kind is OTHER, never forwarded text."""
+    return _JOURNAL_REASONS.get(kind, "OTHER")
 
 
 class PostgresTerminalReads(UnconnectedTerminalReads):
@@ -257,26 +286,22 @@ class PostgresTerminalReads(UnconnectedTerminalReads):
                     JournalEvent(
                         sequence=r["sequence"],
                         observed_at=r["recorded_at"].astimezone(UTC),
-                        reason=cast(
-                            Any,
-                            r["kind"]
-                            if r["kind"] in ("AUTHORIZED", "DENIED", "RECONCILED", "KILL_CHANGED")
-                            else "OTHER_RECORDED_EVENT",
-                        ),
+                        reason=journal_reason(r["kind"]),
                         intent_hash=r["intent_hash"],
                         evidence_hash=r["content_hash"],
                     )
                     for r in rows
                 )
-                freshness = (
-                    self._freshness(events[0].observed_at, now)
-                    if events
-                    else Freshness(
-                        state="UNKNOWN",
+                # A completed read is current as of the read. A quiet or empty journal is
+                # neither stale nor disconnected; it is connected with no (new) events.
+                return JournalView(
+                    freshness=Freshness(
+                        state="AVAILABLE",
+                        observed_at=now.astimezone(UTC),
                         provenance="ISOLATED_SYNTHETIC_PAPER",
-                        reason="NOT_CONNECTED",
-                    )
+                        reason="CURRENT" if events else "NO_EVENTS",
+                    ),
+                    events=events,
                 )
-                return JournalView(freshness=freshness, events=events)
         except (SQLAlchemyError, ValidationError, ValueError):
             return JournalView(freshness=self._unavailable())

@@ -1,5 +1,8 @@
 # Phase 3 nonproduction research implementation
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Independent review pending. [Stable child requirements](ACCEPTANCE_TESTS.md) refine the
 existing parents; [V1](DATA_PLAN.md) and the frozen [V2 amendment](DATA_PLAN_V2.md) retain
 their original hashes. The owner [phase brief](../reference/PHASE_3_BRIEF.txt) and

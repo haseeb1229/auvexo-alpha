@@ -10,6 +10,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+import psutil
 import psycopg
 from psycopg import sql
 
@@ -57,7 +58,42 @@ def run_pg(name: str, *args: str, env: dict[str, str] | None = None) -> None:
             raise RuntimeError(output.read().decode(errors="replace"))
 
 
-def start() -> None:
+def port_listener() -> bool:
+    """Process-table fact only; no connection is opened to whatever owns the port."""
+    return any(
+        connection.status == psutil.CONN_LISTEN
+        and connection.laddr
+        and connection.laddr.port == PORT
+        for connection in psutil.net_connections(kind="tcp")
+    )
+
+
+def require_port_is_ours(create: bool) -> None:
+    """Never take or share the fixed loopback port of another checkout's cluster.
+
+    Every checkout uses the same port, so a second cluster started beside a pinned
+    operational one would either fail or, if that one is down, occupy its endpoint and
+    make its scheduled evidence runs fail. Creating a cluster is therefore explicit.
+    """
+    exists = (DATA / "PG_VERSION").exists()
+    ours_running = (
+        exists
+        and subprocess.run(
+            [str(PG / "pg_ctl.exe"), "-D", str(DATA), "status"], capture_output=True
+        ).returncode
+        == 0
+    )
+    if not ours_running and port_listener():
+        raise RuntimeError("PORT_55432_OWNED_BY_ANOTHER_CLUSTER; refusing to start a second one")
+    if not exists and not create:
+        raise RuntimeError(
+            "NO_CLUSTER_IN_THIS_CHECKOUT; pass --create only on a machine where no other "
+            "Auvexo checkout uses port 55432"
+        )
+
+
+def start(create: bool = False) -> None:
+    require_port_is_ours(create)
     LOCAL.mkdir(exist_ok=True)
     if not SECRET.exists():
         write_private(
@@ -127,9 +163,14 @@ def app_env(database: str = "auvexo_dev") -> dict[str, str]:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("action", choices=["start", "stop", "doctor", "serve", "migrate"])
+    parser.add_argument(
+        "--create",
+        action="store_true",
+        help="initialise a new cluster in this checkout; never beside an operational checkout",
+    )
     args = parser.parse_args()
     if args.action == "start":
-        start()
+        start(create=args.create)
     elif args.action == "stop":
         run_pg("pg_ctl", "-D", str(DATA), "-m", "fast", "-w", "stop")
     elif args.action == "migrate":

@@ -1,8 +1,11 @@
 """Network-free transport proofs. All I/O endpoints and worker processes are synthetic."""
 
 import base64
+import http.client as http_client
 import json
+import os
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 from threading import Event, Thread
 
@@ -330,6 +333,9 @@ def test_network_worker_uses_sanitized_environment_and_never_logs_body(monkeypat
     assert captured["stdin"] == subprocess.DEVNULL
     assert captured["stderr"] == subprocess.DEVNULL
     assert captured["args"][-1] == URL and "-B" in captured["args"]
+    # Isolated mode: no PYTHON* variable is consulted, so none is passed either.
+    assert captured["args"] == oi_http._worker_command(URL) and "-I" in captured["args"]
+    assert not [name for name in captured["env"] if name.upper().startswith("PYTHON")]
 
 
 def test_hung_dns_worker_is_killed_and_reaped_at_deadline(monkeypatch):
@@ -361,7 +367,8 @@ def test_hung_dns_worker_is_killed_and_reaped_at_deadline(monkeypatch):
     assert clock.seconds <= 0.21
 
 
-def test_unknown_reserved_attempt_blocks_restart_and_completion_failure():
+def test_unknown_reserved_attempt_fails_closed_for_its_slot_only_and_completion_failure():
+    # A crash, kill or lost completion leaves a durable reservation with no outcome.
     state = OIBudgetState(
         hour_started_at=NOW,
         day_started_at=NOW.replace(hour=0),
@@ -370,8 +377,28 @@ def test_unknown_reserved_attempt_blocks_restart_and_completion_failure():
         last_attempt_at=NOW,
         pending_attempt=True,
     )
-    with pytest.raises(SourceError, match="OUTCOME_REVIEW_REQUIRED"):
-        http(lambda *_: pytest.fail("unknown attempt restart"), state=state)
+    states, calls = [], []
+    client, clock = http(
+        lambda *args: calls.append(args) or OIResponse(200, b"{}"),
+        state=state,
+        persist=states.append,
+    )
+    for seconds in (5, 3599.999):
+        clock.seconds = seconds
+        with pytest.raises(SourceError, match="OUTCOME_REVIEW_REQUIRED"):
+            client.fetch("BTCUSDT")
+    assert not calls and not states and client.state == state
+    # The next slot resolves it as a consumed failed attempt and then proceeds.
+    clock.seconds = 3600
+    assert client.fetch("BTCUSDT").body == b"{}"
+    assert len(calls) == 1
+    resolved, reserved, completed = states
+    assert resolved == state.model_copy(
+        update={"pending_attempt": False, "failed_attempt": "OI_ATTEMPT_OUTCOME_UNKNOWN"}
+    )
+    assert reserved.pending_attempt and reserved.failed_attempt is None
+    assert (reserved.hour_attempts, reserved.day_attempts) == (1, 2)
+    assert not completed.pending_attempt and completed.failed_attempt is None
     states = []
 
     def persist(value):
@@ -452,18 +479,221 @@ def test_received_restriction_is_durable_before_cancel_or_deadline(status, inter
 @pytest.mark.parametrize(
     "code", ["OI_STOPPED", "OI_ATTEMPT_DEADLINE", "OI_WORKER_FAILED", "OI_WORKER_CLEANUP_FAILED"]
 )
-def test_unknown_worker_outcome_stays_reserved_for_review(code):
-    states = []
+def test_killed_or_failed_worker_is_a_completed_failed_attempt_not_a_permanent_block(code):
+    # Previously these left pending_attempt=True forever and blocked every later run.
+    states, calls = [], []
 
     def transport(*_):
-        raise SourceError(code)
+        calls.append(1)
+        if len(calls) == 1:
+            raise SourceError(code)
+        return OIResponse(200, b"{}")
 
     client, _ = http(transport, persist=states.append)
     with pytest.raises(SourceError, match=code):
         client.fetch("BTCUSDT")
-    assert states[-1].pending_attempt and client.state.pending_attempt
-    with pytest.raises(SourceError, match="OUTCOME_REVIEW_REQUIRED"):
-        client.fetch("ETHUSDT")
+    # Not retried inside the slot, budget consumed, exact cause durable, nothing admitted.
+    assert len(calls) == 1
+    assert [s.pending_attempt for s in states] == [True, False]
+    assert states[-1].failed_attempt == code and client.state == states[-1]
+    assert (states[-1].hour_attempts, states[-1].day_attempts) == (1, 1)
+    # A fresh process in the next slot starts from that durable state and proceeds.
+    restarted, later = http(transport, state=states[-1], persist=states.append)
+    later.seconds = 3600
+    assert restarted.fetch("BTCUSDT").body == b"{}"
+    assert len(calls) == 2
+    assert states[-2].pending_attempt and states[-2].failed_attempt is None
+    assert (states[-2].hour_attempts, states[-2].day_attempts) == (1, 2)
+    assert not states[-1].pending_attempt and states[-1].failed_attempt is None
+
+
+def test_late_response_is_a_failed_attempt_and_its_data_is_never_admitted():
+    states, clock = [], Clock()
+
+    def transport(*_):
+        clock.seconds = 30
+        return OIResponse(200, b'{"late":"SYNTHETIC_MUST_NOT_BE_ADMITTED"}')
+
+    client, _ = http(transport, clock=clock, persist=states.append)
+    with pytest.raises(SourceError, match="OI_JOB_DEADLINE"):
+        client.fetch("BTCUSDT")
+    assert [s.pending_attempt for s in states] == [True, False]
+    assert states[-1].failed_attempt == "OI_JOB_DEADLINE" and states[-1].day_attempts == 1
+
+
+def test_failed_attempts_consume_the_hourly_budget_and_never_undercount():
+    states = []
+
+    def transport(*_):
+        raise SourceError("OI_WORKER_FAILED")
+
+    client, _ = http(transport, persist=states.append)
+    for count in range(1, 7):
+        with pytest.raises(SourceError, match="OI_WORKER_FAILED"):
+            client.fetch("BTCUSDT")
+        assert client.state.hour_attempts == client.state.day_attempts == count
+        assert client.state.failed_attempt == "OI_WORKER_FAILED"
+    with pytest.raises(SourceError, match="OI_NETWORK_BUDGET"):
+        client.fetch("BTCUSDT")
+    assert len(states) == 12 and not client.state.pending_attempt
+
+
+def synthetic_worker(monkeypatch, clock, behaviour):
+    """A fake child process object; no interpreter, socket or endpoint is started."""
+    payload = json.dumps(
+        dict(
+            status=200,
+            body=base64.b64encode(b"{}").decode(),
+            retry_after=0,
+            content_type="application/json",
+        )
+    ).encode()
+
+    class Process:
+        killed = False
+        returncode = None
+
+        def communicate(self, timeout):
+            if self.killed:
+                self.returncode = -9
+                return b"", None
+            if behaviour == "hung":
+                clock.seconds += timeout
+                raise subprocess.TimeoutExpired("synthetic worker", timeout)
+            self.returncode = 1 if behaviour == "crashed" else 0
+            return (b"" if behaviour == "crashed" else payload), None
+
+        def poll(self):
+            return self.returncode
+
+        def kill(self):
+            self.killed = True
+
+    process = Process()
+    monkeypatch.setattr(oi_http.time, "monotonic", clock.monotonic)
+    monkeypatch.setattr(oi_http.subprocess, "Popen", lambda *a, **kw: process)
+    return process
+
+
+@pytest.mark.parametrize(
+    "behaviour,code", [("hung", "OI_ATTEMPT_DEADLINE"), ("crashed", "OI_WORKER_FAILED")]
+)
+def test_real_worker_deadline_or_crash_lets_the_next_slot_run(monkeypatch, behaviour, code):
+    states = []
+    # transport=None: the production request_oi supervises the (synthetic) child.
+    client, clock = http(None, persist=states.append)
+    process = synthetic_worker(monkeypatch, clock, behaviour)
+    with pytest.raises(SourceError, match=code):
+        client.fetch("BTCUSDT")
+    assert process.killed is (behaviour == "hung")
+    assert [s.pending_attempt for s in states] == [True, False]
+    assert states[-1].failed_attempt == code and states[-1].day_attempts == 1
+    restarted, later = http(None, state=states[-1], persist=states.append)
+    later.seconds = 3600
+    synthetic_worker(monkeypatch, later, "healthy")
+    assert restarted.fetch("BTCUSDT").body == b"{}"
+    assert states[-1].day_attempts == 2 and states[-1].hour_attempts == 1
+    assert not states[-1].pending_attempt and states[-1].failed_attempt is None
+
+
+def test_attempt_is_never_reserved_below_the_viable_minimum_time():
+    assert oi_http.MIN_ATTEMPT_SECONDS == (
+        oi_http.WORKER_START_SECONDS
+        + oi_http.SOCKET_TIMEOUT_SECONDS
+        + oi_http.WORKER_CLEANUP_SECONDS
+    )
+    states, calls = [], []
+    client, clock = http(
+        lambda *args: calls.append(args) or OIResponse(200, b"{}"), persist=states.append
+    )
+    with pytest.raises(SourceError, match="OI_JOB_DEADLINE"):
+        client.fetch("BTCUSDT", slot_deadline=oi_http.MIN_ATTEMPT_SECONDS - 0.001)
+    # Clean end: no budget reserved, nothing pending, no request.
+    assert not calls and not states and client.state.day_attempts == 0
+    assert client.fetch("BTCUSDT", slot_deadline=oi_http.MIN_ATTEMPT_SECONDS).body == b"{}"
+    assert calls[0][2] == oi_http.MIN_ATTEMPT_SECONDS
+
+    def slow_failure(*_):
+        clock.seconds += 13.5
+        raise SourceError("OI_NETWORK")
+
+    del states[:]
+    retrying, clock = http(slow_failure, persist=states.append)
+    with pytest.raises(SourceError, match="OI_JOB_DEADLINE"):
+        retrying.fetch("BTCUSDT")
+    # One transient failure used 13.5 s of 20 s; after the 1 s backoff only 5.5 s remain.
+    assert [s.pending_attempt for s in states] == [True, False]
+    assert states[-1].day_attempts == 1 and not retrying.state.pending_attempt
+
+
+@pytest.mark.parametrize(
+    "stage,error",
+    [
+        ("read", http_client.IncompleteRead(b"par", 10)),
+        ("open", http_client.BadStatusLine("SYNTHETIC")),
+        ("open", http_client.LineTooLong("header line")),
+        ("open", http_client.RemoteDisconnected("SYNTHETIC")),
+    ],
+    ids=["IncompleteRead", "BadStatusLine", "LineTooLong", "RemoteDisconnected"],
+)
+def test_child_maps_http_protocol_errors_to_retryable_network_error(
+    stage, error, monkeypatch, capsys
+):
+    assert isinstance(error, http_client.HTTPException)
+
+    class Response:
+        status = 200
+        headers = {"Content-Type": "application/json"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self, limit):
+            raise error
+
+    class Opener:
+        def open(self, req, timeout):
+            if stage == "open":
+                raise error
+            return Response()
+
+    monkeypatch.setattr(oi_http.urllib.request, "build_opener", lambda *handlers: Opener())
+    with pytest.raises(SourceError, match="^OI_NETWORK$"):
+        oi_http._worker_request(URL, 4096)
+    # The worker reports a typed error and exits normally instead of crashing.
+    assert oi_http._worker_main(URL) == 0
+    assert json.loads(capsys.readouterr().out) == {"error": "OI_NETWORK"}
+
+
+def test_worker_runs_isolated_so_the_launch_directory_cannot_shadow_modules(tmp_path):
+    command = oi_http._worker_command("https://synthetic.invalid/never-contacted")
+    assert command[0] == sys.executable and command[1:3] == ["-I", "-B"]
+    # Planted look-alikes; with isolation they are never imported.
+    (tmp_path / "json.py").write_text("raise SystemExit(98)\n", encoding="utf8")
+    (tmp_path / "auvexo_alpha").mkdir()
+    (tmp_path / "auvexo_alpha" / "__init__.py").write_text(
+        "raise SystemExit(99)\n", encoding="utf8"
+    )
+    environment = {k: os.environ[k] for k in ("SYSTEMROOT", "WINDIR") if k in os.environ}
+
+    def run(arguments):
+        return subprocess.run(
+            arguments,
+            cwd=tmp_path,
+            env=environment,
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            timeout=60,
+        ).returncode
+
+    # The URL is refused by the exact allowlist before any socket exists: exit code 2
+    # proves the real package and standard library were imported, not the planted files.
+    assert run(command) == 2
+    without_isolation = [argument for argument in command if argument != "-I"]
+    assert run(without_isolation) in (98, 99)
 
 
 def test_per_attempt_admission_rejects_before_request_or_budget_reservation():

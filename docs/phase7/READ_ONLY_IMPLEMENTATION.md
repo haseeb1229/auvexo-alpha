@@ -1,5 +1,8 @@
 # Read-only operator terminal implementation checkpoint
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Status: read-only engineering foundation implemented and locally verified, NOT independently
 accepted. Delivery requires exact-final Windows clone and exact-head hosted push/PR evidence
 in the accompanying handoff. All development is in the separate clone. This

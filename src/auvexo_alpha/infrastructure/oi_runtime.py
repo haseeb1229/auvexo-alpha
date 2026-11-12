@@ -1,16 +1,25 @@
 """Local clock/resource and exact build checks for the optional OI collector."""
 
+import ctypes
 import hashlib
 import importlib
 import json
+import os
 import re
+import shutil
 import subprocess
+import sys
+from ctypes import wintypes
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from typing import Protocol, cast
 
+import auvexo_alpha
 from auvexo_alpha.domain.oi_schedule import OIClockProof, OICollectionConfig
+
+# Executable code and schema live here; an untracked file in any of them is not the build.
+_BUILD_SCOPES = ("src/", "tools/", "migrations/")
 
 
 def oi_code_hash(root: Path) -> str:
@@ -24,17 +33,83 @@ def oi_code_hash(root: Path) -> str:
     return hashlib.sha256(json.dumps(parts, separators=(",", ":")).encode("ascii")).hexdigest()
 
 
+def git_executable(root: Path) -> Path:
+    """One absolute git for the whole gate, never one the checkout or launch directory supplies.
+
+    A bare name lets Windows (and ``shutil.which``) prefer the current directory, and an
+    activated environment puts checkout directories on PATH; either could answer the
+    revision and cleanliness questions about itself.
+    """
+    found = shutil.which("git")
+    if found is None:
+        raise ValueError("OI_BUILD_BINDING")
+    lexical = Path(os.path.abspath(found))
+    resolved = lexical.resolve()
+    untrusted = {Path(os.path.abspath(root)), root.resolve(), Path.cwd(), Path.cwd().resolve()}
+    if not resolved.is_file() or any(
+        candidate.is_relative_to(directory)
+        for candidate in (lexical, resolved)
+        for directory in untrusted
+    ):
+        raise ValueError("OI_BUILD_BINDING")
+    return resolved
+
+
+def loaded_package_directory() -> Path:
+    """Directory of the ``auvexo_alpha`` package this process actually imported."""
+    origin: str | None = auvexo_alpha.__file__
+    if not origin:
+        raise ValueError("OI_BUILD_BINDING")
+    return Path(origin).resolve().parent
+
+
+def _python_sources(directory: Path) -> dict[str, str]:
+    return {
+        path.relative_to(directory).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in directory.rglob("*.py")
+    }
+
+
+def require_imported_tree(root: Path, package: Path) -> None:
+    """The executing package must be byte-identical to the hashed checkout tree.
+
+    Hashing ``root/src`` alone would accept an environment holding a stale installed
+    copy while different code runs. Any changed, missing or extra ``.py`` refuses.
+    """
+    expected = _python_sources(root / "src" / "auvexo_alpha")
+    if not expected or _python_sources(package) != expected:
+        raise ValueError("OI_BUILD_BINDING")
+
+
 def require_build(root: Path, config: OICollectionConfig) -> None:
+    git = str(git_executable(root))
     revision = subprocess.check_output(
-        ["git", "-C", str(root), "rev-parse", "HEAD"],
+        [git, "--no-optional-locks", "-C", str(root), "rev-parse", "HEAD"],
         text=True,
         timeout=3,
     ).strip()
-    dirty = subprocess.check_output(
-        ["git", "-C", str(root), "status", "--porcelain", "--untracked-files=no"],
+    status = subprocess.check_output(
+        [
+            git,
+            "--no-optional-locks",
+            "-C",
+            str(root),
+            "status",
+            "--porcelain",
+            "-z",
+            "--untracked-files=all",
+        ],
         text=True,
         timeout=3,
-    ).strip()
+    )
+    # NUL-separated "XY path" entries. Any tracked change anywhere refuses, and so does
+    # an untracked file under an executable scope; a rename's bare source path also does.
+    dirty = any(
+        entry[:2] != "??" or entry[3:].casefold().startswith(_BUILD_SCOPES)
+        for entry in status.split("\0")
+        if entry
+    )
+    require_imported_tree(root, loaded_package_directory())
     if (
         dirty
         or revision != config.git_revision
@@ -76,10 +151,33 @@ def resources_ready(root: Path) -> bool:
         return False
 
 
+def w32tm_executable() -> Path:
+    """Absolute Windows Time tool from the native system directory, never PATH or cwd.
+
+    A bare ``w32tm`` makes CreateProcess search the interpreter's directory and the
+    current directory before System32, where a planted file could fabricate a trusted
+    clock. The system directory comes from the OS itself, not from an environment variable.
+    """
+    if sys.platform != "win32":
+        raise ValueError("OI_CLOCK_UNTRUSTED")
+    api = ctypes.WinDLL("kernel32", use_last_error=True)
+    api.GetSystemDirectoryW.argtypes = [wintypes.LPWSTR, wintypes.UINT]
+    api.GetSystemDirectoryW.restype = wintypes.UINT
+    buffer = ctypes.create_unicode_buffer(32768)
+    count = api.GetSystemDirectoryW(buffer, len(buffer))
+    if not count or count >= len(buffer):
+        raise ValueError("OI_CLOCK_UNTRUSTED")
+    system = Path(buffer.value)
+    tool = system / "w32tm.exe"
+    if not system.is_absolute() or not tool.is_file():
+        raise ValueError("OI_CLOCK_UNTRUSTED")
+    return tool
+
+
 def inspect_clock(source: str) -> OIClockProof:
     """Read only; localized/ambiguous output refuses collection, never changes Windows time."""
     result = subprocess.run(
-        ["w32tm", "/query", "/status", "/verbose"],
+        [str(w32tm_executable()), "/query", "/status", "/verbose"],
         capture_output=True,
         timeout=3,
         check=True,

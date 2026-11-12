@@ -67,3 +67,30 @@ def test_quota_counts_synthetic_cache_bytes_and_refuses_unreadable_paths(
     monkeypatch.setattr(data_store.os, "scandir", denied_scandir)
     with pytest.raises(PermissionError, match="synthetic unreadable managed path"):
         tree_bytes(managed, True)
+
+
+@pytest.mark.parametrize(
+    "database",
+    ["auvexo_dev", "postgres", "auvexo_paperobs_034317b66897438685a4", "auvexo_test; x", ""],
+)
+def test_postgres_harness_refuses_a_non_disposable_database(
+    database: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The harness writes append-only rows; a mis-set variable must not reach real data.
+    from test_postgres import connection_args
+
+    monkeypatch.setenv("TEST_PG_ADMIN_PASSWORD", "synthetic-not-a-secret")
+    monkeypatch.setenv("TEST_PG_DATABASE", database)
+    with pytest.raises(pytest.fail.Exception, match="disposable auvexo_test database"):
+        connection_args()
+
+
+@pytest.mark.parametrize("database", ["auvexo_test", "auvexo_test_0a1b2c3d4e5f"])
+def test_postgres_harness_accepts_disposable_test_databases(
+    database: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from test_postgres import connection_args
+
+    monkeypatch.setenv("TEST_PG_ADMIN_PASSWORD", "synthetic-not-a-secret")
+    monkeypatch.setenv("TEST_PG_DATABASE", database)
+    assert connection_args()["dbname"] == database

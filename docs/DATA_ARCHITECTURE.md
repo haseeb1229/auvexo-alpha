@@ -107,6 +107,9 @@ close-time assumption. No simulation mode or relaxed as-of rule is implemented h
 
 ## Future price simulation and research storage benchmark
 
+This section was written before Phase 3 and is kept as the requirement that Phase 3
+then implemented; see [Phase 3 implementation](phase3/IMPLEMENTATION.md).
+
 Phase 3 must name and opt into PRICE_CLOSE_PLUS_CAUSAL_LAG separately from strict observed-as-of:
 finalized close + explicit positive causal lag, actual 2026 receipt/processing retained, no
 same-close lookahead, and policy/lag recorded in the experiment manifest. Macro/news/on-chain

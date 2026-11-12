@@ -1,6 +1,7 @@
 # Operations and recovery
 
 Status: FROZEN safe-restart method; RPO/RTO PROVISIONAL and untested until later phases.
+Current procedures are in the [runbooks](runbooks/README.md); this document is the policy.
 
 Phase 1 has real DEV/TEST migration, rollback-refusal and isolated backup/restore proof;
 see [commands and recovery](phase1/SETUP.md) and [evidence](phase1/VERIFICATION.md).

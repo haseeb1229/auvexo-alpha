@@ -12,6 +12,10 @@ under the owner account. Never put passwords in command arguments or chat.
 .venv/Scripts/python.exe tools/data_local.py verify
 ```
 
+`start` starts the cluster that already exists in this checkout. It creates a new one only
+with `--create`, and it refuses when another cluster already listens on port 55432, because
+every checkout uses that port; see [checkouts and tasks](../runbooks/CHECKOUTS_AND_TASKS.md).
+
 Provision creates a separate random local development data-writer password in an
 owner ACL-protected ignored file. This is a PostgreSQL development credential only;
 it is not an encrypted broker secret store or a claim of service isolation. The role

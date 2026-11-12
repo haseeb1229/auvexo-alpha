@@ -3,12 +3,16 @@
 import hashlib
 import importlib.util
 import json
+import os
+import subprocess
+import sys
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from xml.etree import ElementTree
 
+import psutil
 import pytest
 
 from auvexo_alpha.domain.oi_schedule import (
@@ -28,6 +32,14 @@ from auvexo_alpha.infrastructure.public_http import SourceError
 
 NOW = datetime(2026, 10, 30, 12, tzinfo=UTC)
 ROOT = Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture
+def synthetic_w32tm(tmp_path, monkeypatch):
+    """Output-parser tests start no process; this tool path is synthetic, never created."""
+    path = tmp_path / "synthetic-system" / "w32tm.exe"
+    monkeypatch.setattr(oi_runtime, "w32tm_executable", lambda: path)
+    return path
 
 
 def tool(name):
@@ -318,7 +330,9 @@ def test_windows_clock_source_type_refuses_controls_and_invalid_bounds_in_both(s
         "time-server.example:123 (NTP)",
     ],
 )
-def test_native_clock_parser_accepts_exact_safe_source_with_synthetic_trust(source, monkeypatch):
+def test_native_clock_parser_accepts_exact_safe_source_with_synthetic_trust(
+    source, monkeypatch, synthetic_w32tm
+):
     output = (
         "Leap Indicator: 0(no warning)\nStratum: 3 (secondary)\n"
         "Time since Last Good Sync Time: 1.2s\nPhase Offset: -0.001s\n"
@@ -577,11 +591,11 @@ def test_optional_resource_probe_fails_closed_and_respects_all_budgets(tmp_path,
 
 
 def test_build_binding_rejects_revision_dirty_code_lock_and_preregistration(tmp_path, monkeypatch):
-    (tmp_path / "src").mkdir()
+    (tmp_path / "src/auvexo_alpha").mkdir(parents=True)
     (tmp_path / "tools").mkdir()
     (tmp_path / "docs/phase6").mkdir(parents=True)
     paths = [
-        "src/a.py",
+        "src/auvexo_alpha/a.py",
         "tools/oi_task.py",
         "tools/run_oi_collection.py",
         "uv.lock",
@@ -598,27 +612,61 @@ def test_build_binding_rejects_revision_dirty_code_lock_and_preregistration(tmp_
         lock_hash=digest("uv.lock"),
         preregistration_hash=digest(paths[-1]),
     )
+    commands = []
+
+    def git(output):
+        def run(args, **_):
+            commands.append(args)
+            return config.git_revision + "\n" if "rev-parse" in args else output
+
+        monkeypatch.setattr(oi_runtime.subprocess, "check_output", run)
+
+    # Git resolution and the imported package location have their own real tests below.
+    synthetic_git = tmp_path / "outside" / "git"
+    monkeypatch.setattr(oi_runtime, "git_executable", lambda _root: synthetic_git)
     monkeypatch.setattr(
-        oi_runtime.subprocess,
-        "check_output",
-        lambda args, **_: config.git_revision + "\n" if "rev-parse" in args else "",
+        oi_runtime, "loaded_package_directory", lambda: tmp_path / "src/auvexo_alpha"
     )
+    git("")
     oi_runtime.require_build(tmp_path, config)
+    assert [args[0] for args in commands] == [str(synthetic_git)] * 2
+    assert "--untracked-files=all" in commands[1] and "--untracked-files=no" not in commands[1]
+    # Untracked files outside the executable scopes are not part of the build.
+    git("?? notes/untracked.txt\0?? docs/draft.md\0")
+    oi_runtime.require_build(tmp_path, config)
+    for output in (
+        "?? src/auvexo_alpha/data.json\0",
+        "?? src/sitecustomize.pth\0",
+        "?? tools/planted.py\0",
+        "?? migrations/versions/9999_planted.py\0",
+        "?? notes/untracked.txt\0?? Tools/planted.py\0",
+        " M docs/tracked.md\0",
+        "R  docs/new.md\0docs/old.md\0",
+    ):
+        git(output)
+        with pytest.raises(ValueError, match="BUILD_BINDING"):
+            oi_runtime.require_build(tmp_path, config)
+    git("")
     for field in ("git_revision", "code_hash", "lock_hash", "preregistration_hash"):
         data = config.model_dump(mode="python")
         data[field] = "0" * (40 if field == "git_revision" else 64)
         with pytest.raises(ValueError, match="BUILD_BINDING"):
             oi_runtime.require_build(tmp_path, OICollectionConfig.model_validate(data))
-    monkeypatch.setattr(
-        oi_runtime.subprocess,
-        "check_output",
-        lambda args, **_: config.git_revision + "\n" if "rev-parse" in args else " M tracked.py",
-    )
+    git(" M tracked.py")
+    with pytest.raises(ValueError, match="BUILD_BINDING"):
+        oi_runtime.require_build(tmp_path, config)
+    # A stale installed copy is refused even when the checkout itself is exact.
+    git("")
+    oi_runtime.require_build(tmp_path, config)
+    stale = tmp_path / "site-packages/auvexo_alpha"
+    stale.mkdir(parents=True)
+    (stale / "a.py").write_text("synthetic stale copy", encoding="utf8")
+    monkeypatch.setattr(oi_runtime, "loaded_package_directory", lambda: stale)
     with pytest.raises(ValueError, match="BUILD_BINDING"):
         oi_runtime.require_build(tmp_path, config)
 
 
-def test_clock_inspection_is_read_only_and_ambiguous_output_denies(monkeypatch):
+def test_clock_inspection_is_read_only_and_ambiguous_output_denies(monkeypatch, synthetic_w32tm):
     valid = (
         "Leap Indicator: 0(no warning)\nStratum: 3 (secondary)\n"
         "Time since Last Good Sync Time: 1.2s\nPhase Offset: -0.001s\n"
@@ -633,7 +681,8 @@ def test_clock_inspection_is_read_only_and_ambiguous_output_denies(monkeypatch):
     monkeypatch.setattr(oi_runtime.subprocess, "run", result)
     proof = oi_runtime.inspect_clock("synthetic-ntp")
     assert proof.offset_bound_ms == 4 and proof.time_since_sync_seconds == 2
-    assert calls == [["w32tm", "/query", "/status", "/verbose"]]
+    # Never the bare name: the gate itself supplies the absolute tool path.
+    assert calls == [[str(synthetic_w32tm), "/query", "/status", "/verbose"]]
     for bad in (
         valid.replace("Source:", "Localized Source:"),
         valid.replace("0.002s", "2s"),
@@ -651,11 +700,26 @@ def test_clock_inspection_is_read_only_and_ambiguous_output_denies(monkeypatch):
 
 @pytest.mark.parametrize(
     "code,exit_code",
-    [("COMPLETE", 0), ("BLOCKED", 2), ("BUSY", 3), ("STOPPED", 4), ("SOURCE_UNAVAILABLE", 5)],
+    [
+        ("COMPLETE", 0),
+        ("BLOCKED", 2),
+        ("BUSY", 3),
+        ("STOPPED", 4),
+        ("SOURCE_UNAVAILABLE", 5),
+        ("LEDGER_REVIEW_REQUIRED", 6),
+    ],
 )
 def test_status_codes_never_create_forward_credit(code, exit_code):
     result = OIJobStatus(code, "SYNTHETIC")
     assert result.exit_code == exit_code and result.forward_days == 0
+    assert result.research_failures == ()
+    if code == "COMPLETE":
+        # A recorded research failure can never be reported as a clean exit 0.
+        with pytest.raises(ValueError, match="OI_STATUS_HIDES_RESEARCH_FAILURE"):
+            OIJobStatus(code, "SYNTHETIC", research_failures=("BTCUSDT:SYNTHETIC",))
+    else:
+        flagged = OIJobStatus(code, "SYNTHETIC", research_failures=("BTCUSDT:SYNTHETIC",))
+        assert flagged.exit_code == exit_code != 0
 
 
 def test_authority_expiry_during_symbol_stagger_prevents_second_request():
@@ -702,17 +766,41 @@ def test_interruption_during_wait_never_reaches_http(change, reason):
 def test_explicit_oi_pg_override_never_uses_operational_port(monkeypatch):
     from oi_pg_helpers import oi_test_server
 
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
     monkeypatch.setenv("TEST_PG_PORT", "55432")
-    monkeypatch.setenv("OI_TEST_PG_PORT", "55433")
+    monkeypatch.setenv("OI_TEST_PG_PORT", "55440")
+    with oi_test_server() as port:
+        assert port == 55440
+    assert os.environ["TEST_PG_PORT"] == "55432"
+
+
+@pytest.mark.parametrize("variable", ["OI_TEST_PG_PORT", "TEST_PG_PORT"])
+def test_local_oi_tests_never_reach_the_fixed_production_runtime_port(variable, monkeypatch):
+    from oi_pg_helpers import OI_RUNTIME_PORT, oi_test_server
+
+    assert OI_RUNTIME_PORT == 55433 == configuration().database_port
+    monkeypatch.delenv("OI_TEST_PG_PORT", raising=False)
+    monkeypatch.setenv("TEST_PG_PORT", "55432")
+    monkeypatch.setenv(variable, "55433")
+    for marker in (None, "false", "TRUE", "1"):
+        if marker is None:
+            monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+        else:
+            monkeypatch.setenv("GITHUB_ACTIONS", marker)
+        with pytest.raises(ValueError, match="OI_TEST_PORT_INVALID"):
+            with oi_test_server():
+                pytest.fail("a local test must never reach the production OI runtime")
+    # Only the disposable CI container may listen on that port.
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
     with oi_test_server() as port:
         assert port == 55433
-    assert __import__("os").environ["TEST_PG_PORT"] == "55432"
 
 
 @pytest.mark.parametrize(
     "value",
     [
         "55432",
+        "55433",
         "0",
         "65536",
         "True",
@@ -725,7 +813,8 @@ def test_explicit_oi_pg_override_never_uses_operational_port(monkeypatch):
 def test_oi_pg_override_invalid_is_not_fallback(value, monkeypatch):
     from oi_pg_helpers import oi_test_server
 
-    monkeypatch.setenv("TEST_PG_PORT", "55433")
+    monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
+    monkeypatch.setenv("TEST_PG_PORT", "55440")
     monkeypatch.setenv("OI_TEST_PG_PORT", value)
     with pytest.raises(ValueError, match="OI_TEST_PORT_INVALID"):
         with oi_test_server():
@@ -987,7 +1076,9 @@ def test_receipt_after_owner_expiry_is_quarantined_without_manifest():
         "::1",
     ],
 )
-def test_untrusted_local_clock_source_cannot_be_declared_trusted(source, monkeypatch):
+def test_untrusted_local_clock_source_cannot_be_declared_trusted(
+    source, monkeypatch, synthetic_w32tm
+):
     output = (
         "Leap Indicator: 0(no warning)\nStratum: 1 (primary)\n"
         "Time since Last Good Sync Time: 1s\nPhase Offset: 0s\n"
@@ -1325,5 +1416,265 @@ def test_cli_revalidates_time_sensitive_authority_before_secret_decryption(
     assert json.loads(output.out) == {
         "status": "BLOCKED",
         "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
+        "forward_days": 0,
+    }
+
+
+def plant(directory, name):
+    """A fake executable that these tests only ever locate; it is never executed."""
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / (name + (".exe" if os.name == "nt" else ""))
+    path.write_bytes(b"SYNTHETIC_PLANTED_NEVER_EXECUTED")
+    path.chmod(0o755)
+    return path
+
+
+def forbid_processes(monkeypatch):
+    for name in ("run", "check_output", "Popen"):
+        monkeypatch.setattr(
+            oi_runtime.subprocess,
+            name,
+            lambda *_a, **_kw: pytest.fail("a planted executable must never be started"),
+        )
+
+
+def launch_directories(tmp_path, monkeypatch):
+    root, launch, outside = (tmp_path / name for name in ("checkout", "launch", "outside"))
+    for directory in (root, launch, outside):
+        directory.mkdir()
+    monkeypatch.chdir(launch)
+    forbid_processes(monkeypatch)
+    return root, launch, outside
+
+
+@pytest.mark.parametrize(
+    "location",
+    ["current_directory", "relative_path_entry", "checkout_root", "checkout_environment"],
+)
+def test_build_gate_refuses_git_supplied_by_the_checkout_or_launch_directory(
+    location, tmp_path, monkeypatch
+):
+    root, launch, outside = launch_directories(tmp_path, monkeypatch)
+    if location == "current_directory":
+        plant(launch, "git")
+        # Windows searches the current directory implicitly, before any PATH entry.
+        monkeypatch.setenv("PATH", str(outside) if os.name == "nt" else os.curdir)
+    elif location == "relative_path_entry":
+        plant(launch / "bin", "git")
+        monkeypatch.setenv("PATH", "bin")
+    elif location == "checkout_root":
+        plant(root, "git")
+        monkeypatch.setenv("PATH", str(root))
+    else:
+        scripts = root / ".venv" / "Scripts"
+        plant(scripts, "git")
+        monkeypatch.setenv("PATH", os.pathsep.join((str(scripts), str(outside))))
+    with pytest.raises(ValueError, match="^OI_BUILD_BINDING$"):
+        oi_runtime.git_executable(root)
+    # The whole gate refuses before any process, so the planted file cannot answer it.
+    with pytest.raises(ValueError, match="^OI_BUILD_BINDING$"):
+        oi_runtime.require_build(root, configuration())
+
+
+def test_build_gate_resolves_one_absolute_git_outside_checkout_or_refuses_absence(
+    tmp_path, monkeypatch
+):
+    root, _, outside = launch_directories(tmp_path, monkeypatch)
+    monkeypatch.setenv("PATH", str(outside))
+    with pytest.raises(ValueError, match="^OI_BUILD_BINDING$"):
+        oi_runtime.git_executable(root)
+    planted = plant(outside, "git")
+    resolved = oi_runtime.git_executable(root)
+    assert resolved.is_absolute() and resolved == planted.resolve()
+    assert not resolved.is_relative_to(root.resolve())
+    assert not resolved.is_relative_to(Path.cwd().resolve())
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="native Windows system directory API")
+def test_clock_tool_is_native_system32_never_path_cwd_or_environment(tmp_path, monkeypatch):
+    genuine = Path(os.environ["SYSTEMROOT"]) / "System32" / "w32tm.exe"
+    # Planted look-alikes everywhere a bare name or an environment variable would lead.
+    plant(tmp_path, "w32tm")
+    plant(tmp_path / "fake-root" / "System32", "w32tm")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PATH", str(tmp_path))
+    monkeypatch.setenv("SYSTEMROOT", str(tmp_path / "fake-root"))
+    monkeypatch.setenv("WINDIR", str(tmp_path / "fake-root"))
+    tool = oi_runtime.w32tm_executable()
+    assert tool.is_absolute() and tool.is_file()
+    assert os.path.normcase(str(tool)) == os.path.normcase(str(genuine))
+    assert not tool.resolve().is_relative_to(tmp_path.resolve())
+    calls = []
+    output = (
+        "Leap Indicator: 0(no warning)\nStratum: 3 (secondary)\n"
+        "Time since Last Good Sync Time: 1.2s\nPhase Offset: -0.001s\n"
+        "Root Dispersion: 0.002s\nRoot Delay: 0.002s\nSource: synthetic-ntp\n"
+    )
+    monkeypatch.setattr(
+        oi_runtime.subprocess,
+        "run",
+        lambda args, **_kw: calls.append(args) or SimpleNamespace(stdout=output),
+    )
+    oi_runtime.inspect_clock("synthetic-ntp")
+    assert calls == [[str(tool), "/query", "/status", "/verbose"]]
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="non-Windows refusal")
+def test_clock_inspection_refuses_off_windows_before_any_process(monkeypatch):
+    forbid_processes(monkeypatch)
+    with pytest.raises(ValueError, match="^OI_CLOCK_UNTRUSTED$"):
+        oi_runtime.w32tm_executable()
+    with pytest.raises(ValueError, match="^OI_CLOCK_UNTRUSTED$"):
+        oi_runtime.inspect_clock("synthetic-ntp")
+
+
+@pytest.mark.parametrize(
+    "change", ["identical", "modified", "extra", "extra_nested", "missing", "no_checkout_source"]
+)
+def test_build_gate_proves_the_imported_package_is_the_hashed_tree(change, tmp_path):
+    files = {"__init__.py": "", "domain/a.py": "A = 1\n", "infrastructure/b.py": "B = 2\n"}
+    root = tmp_path / "checkout"
+    installed = tmp_path / "environment" / "site-packages" / "auvexo_alpha"
+    for base in (root / "src" / "auvexo_alpha", installed):
+        if base != installed and change == "no_checkout_source":
+            continue
+        for name, content in files.items():
+            (base / name).parent.mkdir(parents=True, exist_ok=True)
+            (base / name).write_text(content, encoding="utf8")
+    if change == "modified":
+        (installed / "domain/a.py").write_text("A = 2\n", encoding="utf8")
+    elif change == "extra":
+        (installed / "stale_module.py").write_text("STALE = True\n", encoding="utf8")
+    elif change == "extra_nested":
+        (installed / "infrastructure/old.py").write_text("OLD = True\n", encoding="utf8")
+    elif change == "missing":
+        (installed / "infrastructure/b.py").unlink()
+    if change == "identical":
+        oi_runtime.require_imported_tree(root, installed)
+        return
+    with pytest.raises(ValueError, match="^OI_BUILD_BINDING$"):
+        oi_runtime.require_imported_tree(root, installed)
+
+
+def test_this_environment_executes_exactly_the_checkout_package():
+    package = oi_runtime.loaded_package_directory()
+    assert package.is_absolute() and (package / "infrastructure" / "oi_runtime.py").is_file()
+    assert package == Path(oi_runtime.__file__).resolve().parents[1]
+    oi_runtime.require_imported_tree(ROOT, package)
+
+
+def cli_fake_runtime(module, monkeypatch, run):
+    """Authorized CLI path with no secret, database, endpoint or real job."""
+
+    class FakeStore:
+        def __init__(self, engine, root, managed_root, *, review_authority=None):
+            pass
+
+        def load_transport_state(self, _now):
+            return object()
+
+        def save_transport_state(self, _state):
+            pytest.fail("no persistence in a CLI fixture")
+
+    class FakeJob:
+        def __init__(self, *_args, **kwargs):
+            self.resources_ready = kwargs["resources_ready"]
+
+        def run(self, **_kwargs):
+            return run(self)
+
+    monkeypatch.setattr(module, "load_oi_database_password", lambda: "SYNTHETIC_ONLY_" + "a" * 40)
+    monkeypatch.setattr(
+        module, "create_engine", lambda *_a, **_kw: SimpleNamespace(dispose=lambda: None)
+    )
+    monkeypatch.setattr(module, "OIStore", FakeStore)
+    monkeypatch.setattr(module, "OIHTTP", lambda *_a, **_kw: object())
+    monkeypatch.setattr(module, "OICollectionJob", FakeJob)
+
+
+@pytest.mark.parametrize(
+    "case,error_class",
+    [
+        ("git_failed", "CalledProcessError"),
+        ("git_hung", "TimeoutExpired"),
+        ("w32tm_failed", "CalledProcessError"),
+        ("w32tm_hung", "TimeoutExpired"),
+        ("resource_denied", "AccessDenied"),
+        ("resource_gone", "NoSuchProcess"),
+    ],
+)
+def test_cli_process_and_resource_failures_are_redacted_blocked_never_a_traceback(
+    case, error_class, tmp_path, monkeypatch, capsys
+):
+    module, _, _, _, _, _ = cli_authorized_fixture(tmp_path, monkeypatch)
+    sensitive = "SYNTHETIC_SENSITIVE_" + "x" * 40
+    tool, kind = case.split("_")
+    command = [str(tmp_path / tool), sensitive]
+    if kind == "failed":
+        error = subprocess.CalledProcessError(128, command, output=sensitive, stderr=sensitive)
+    elif kind == "hung":
+        error = subprocess.TimeoutExpired(command, 3, output=sensitive, stderr=sensitive)
+    elif kind == "denied":
+        error = psutil.AccessDenied(pid=4, name=sensitive)
+    else:
+        error = psutil.NoSuchProcess(pid=4, name=sensitive)
+    assert isinstance(error, (subprocess.SubprocessError, psutil.Error))
+    assert type(error).__name__ == error_class and sensitive in (str(error) + repr(error))
+
+    def fail(*_args, **_kwargs):
+        raise error
+
+    if tool in ("git", "w32tm"):
+        # The real gates run; only the process they would start raises the real class.
+        monkeypatch.setattr(oi_runtime, "git_executable", lambda _root: tmp_path / "git")
+        monkeypatch.setattr(oi_runtime, "w32tm_executable", lambda: tmp_path / "w32tm.exe")
+        monkeypatch.setattr(oi_runtime.subprocess, "check_output", fail)
+        monkeypatch.setattr(oi_runtime.subprocess, "run", fail)
+        if tool == "git":
+            monkeypatch.setattr(module, "require_build", oi_runtime.require_build)
+        else:
+            monkeypatch.setattr(module, "inspect_clock", oi_runtime.inspect_clock)
+        monkeypatch.setattr(
+            module, "load_oi_database_password", lambda: pytest.fail("secret after failed gate")
+        )
+        monkeypatch.setattr(
+            module, "create_engine", lambda *_a, **_kw: pytest.fail("DB after failed gate")
+        )
+    else:
+        # The real resource probe wrapper runs against a measurement that raises.
+        probe = SimpleNamespace(virtual_memory=fail, cpu_percent=fail, disk_usage=fail)
+        monkeypatch.setattr(oi_runtime.importlib, "import_module", lambda _name: probe)
+        cli_fake_runtime(module, monkeypatch, lambda job: job.resources_ready())
+    status = module.main()
+    output = capsys.readouterr()
+    _check_sensitive(not output.err and "SYNTHETIC_SENSITIVE" not in output.out)
+    assert status == 2
+    assert json.loads(output.out) == {
+        "status": "BLOCKED",
+        "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
+        "error_class": error_class,
+        "forward_days": 0,
+    }
+
+
+def test_cli_reports_recorded_research_failures_with_nonzero_exit(tmp_path, monkeypatch, capsys):
+    module, _, _, _, _, _ = cli_authorized_fixture(tmp_path, monkeypatch)
+    failures = ("BTCUSDT:OI_LEDGER_FEATURE_BINDING",)
+    cli_fake_runtime(
+        module,
+        monkeypatch,
+        lambda _job: OIJobStatus(
+            "LEDGER_REVIEW_REQUIRED",
+            "OI_RESEARCH_LEDGER_FAILED",
+            ("a" * 64, "b" * 64),
+            research_failures=failures,
+        ),
+    )
+    assert module.main() == 6
+    assert json.loads(capsys.readouterr().out) == {
+        "status": "LEDGER_REVIEW_REQUIRED",
+        "reason": "OI_RESEARCH_LEDGER_FAILED",
+        "manifest_hashes": ["a" * 64, "b" * 64],
+        "research_failures": list(failures),
         "forward_days": 0,
     }

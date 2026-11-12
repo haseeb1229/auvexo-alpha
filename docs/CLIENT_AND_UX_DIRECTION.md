@@ -1,6 +1,8 @@
 # Client and UX direction
 
-Status: FROZEN boundary; visual/component choices DEFERRED to Phase 7. No UI implemented now.
+Status: FROZEN boundary. A loopback, read-only web terminal exists (the Phase 7 foundation,
+[ADR-025](adr/025-read-only-private-operator-terminal.md)). Desktop, Android and voice
+clients, owner authentication beyond a local bearer, and every control are not built.
 
 One backend serves a private web terminal, Windows desktop client, Android sideloaded APK
 and voice interface. All business decisions live in the backend. Clients use versioned

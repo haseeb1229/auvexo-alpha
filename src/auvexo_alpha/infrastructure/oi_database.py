@@ -403,11 +403,12 @@ class OIRuntimeDatabase:
             return
         if sys.platform != "win32":
             raise OIDatabaseUnavailable()
-        from auvexo_alpha.infrastructure.oi_runtime import inspect_clock
+        from auvexo_alpha.infrastructure.oi_runtime import inspect_clock, w32tm_executable
 
         try:
+            # Absolute system path: a bare name is searched in the current directory first.
             source = subprocess.check_output(
-                ["w32tm", "/query", "/source"],
+                [str(w32tm_executable()), "/query", "/source"],
                 text=True,
                 timeout=3,
                 creationflags=subprocess.CREATE_NO_WINDOW,

@@ -1,6 +1,7 @@
 """Serialized, append-only PostgreSQL publication of bounded verified Parquet batches."""
 
 import hashlib
+import json
 import os
 import shutil
 import stat
@@ -117,22 +118,27 @@ def read_bars(path: Path) -> list[Candle]:
     ]
 
 
+MARKET_FIELDS = (
+    "open_at",
+    "end_at",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "quote_volume",
+    "trades",
+)
+
+
 def market_hash(bar: Candle) -> str:
-    return sha(
-        str(
-            (
-                bar.open_at,
-                bar.end_at,
-                bar.open,
-                bar.high,
-                bar.low,
-                bar.close,
-                bar.volume,
-                bar.quote_volume,
-                bar.trades,
-            )
-        ).encode("ascii")
-    )
+    """Identify market values numerically: 67250.01000000 and 67250.01 are the same row.
+
+    Fresh bars keep provider digits while stored bars are read back from their canonical
+    record, so both sides are compared through that one canonical decimal form.
+    """
+    record = json.loads(bar.canonical_bytes())
+    return sha(json.dumps([record[field] for field in MARKET_FIELDS]).encode("ascii"))
 
 
 class DataStore:

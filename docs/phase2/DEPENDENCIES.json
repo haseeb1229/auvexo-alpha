@@ -24,28 +24,28 @@
     "source": "https://pypi.org/project/anyio/4.15.1/"
   },
   {
-    "name": "ast_serialize",
+    "name": "ast-serialize",
     "version": "0.13.0",
     "license_metadata": "MIT",
-    "source": "https://pypi.org/project/ast_serialize/0.13.0/"
+    "source": "https://pypi.org/project/ast-serialize/0.13.0/"
   },
   {
-    "name": "boolean.py",
+    "name": "boolean-py",
     "version": "5.0",
     "license_metadata": "BSD-2-Clause",
-    "source": "https://pypi.org/project/boolean.py/5.0/"
+    "source": "https://pypi.org/project/boolean-py/5.0/"
   },
   {
-    "name": "CacheControl",
+    "name": "cachecontrol",
     "version": "0.14.4",
     "license_metadata": "Apache-2.0",
-    "source": "https://pypi.org/project/CacheControl/0.14.4/"
+    "source": "https://pypi.org/project/cachecontrol/0.14.4/"
   },
   {
     "name": "certifi",
-    "version": "2026.7.22",
+    "version": "2026.10.19",
     "license_metadata": "MPL-2.0",
-    "source": "https://pypi.org/project/certifi/2026.7.22/"
+    "source": "https://pypi.org/project/certifi/2026.10.19/"
   },
   {
     "name": "charset-normalizer",
@@ -85,9 +85,9 @@
   },
   {
     "name": "filelock",
-    "version": "4.2.0",
+    "version": "4.2.1",
     "license_metadata": "MIT",
-    "source": "https://pypi.org/project/filelock/4.2.0/"
+    "source": "https://pypi.org/project/filelock/4.2.1/"
   },
   {
     "name": "greenlet",
@@ -120,6 +120,12 @@
     "source": "https://pypi.org/project/httpx2/2.13.1/"
   },
   {
+    "name": "httpx2-jsfetch",
+    "version": "1.0",
+    "license_metadata": "BSD-3-Clause",
+    "source": "https://pypi.org/project/httpx2-jsfetch/1.0/"
+  },
+  {
     "name": "hypothesis",
     "version": "6.169.4",
     "license_metadata": "MPL-2.0",
@@ -150,10 +156,10 @@
     "source": "https://pypi.org/project/license-expression/30.4.4/"
   },
   {
-    "name": "Mako",
+    "name": "mako",
     "version": "1.4.3",
     "license_metadata": "MIT",
-    "source": "https://pypi.org/project/Mako/1.4.3/"
+    "source": "https://pypi.org/project/mako/1.4.3/"
   },
   {
     "name": "markdown-it-py",
@@ -162,10 +168,10 @@
     "source": "https://pypi.org/project/markdown-it-py/4.2.0/"
   },
   {
-    "name": "MarkupSafe",
+    "name": "markupsafe",
     "version": "3.0.4",
     "license_metadata": "BSD-3-Clause",
-    "source": "https://pypi.org/project/MarkupSafe/3.0.4/"
+    "source": "https://pypi.org/project/markupsafe/3.0.4/"
   },
   {
     "name": "mdurl",
@@ -192,15 +198,15 @@
     "source": "https://pypi.org/project/mypy/2.4.0/"
   },
   {
-    "name": "mypy_extensions",
+    "name": "mypy-extensions",
     "version": "1.1.0",
     "license_metadata": "MIT",
-    "source": "https://pypi.org/project/mypy_extensions/1.1.0/"
+    "source": "https://pypi.org/project/mypy-extensions/1.1.0/"
   },
   {
     "name": "numpy",
     "version": "2.4.6",
-    "license_metadata": "BSD-3-Clause (bundled third-party notices retained)",
+    "license_metadata": "BSD-3-Clause AND 0BSD AND MIT AND Zlib AND CC0-1.0",
     "source": "https://pypi.org/project/numpy/2.4.6/"
   },
   {
@@ -234,22 +240,22 @@
     "source": "https://pypi.org/project/pip/26.2.1/"
   },
   {
+    "name": "pip-api",
+    "version": "0.0.35",
+    "license_metadata": "Apache License",
+    "source": "https://pypi.org/project/pip-api/0.0.35/"
+  },
+  {
+    "name": "pip-audit",
+    "version": "2.10.1",
+    "license_metadata": "Apache Software License",
+    "source": "https://pypi.org/project/pip-audit/2.10.1/"
+  },
+  {
     "name": "pip-requirements-parser",
     "version": "32.0.1",
     "license_metadata": "MIT",
     "source": "https://pypi.org/project/pip-requirements-parser/32.0.1/"
-  },
-  {
-    "name": "pip_api",
-    "version": "0.0.35",
-    "license_metadata": "Apache License",
-    "source": "https://pypi.org/project/pip_api/0.0.35/"
-  },
-  {
-    "name": "pip_audit",
-    "version": "2.10.1",
-    "license_metadata": "Apache Software License",
-    "source": "https://pypi.org/project/pip_audit/2.10.1/"
   },
   {
     "name": "platformdirs",
@@ -306,16 +312,16 @@
     "source": "https://pypi.org/project/pydantic/2.14.1/"
   },
   {
-    "name": "pydantic_core",
+    "name": "pydantic-core",
     "version": "2.50.1",
     "license_metadata": "MIT",
-    "source": "https://pypi.org/project/pydantic_core/2.50.1/"
+    "source": "https://pypi.org/project/pydantic-core/2.50.1/"
   },
   {
-    "name": "Pygments",
+    "name": "pygments",
     "version": "2.21.0",
     "license_metadata": "BSD-2-Clause",
-    "source": "https://pypi.org/project/Pygments/2.21.0/"
+    "source": "https://pypi.org/project/pygments/2.21.0/"
   },
   {
     "name": "pyparsing",
@@ -354,10 +360,10 @@
     "source": "https://pypi.org/project/sortedcontainers/2.4.0/"
   },
   {
-    "name": "SQLAlchemy",
+    "name": "sqlalchemy",
     "version": "2.0.54",
     "license_metadata": "MIT",
-    "source": "https://pypi.org/project/SQLAlchemy/2.0.54/"
+    "source": "https://pypi.org/project/sqlalchemy/2.0.54/"
   },
   {
     "name": "starlette",
@@ -372,10 +378,10 @@
     "source": "https://pypi.org/project/tomli/2.5.0/"
   },
   {
-    "name": "tomli_w",
+    "name": "tomli-w",
     "version": "1.2.0",
     "license_metadata": "MIT License",
-    "source": "https://pypi.org/project/tomli_w/1.2.0/"
+    "source": "https://pypi.org/project/tomli-w/1.2.0/"
   },
   {
     "name": "tomlkit",
@@ -396,16 +402,16 @@
     "source": "https://pypi.org/project/truststore/0.10.5/"
   },
   {
+    "name": "typing-extensions",
+    "version": "4.16.0",
+    "license_metadata": "PSF-2.0",
+    "source": "https://pypi.org/project/typing-extensions/4.16.0/"
+  },
+  {
     "name": "typing-inspection",
     "version": "0.4.4",
     "license_metadata": "MIT",
     "source": "https://pypi.org/project/typing-inspection/0.4.4/"
-  },
-  {
-    "name": "typing_extensions",
-    "version": "4.16.0",
-    "license_metadata": "PSF-2.0",
-    "source": "https://pypi.org/project/typing_extensions/4.16.0/"
   },
   {
     "name": "tzdata",

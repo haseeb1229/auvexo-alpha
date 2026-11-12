@@ -25,6 +25,49 @@ def test_cli_invalid_config_is_redacted(command: str) -> None:
     assert not result.stderr
 
 
+@pytest.mark.parametrize("command", ["doctor", "health", "validate-config", "serve"])
+@pytest.mark.parametrize("mode", ["DEMO", "SHADOW", "LIVE_LIMITED", "LIVE"])
+def test_cli_refuses_unauthorised_mode_at_startup(command: str, mode: str) -> None:
+    secret = secrets.token_urlsafe(32)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("AUVEXO_")}
+    env.update(AUVEXO_DB_PASSWORD=secret, AUVEXO_API_TOKEN=secret, AUVEXO_MODE=mode)
+    result = subprocess.run(
+        [sys.executable, "-m", "auvexo_alpha.cli", command],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 2
+    assert json.loads(result.stdout) == {
+        "code": "INVALID_CONFIG",
+        "execution_enabled": False,
+        "reason": "MODE_NOT_AUTHORISED",
+    }
+    assert secret not in result.stdout + result.stderr
+    assert not result.stderr
+
+
+def test_cli_authorised_mode_validates_without_capability() -> None:
+    secret = secrets.token_urlsafe(32)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("AUVEXO_")}
+    env.update(AUVEXO_DB_PASSWORD=secret, AUVEXO_API_TOKEN=secret, AUVEXO_MODE="PAPER")
+    result = subprocess.run(
+        [sys.executable, "-m", "auvexo_alpha.cli", "validate-config"],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+    assert result.returncode == 0
+    assert json.loads(result.stdout) == {
+        "status": "VALID",
+        "mode": "PAPER",
+        "execution_enabled": False,
+    }
+    assert secret not in result.stdout + result.stderr
+
+
 def test_invalid_config_does_not_load_http_or_database_stacks() -> None:
     """Refusal must precede server/DB loading, including on a cold Windows interpreter."""
     script = """

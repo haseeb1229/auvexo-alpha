@@ -223,6 +223,24 @@ def test_rest_schema_and_explicit_unit_mismatch_quarantine():
         parse_rest(b"{}", "BTCUSDT", "1h", start, start + timedelta(hours=1), NOW, "x")
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"<html>busy</html>",
+        b"",
+        b"[[1,",
+        b"\xff\xfe",
+        pytest.param(b"[" * 100_000, id="deep-nesting"),
+        b"[1e",
+    ],
+)
+def test_undecodable_rest_payload_has_one_stable_code(payload):
+    # Decoder messages quote provider bytes, and deep nesting raises RecursionError.
+    start = datetime(2025, 1, 1, tzinfo=UTC)
+    with pytest.raises(ValueError, match="^MALFORMED_JSON$"):
+        parse_rest(payload, "BTCUSDT", "1h", start, start + timedelta(hours=1), NOW, "x")
+
+
 def test_utc_rejects_naive_and_dst_offsets():
     start = datetime(2024, 12, 31, tzinfo=UTC)
     payload = bar(start).model_dump()

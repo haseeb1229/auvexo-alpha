@@ -1,20 +1,26 @@
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 from hashlib import sha256
 
 import pytest
 
-from auvexo_alpha.application.data_reporting import coverage_matrix, qualification
+from auvexo_alpha.application.data_reporting import (
+    ScheduledSummary,
+    coverage_matrix,
+    qualification,
+)
 from auvexo_alpha.application.demo_data_gate import DemoDataPrerequisites, require_demo_data
 from auvexo_alpha.domain.contracts import Product, Venue
 from auvexo_alpha.domain.market_data import (
+    Candle,
     CoverageReport,
     DatasetManifest,
     IngestionEvent,
     InstrumentAlias,
     SpecSnapshot,
 )
-from auvexo_alpha.infrastructure.data_store import pressure, tree_bytes
+from auvexo_alpha.infrastructure.data_store import market_hash, pressure, tree_bytes
 from auvexo_alpha.infrastructure.source_registry import identity, rights
+from auvexo_alpha.infrastructure.spot_parser import parse_row
 
 
 @pytest.mark.parametrize(
@@ -159,21 +165,44 @@ def observation_fixtures():
     return start, events, manifests
 
 
+def receipts(first, days=7, **changes):
+    """Synthetic wrapper receipts: one on-time completed scheduled run per calendar day."""
+    fields = dict(schedule_id="public-data-2300-pkt-v1", mode="scheduled") | changes
+    return [
+        ScheduledSummary(
+            started_at=datetime.combine(first + timedelta(days=day), time(17, 57), UTC),
+            status="COMMAND_COMPLETE",
+            **fields,
+        )
+        for day in range(days)
+    ]
+
+
 def test_seven_actual_calendar_days_not_seven_minutes():
     start, events, manifests = observation_fixtures()
+    scheduled = receipts(start.date())
     assert (
-        qualification(events, start.date(), start + timedelta(minutes=7), manifests)["status"]
+        qualification(events, start.date(), start + timedelta(minutes=7), manifests, scheduled)[
+            "status"
+        ]
+        == "OPEN"
+    )
+    passed = qualification(events, start.date(), start + timedelta(days=7), manifests, scheduled)
+    assert passed["status"] == "PASS"
+    assert [day["scheduled_summary"] for day in passed["days"]] == ["MATCHED"] * 7
+    assert "not proof that Task Scheduler" in passed["scheduled_provenance"]
+    assert (
+        qualification(events[:-10], start.date(), start + timedelta(days=7), manifests, scheduled)[
+            "status"
+        ]
         == "OPEN"
     )
     assert (
-        qualification(events, start.date(), start + timedelta(days=7), manifests)["status"]
-        == "PASS"
-    )
-    assert (
-        qualification(events[:-10], start.date(), start + timedelta(days=7), manifests)["status"]
+        qualification([], date(2026, 10, 17), start, manifests, receipts(date(2026, 10, 17)))[
+            "status"
+        ]
         == "OPEN"
     )
-    assert qualification([], date(2026, 10, 17), start, manifests)["status"] == "OPEN"
 
 
 def shift_observations(events, manifests, delta):
@@ -207,50 +236,69 @@ def shift_observations(events, manifests, delta):
 def test_old_midnight_and_other_windows_never_qualify(hours):
     start, events, manifests = observation_fixtures()
     events, manifests = shift_observations(events, manifests, timedelta(hours=hours))
-    report = qualification(events, start.date(), start + timedelta(days=7), manifests)
+    report = qualification(
+        events, start.date(), start + timedelta(days=7), manifests, receipts(start.date())
+    )
     assert report["status"] == "OPEN"
     assert all(day["events"] == 0 for day in report["days"])
+    assert all(day["scheduled_summary"] == "MATCHED" for day in report["days"])
 
 
 def test_window_boundaries_close_and_schedule_effective_date():
     start, events, manifests = observation_fixtures()
     # Start inclusive: moving :15 to :00 preserves all evidence/freshness requirements.
     events, manifests = shift_observations(events, manifests, -timedelta(seconds=15))
-    report = qualification(events, start.date(), start + timedelta(days=6, minutes=12), manifests)
+    scheduled = receipts(start.date())
+    report = qualification(
+        events, start.date(), start + timedelta(days=6, minutes=12), manifests, scheduled
+    )
     assert report["status"] == "PASS"
     assert report["days"][0]["first"] == start.isoformat()
     before_close = qualification(
-        events, start.date(), start + timedelta(days=6, minutes=12, microseconds=-1), manifests
+        events,
+        start.date(),
+        start + timedelta(days=6, minutes=12, microseconds=-1),
+        manifests,
+        scheduled,
     )
     assert before_close["days"][-1]["status"] == "OPEN"
     # An event exactly at 18:12 is excluded, even when marked FRESH.
     outside = events[0].model_copy(update={"observed_at": start + timedelta(minutes=12)})
     assert (
-        qualification([*events, outside], start.date(), start + timedelta(days=7), manifests)[
-            "days"
-        ][0]["events"]
+        qualification(
+            [*events, outside], start.date(), start + timedelta(days=7), manifests, scheduled
+        )["days"][0]["events"]
         == 24
     )
     # Seven real calendar dates are required, including across a month boundary.
     shifted, shifted_manifests = shift_observations(events, manifests, timedelta(days=13))
     assert (
-        qualification(shifted, date(2026, 10, 31), start + timedelta(days=20), shifted_manifests)[
-            "status"
-        ]
+        qualification(
+            shifted,
+            date(2026, 10, 31),
+            start + timedelta(days=20),
+            shifted_manifests,
+            receipts(date(2026, 10, 31)),
+        )["status"]
         == "PASS"
     )
     missing_day = [e for e in events if e.observed_at.date() != date(2026, 10, 21)]
     assert (
-        qualification(missing_day, start.date(), start + timedelta(days=7), manifests)["status"]
+        qualification(missing_day, start.date(), start + timedelta(days=7), manifests, scheduled)[
+            "status"
+        ]
         == "OPEN"
     )
+    # Before the first eligible date even complete evidence and a receipt cannot qualify.
     earlier, earlier_manifests = shift_observations(events, manifests, -timedelta(days=1))
-    assert (
-        qualification(earlier, date(2026, 10, 17), start + timedelta(days=7), earlier_manifests)[
-            "days"
-        ][0]["status"]
-        == "INCOMPLETE"
-    )
+    first = qualification(
+        earlier,
+        date(2026, 10, 17),
+        start + timedelta(days=7),
+        earlier_manifests,
+        receipts(date(2026, 10, 17)),
+    )["days"][0]
+    assert first["status"] == "INCOMPLETE" and first["scheduled_summary"] == "MATCHED"
 
 
 @pytest.mark.parametrize("fault", ["count", "span", "gap", "version"])
@@ -286,7 +334,9 @@ def test_observation_thresholds_remain_strict(fault):
     else:
         events[2] = events[2].model_copy(update={"dataset_version": events[0].dataset_version})
     assert (
-        qualification(events, start.date(), start + timedelta(days=7), manifests)["status"]
+        qualification(
+            events, start.date(), start + timedelta(days=7), manifests, receipts(start.date())
+        )["status"]
         == "OPEN"
     )
 
@@ -330,5 +380,139 @@ def test_fresh_strings_or_invalid_dataset_cannot_qualify(fault):
         manifests[0] = manifest.model_copy(update={"processed_at": now + timedelta(seconds=1)})
     else:
         events.append(events[0])
-    report = qualification(events, start.date(), now, manifests)
+    report = qualification(events, start.date(), now, manifests, receipts(start.date()))
     assert report["status"] == "OPEN" and report["days"][0]["status"] == "INCOMPLETE"
+    assert report["days"][0]["scheduled_summary"] == "MATCHED"
+
+
+def receipt(started_at, **changes):
+    fields = dict(
+        schedule_id="public-data-2300-pkt-v1", mode="scheduled", status="COMMAND_COMPLETE"
+    )
+    return ScheduledSummary(started_at=started_at, **(fields | changes))
+
+
+ON_TIME = datetime(2026, 10, 18, 17, 57, tzinfo=UTC)
+
+
+@pytest.mark.parametrize(
+    "first_day,binding",
+    [
+        # A manual collect inside the window leaves events but no wrapper receipt.
+        ([], "MISSING"),
+        ([receipt(ON_TIME, mode="preflight")], "MISSING"),
+        ([receipt(ON_TIME, schedule_id="public-data-0600-pkt-v0")], "MISSING"),
+        ([receipt(ON_TIME - timedelta(days=1))], "MISSING"),
+        ([receipt(ON_TIME), receipt(ON_TIME + timedelta(seconds=30))], "DUPLICATE"),
+        ([receipt(ON_TIME), receipt(ON_TIME, status="FAILED")], "DUPLICATE"),
+        (
+            [
+                receipt(ON_TIME),
+                receipt(ON_TIME.replace(hour=9), status="REFUSED_OUTSIDE_PREWINDOW"),
+            ],
+            "DUPLICATE",
+        ),
+        ([receipt(ON_TIME, status="FAILED")], "NOT_COMPLETE"),
+        ([receipt(ON_TIME, status="MISSED_START")], "NOT_COMPLETE"),
+        ([receipt(ON_TIME, status="REFUSED_OUTSIDE_PREWINDOW")], "NOT_COMPLETE"),
+        ([receipt(ON_TIME, status="command_complete")], "NOT_COMPLETE"),
+        ([receipt(datetime(2026, 10, 18, 17, 55, 59, 999999, tzinfo=UTC))], "OUTSIDE_PREWINDOW"),
+        ([receipt(datetime(2026, 10, 18, 18, 0, tzinfo=UTC))], "OUTSIDE_PREWINDOW"),
+        ([receipt(datetime(2026, 10, 18, 18, 5, tzinfo=UTC))], "OUTSIDE_PREWINDOW"),
+        ([receipt(datetime(2026, 10, 18, 17, 56, tzinfo=UTC))], "MATCHED"),
+        ([receipt(datetime(2026, 10, 18, 17, 59, 59, 999999, tzinfo=UTC))], "MATCHED"),
+        (
+            [
+                receipt(ON_TIME),
+                receipt(ON_TIME, mode="preflight"),
+                receipt(ON_TIME, schedule_id="x"),
+            ],
+            "MATCHED",
+        ),
+    ],
+)
+def test_each_day_needs_its_single_on_time_completed_scheduled_receipt(first_day, binding):
+    start, events, manifests = observation_fixtures()
+    assert start.date() == ON_TIME.date()
+    # Events and artifacts are complete on all seven days; only the first receipt varies.
+    scheduled = first_day + receipts(start.date() + timedelta(days=1), days=6)
+    report = qualification(events, start.date(), start + timedelta(days=7), manifests, scheduled)
+    first = report["days"][0]
+    assert first["scheduled_summary"] == binding
+    assert first["events"] == first["verified_events"] == 24 and not first["invalid_event_ids"]
+    assert [day["status"] for day in report["days"][1:]] == ["PASS"] * 6
+    if binding == "MATCHED":
+        assert first["status"] == "PASS" and report["status"] == "PASS"
+    else:
+        assert first["status"] == "INCOMPLETE" and report["status"] == "OPEN"
+
+
+def test_receipts_alone_never_qualify_and_naive_receipt_times_are_refused():
+    start, _, manifests = observation_fixtures()
+    report = qualification(
+        [], start.date(), start + timedelta(days=7), manifests, receipts(start.date())
+    )
+    assert report["status"] == "OPEN"
+    assert all(
+        day["status"] == "INCOMPLETE" and day["scheduled_summary"] == "MATCHED"
+        for day in report["days"]
+    )
+    with pytest.raises(ValueError):
+        qualification(
+            [],
+            start.date(),
+            start + timedelta(days=7),
+            manifests,
+            [receipt(ON_TIME.replace(tzinfo=None))],
+        )
+
+
+def provider_bar(open_="67250.01000000", volume="12.34500000", trades=321):
+    opened = datetime(2026, 10, 18, 18, tzinfo=UTC)
+    open_ms = int(opened.timestamp()) * 1000
+    values = [
+        open_ms,
+        open_,
+        "67260.00000000",
+        "67240.50000000",
+        "67255.12000000",
+        volume,
+        open_ms + 59_999,
+        "830123.45678900",
+        trades,
+        "6.00000000",
+        "403512.10000000",
+        "0",
+    ]
+    return parse_row(
+        values,
+        "BTCUSDT",
+        "1m",
+        "MILLISECOND",
+        "DS-02",
+        "https://fixture.invalid",
+        "0" * 64,
+        opened + timedelta(minutes=2),
+    )
+
+
+def test_changed_row_identity_compares_numbers_not_decimal_spelling():
+    fresh = provider_bar()
+    # Stored bars come back through their canonical record, exactly as read_bars does.
+    stored = Candle.model_validate_json(fresh.canonical_bytes())
+    assert str(fresh.open) == "67250.01000000" and str(stored.open) == "67250.01"
+    assert str(fresh.volume) == "12.34500000" and str(stored.volume) == "12.345"
+    assert fresh.open == stored.open and market_hash(fresh) == market_hash(stored)
+    empty = provider_bar(volume="0.00000000")
+    assert market_hash(empty) == market_hash(Candle.model_validate_json(empty.canonical_bytes()))
+    for changed in (
+        provider_bar(open_="67250.02000000"),
+        provider_bar(open_="67250.10000000"),
+        provider_bar(open_="67250.00000000"),
+        provider_bar(volume="123.45000000"),
+        empty,
+        provider_bar(trades=322),
+    ):
+        assert market_hash(changed) != market_hash(stored)
+        reread = Candle.model_validate_json(changed.canonical_bytes())
+        assert market_hash(reread) != market_hash(fresh)

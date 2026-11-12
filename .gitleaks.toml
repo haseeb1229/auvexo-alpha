@@ -3,7 +3,8 @@ title = "Auvexo source scan with public dataset identifier exception"
 [extend]
 useDefault = true
 
-# Reviewed 2026-10-17; review again by 2026-11-16. These are public source/asset/
+# Reviewed 2026-10-17 and again 2026-11-12 (unchanged; full-history scan clean); review again
+# by 2026-12-12. These are public source/asset/
 # interval identifiers, not credentials. Keep every default detector enabled.
 # Both the exact evidence path and whole-line format must match. No file is skipped.
 [[allowlists]]

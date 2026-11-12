@@ -1,7 +1,7 @@
 # Agent architecture and always-on loops
 
 Status: FROZEN authority model; roles/loop budgets PROVISIONAL until measured in Phase 6.
-No agent runtime is implemented in Phase 0. Zero enabled LLMs is a valid operating state.
+No agent runtime is implemented. Zero enabled LLMs is a valid operating state.
 
 | Role | Implementation decision | Allowed purpose/tools |
 | --- | --- | --- |

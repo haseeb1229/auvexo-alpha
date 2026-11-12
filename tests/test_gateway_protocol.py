@@ -3,6 +3,7 @@
 import json
 from datetime import timedelta
 from decimal import Decimal
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -79,6 +80,7 @@ def permit(**updates: object) -> OfflineDemoPermit:
 def check(p: OfflineDemoPermit | None, **updates: object) -> bool:
     data = dict(
         account=account(),
+        expected_account=account(),
         mode=Mode.DEMO,
         instrument_id="synthetic.BTCUSD",
         venue=Venue.BINANCE,
@@ -482,3 +484,42 @@ def test_account_snapshot_is_strict_signed_synthetic_observation() -> None:
         message(payload=a, account_ref="synthetic.other")
     with pytest.raises(ValidationError):
         GatewayAccountSnapshot.model_validate(a.model_dump() | {"balance": 1.2})
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("server", "synthetic.other-server"),
+        ("account_identifier", "synthetic.other-account"),
+        ("currency", "EUR"),
+        ("capability_hash", "2" * 64),  # fixture HASH is "1" * 64
+    ],
+)
+def test_offline_permit_detects_drift_against_an_independent_pin(field: str, value: object) -> None:
+    # Review defect G-1: the permit check compared the observed attestation with itself,
+    # so identity drift could never be detected. It must compare against a separate pin.
+    p = permit()
+    assert check(p) is True
+    assert check(p, account=account(**{field: value})) is False
+    assert check(p, expected_account=account(**{field: value})) is False
+
+
+def test_offline_permit_stays_unwired_outside_the_domain_module() -> None:
+    # The permit is an inert design shape with no issuer; no transport or coordinator may
+    # import it until a reviewed signing and pinning design exists.
+    import ast
+
+    root = Path(__file__).resolve().parents[1] / "src/auvexo_alpha"
+    users = set()
+    for path in root.rglob("*.py"):
+        if path.relative_to(root).as_posix() == "domain/gateway.py":
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        names = {n.id for n in ast.walk(tree) if isinstance(n, ast.Name)}
+        names |= {n.attr for n in ast.walk(tree) if isinstance(n, ast.Attribute)}
+        names |= {
+            alias.name for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) for alias in n.names
+        }
+        if names & {"validate_offline_permit", "OfflineDemoPermit"}:
+            users.add(path.relative_to(root).as_posix())
+    assert users == set()

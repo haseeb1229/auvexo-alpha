@@ -1,5 +1,8 @@
 # Same-evidence OI review continuity
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Status: ENGINEERED VERIFIER; independent exact-SHA implementation review pending.
 No continuation receipt, rights renewal, collection START or calendar credit is issued here.
 The only admitted current source remains [the accepted DS-04-A1 scope](SOURCES_AND_RIGHTS.md).

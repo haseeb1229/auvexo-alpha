@@ -1,5 +1,8 @@
 # OI runtime commissioning contract
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Status: commissioning requirements retained; 2026-10-29 founder-authorized readiness
 hardening fixes the production DB identity and three CurrentUser slots as described in
 the [readiness correction](OI_COMMISSIONING_READINESS.md). Real commissioning/START
