@@ -16,6 +16,8 @@ dependencies = [
   "uvicorn==0.54.0",
   "polars==2.0.0",
   "psutil==7.2.2",
+  "metatrader5==5.0.6231; sys_platform == 'win32' and platform_machine == 'AMD64'",
+  "numpy==2.4.6; sys_platform == 'win32' and platform_machine == 'AMD64'",
 ]
 
 [project.scripts]
@@ -47,6 +49,7 @@ select = ["E", "F", "I", "UP", "B"]
 python_version = "3.13"
 strict = true
 files = ["src", "migrations"]
+mypy_path = ["$MYPY_CONFIG_FILE_DIR/typings"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

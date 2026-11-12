@@ -50,19 +50,29 @@ from auvexo_alpha.infrastructure.ds03_ipc import (
 _IO_TIMEOUT_SECONDS = 10
 
 
+_SOURCE_FILES = (
+    # Package initializers execute in the child before any reviewed module.
+    "__init__.py",
+    "domain/__init__.py",
+    "application/__init__.py",
+    "infrastructure/__init__.py",
+    "domain/contracts.py",
+    "domain/ds03.py",
+    "domain/ds03_actual.py",
+    "application/ds03.py",
+    "application/ds03_ports.py",
+    "infrastructure/ds03_fake.py",
+    "infrastructure/ds03_ipc.py",
+    "infrastructure/ds03_process.py",
+)
+
+
 def source_binding() -> str:
     """Hash only fixed implementation files and this interpreter; accept no caller path."""
     package = Path(__file__).resolve().parents[1]
-    names = (
-        "domain/contracts.py",
-        "domain/ds03.py",
-        "application/ds03.py",
-        "application/ds03_ports.py",
-        "infrastructure/ds03_fake.py",
-        "infrastructure/ds03_ipc.py",
-        "infrastructure/ds03_process.py",
-    )
-    manifest = {name: hashlib.sha256((package / name).read_bytes()).hexdigest() for name in names}
+    manifest = {
+        name: hashlib.sha256((package / name).read_bytes()).hexdigest() for name in _SOURCE_FILES
+    }
     manifest["python"] = hashlib.sha256(Path(sys.executable).read_bytes()).hexdigest()
     return hashlib.sha256(canonical(manifest)).hexdigest()
 

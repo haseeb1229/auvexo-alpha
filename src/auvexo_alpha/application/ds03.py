@@ -6,6 +6,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from threading import Lock
 from time import monotonic
+from typing import Protocol
 
 from auvexo_alpha.application.ds03_ports import Ds03ReadPort
 from auvexo_alpha.domain.contracts import utc_time
@@ -45,25 +46,124 @@ from auvexo_alpha.domain.ds03 import (
     decode_reply,
     decode_request,
 )
+from auvexo_alpha.domain.ds03_actual import (
+    ActualAttestation,
+    ActualAttestationPayload,
+    ActualBar,
+    ActualDealFact,
+    ActualDealsPayload,
+    ActualIdentity,
+    ActualOrderFact,
+    ActualOrderHistoryPayload,
+    ActualOrdersPayload,
+    ActualPositionFact,
+    ActualPositionsPayload,
+    ActualReply,
+    ActualRequest,
+    ActualRights,
+    ActualSymbolsPayload,
+    ActualSymbolsRequest,
+    ActualTick,
+    catalog_digest,
+    decode_actual_reply,
+    decode_actual_request,
+)
 
-type Record = Ds03Bar | Ds03Tick | Ds03OrderFact | Ds03PositionFact | Ds03DealFact
+type Record = (
+    Ds03Bar
+    | Ds03Tick
+    | Ds03OrderFact
+    | Ds03PositionFact
+    | Ds03DealFact
+    | ActualBar
+    | ActualTick
+    | ActualOrderFact
+    | ActualPositionFact
+    | ActualDealFact
+)
 
 
-class Ds03Reader:
+class _ReadPort[
+    RequestT: Ds03Request,
+    ReplyT: (Ds03Reply, ActualReply),
+    AttestationT: (Ds03Attestation, ActualAttestation),
+](Protocol):
+    def attest(self) -> AttestationT: ...
+    def execute(self, request: RequestT) -> ReplyT: ...
+    def disconnect(self) -> None: ...
+
+
+class _Codec[
+    RequestT: Ds03Request,
+    ReplyT: (Ds03Reply, ActualReply),
+    IdentityT: (Ds03Identity, ActualIdentity),
+    AttestationT: (Ds03Attestation, ActualAttestation),
+    RightsT: (Ds03Rights, ActualRights),
+](Protocol):
+    def request(self, raw: bytes) -> RequestT: ...
+    def reply(self, raw: bytes) -> ReplyT: ...
+    def identity(self, raw: bytes) -> IdentityT: ...
+    def attestation(self, raw: bytes) -> AttestationT: ...
+    def rights(self, raw: bytes) -> RightsT: ...
+
+
+class _SyntheticCodec:
+    def request(self, raw: bytes) -> Ds03Request:
+        return decode_request(raw)
+
+    def reply(self, raw: bytes) -> Ds03Reply:
+        return decode_reply(raw)
+
+    def identity(self, raw: bytes) -> Ds03Identity:
+        return Ds03Identity.model_validate_json(raw)
+
+    def attestation(self, raw: bytes) -> Ds03Attestation:
+        return Ds03Attestation.model_validate_json(raw)
+
+    def rights(self, raw: bytes) -> Ds03Rights:
+        return Ds03Rights.model_validate_json(raw)
+
+
+class _ActualCodec:
+    def request(self, raw: bytes) -> ActualRequest:
+        return decode_actual_request(raw)
+
+    def reply(self, raw: bytes) -> ActualReply:
+        return decode_actual_reply(raw)
+
+    def identity(self, raw: bytes) -> ActualIdentity:
+        return ActualIdentity.model_validate_json(raw)
+
+    def attestation(self, raw: bytes) -> ActualAttestation:
+        return ActualAttestation.model_validate_json(raw)
+
+    def rights(self, raw: bytes) -> ActualRights:
+        return ActualRights.model_validate_json(raw)
+
+
+class _ReadSession[
+    RequestT: Ds03Request,
+    ReplyT: (Ds03Reply, ActualReply),
+    IdentityT: (Ds03Identity, ActualIdentity),
+    AttestationT: (Ds03Attestation, ActualAttestation),
+    RightsT: (Ds03Rights, ActualRights),
+]:
     """One bounded session. Any failure closes it; recovery creates a new reader."""
 
     def __init__(
         self,
-        port: Ds03ReadPort,
-        expected: Ds03Identity,
-        rights: Ds03Rights,
+        port: _ReadPort[RequestT, ReplyT, AttestationT],
+        expected: IdentityT,
+        rights: RightsT,
+        codec: _Codec[RequestT, ReplyT, IdentityT, AttestationT, RightsT],
         *,
         clock: Callable[[], datetime] | None = None,
         monotonic_clock: Callable[[], float] = monotonic,
     ) -> None:
-        self._port = port
-        self._expected = Ds03Identity.model_validate_json(expected.canonical_bytes())
-        self._rights = Ds03Rights.model_validate_json(rights.canonical_bytes())
+        self._port: _ReadPort[RequestT, ReplyT, AttestationT] = port
+        self._codec: _Codec[RequestT, ReplyT, IdentityT, AttestationT, RightsT] = codec
+        self._expected: IdentityT = codec.identity(expected.canonical_bytes())
+        self._rights: RightsT = codec.rights(rights.canonical_bytes())
         if self._rights.review_hash != self._expected.rights_hash:
             raise Ds03Error()
         self._clock, self._monotonic = clock, monotonic_clock
@@ -71,16 +171,19 @@ class Ds03Reader:
         self._lock = Lock()
         self._requests: set[object] = set()
         self._symbols: tuple[str, ...] | None = None
+        self._catalog: list[str] = []
+        self._catalog_hash: str | None = None
+        self._catalog_total: int | None = None
         self._specs: dict[str, str] = {}
         self._first_seen: dict[str, tuple[str, datetime]] = {}
-        self._record_seen: dict[tuple[str, str, object, datetime], tuple[str, datetime]] = {}
-        self._progress: dict[tuple[str, str | None], tuple[datetime, datetime]] = {}
+        self._record_seen: dict[tuple[str, str | None, object, datetime], tuple[str, datetime]] = {}
+        self._progress: dict[tuple[object, ...], tuple[datetime, datetime]] = {}
 
     def _now(self, fallback: datetime) -> datetime:
         return utc_time(self._clock() if self._clock is not None else fallback)
 
-    def _attest(self, observed: Ds03Attestation, now: datetime) -> Ds03Attestation:
-        actual = Ds03Attestation.model_validate_json(observed.canonical_bytes())
+    def _attest(self, observed: AttestationT, now: datetime) -> AttestationT:
+        actual = self._codec.attestation(observed.canonical_bytes())
         if actual.identity != self._expected or not timedelta(0) <= now - actual.observed_at <= (
             timedelta(seconds=MAX_ATTESTATION_AGE_SECONDS)
         ):
@@ -95,14 +198,14 @@ class Ds03Reader:
         self._closed = True
         self._port.disconnect()
 
-    def read(self, request: Ds03Request, *, now: datetime) -> Ds03Reply:
+    def read(self, request: RequestT, *, now: datetime) -> ReplyT:
         acquired = False
         try:
             acquired = self._lock.acquire(blocking=False)
             if not acquired or self._closed or len(self._requests) >= MAX_REQUESTS:
                 raise Ds03Error()
             started = self._monotonic()
-            request = decode_request(request.canonical_bytes())
+            request = self._codec.request(request.canonical_bytes())
             now = self._now(utc_time(now))
             if (
                 request.request_id in self._requests
@@ -119,7 +222,7 @@ class Ds03Reader:
                     raise Ds03Error()
                 if not isinstance(request, SpecRequest) and request.symbol not in self._specs:
                     raise Ds03Error()
-            reply = decode_reply(self._port.execute(request).canonical_bytes())
+            reply = self._codec.reply(self._port.execute(request).canonical_bytes())
             post_attestation = self._port.attest()
             final_now = self._now(now)
             self._attest(post_attestation, final_now)
@@ -135,6 +238,18 @@ class Ds03Reader:
             ):
                 raise Ds03Error()
             self._validate_reply(request, reply, final_now)
+            admitted_at = self._now(final_now)
+            final_elapsed = self._monotonic() - started
+            if (
+                self._closed
+                or not 0 <= final_elapsed <= MAX_REQUEST_SECONDS
+                or final_elapsed >= (request.expires_at - now).total_seconds()
+                or final_elapsed >= (self._rights.valid_until - now).total_seconds()
+                or admitted_at < final_now
+                or admitted_at >= request.expires_at
+            ):
+                raise Ds03Error()
+            self._rights_current(admitted_at)
             if isinstance(request, DisconnectRequest):
                 self._close()
             return reply
@@ -149,7 +264,7 @@ class Ds03Reader:
             if acquired:
                 self._lock.release()
 
-    def _validate_reply(self, request: Ds03Request, reply: Ds03Reply, now: datetime) -> None:
+    def _validate_reply(self, request: RequestT, reply: ReplyT, now: datetime) -> None:
         envelope, payload = reply.envelope, reply.payload
         if (
             reply.request_id != request.request_id
@@ -166,9 +281,17 @@ class Ds03Reader:
         )
         if envelope.symbol != symbol:
             raise Ds03Error()
-        if isinstance(payload, AttestationPayload):
-            self._attest(payload.attestation, now)
-        if isinstance(payload, SymbolsPayload):
+        if isinstance(payload, ActualAttestationPayload):
+            actual = self._codec.attestation(payload.attestation.canonical_bytes())
+            self._attest(actual, now)
+        elif isinstance(payload, AttestationPayload):
+            actual = self._codec.attestation(payload.attestation.canonical_bytes())
+            self._attest(actual, now)
+        if isinstance(payload, ActualSymbolsPayload):
+            if not isinstance(request, ActualSymbolsRequest):
+                raise Ds03Error()
+            self._catalog_page(request, payload)
+        elif isinstance(payload, SymbolsPayload):
             if self._symbols is not None and self._symbols != payload.symbols:
                 raise Ds03Error()
             self._symbols = payload.symbols
@@ -201,18 +324,30 @@ class Ds03Reader:
             self._gaps(payload.gaps, request.start, request.end)
             if payload.coverage == "PARTIAL" and not payload.gaps:
                 raise Ds03Error()
-        elif isinstance(payload, (OrdersPayload, OrderHistoryPayload)):
+        elif isinstance(
+            payload,
+            (OrdersPayload, OrderHistoryPayload, ActualOrdersPayload, ActualOrderHistoryPayload),
+        ):
             self._records(payload.orders, request, reply)
-        elif isinstance(payload, PositionsPayload):
+        elif isinstance(payload, (PositionsPayload, ActualPositionsPayload)):
             self._records(payload.positions, request, reply)
-        elif isinstance(payload, DealsPayload):
+        elif isinstance(payload, (DealsPayload, ActualDealsPayload)):
             self._records(payload.deals, request, reply)
         prior_seen = self._first_seen.get(envelope.raw_hash)
         binding = (envelope.normalized_hash, envelope.first_seen_at)
         if prior_seen is not None and prior_seen != binding:
             raise Ds03Error()
         self._first_seen[envelope.raw_hash] = binding
-        key = (request.operation, symbol)
+        key: tuple[object, ...] = (request.operation, symbol)
+        if isinstance(reply, ActualReply):
+            scope: tuple[object, ...] = ()
+            if isinstance(request, (BarsRequest, TicksRequest, DealsRequest, OrderHistoryRequest)):
+                scope = (request.start, request.end, request.limit)
+                if isinstance(request, BarsRequest):
+                    scope += (request.timeframe_seconds,)
+            elif isinstance(request, ActualSymbolsRequest):
+                scope = (request.offset, request.catalog_hash)
+            key = (request.operation, symbol, scope, reply.envelope.provider_time_kind)
         prior = self._progress.get(key)
         if prior is not None and (
             envelope.provider_at < prior[0] or envelope.received_at < prior[1]
@@ -220,19 +355,33 @@ class Ds03Reader:
             raise Ds03Error()
         self._progress[key] = (envelope.provider_at, envelope.received_at)
 
-    def _records(self, records: tuple[Record, ...], request: Ds03Request, reply: Ds03Reply) -> None:
+    def _records(self, records: tuple[Record, ...], request: RequestT, reply: ReplyT) -> None:
         if isinstance(request, (BarsRequest, TicksRequest, DealsRequest, OrderHistoryRequest)):
             if len(records) > request.limit:
                 raise Ds03Error()
-        identities: set[tuple[str, object]] = set()
+        identities: set[tuple[str | None, object]] = set()
         previous: datetime | None = None
         for record in records:
-            if self._symbols is None or record.symbol not in self._symbols:
+            non_market = isinstance(record, ActualDealFact) and record.kind == "NON_MARKET"
+            if not non_market and (self._symbols is None or record.symbol not in self._symbols):
                 raise Ds03Error()
             if record.provider_at > reply.envelope.provider_at:
                 raise Ds03Error()
-            if isinstance(record, (Ds03OrderFact, Ds03PositionFact, Ds03DealFact)):
-                if record.spec_hash != self._specs.get(record.symbol):
+            if (
+                isinstance(
+                    record,
+                    (
+                        Ds03OrderFact,
+                        Ds03PositionFact,
+                        Ds03DealFact,
+                        ActualOrderFact,
+                        ActualPositionFact,
+                        ActualDealFact,
+                    ),
+                )
+                and not non_market
+            ):
+                if record.symbol is None or record.spec_hash != self._specs.get(record.symbol):
                     raise Ds03Error()
             if isinstance(request, (TickRequest, BarsRequest, TicksRequest)):
                 if record.symbol != request.symbol:
@@ -240,12 +389,14 @@ class Ds03Reader:
             if isinstance(request, (BarsRequest, TicksRequest, DealsRequest, OrderHistoryRequest)):
                 if not request.start <= record.provider_at < request.end:
                     raise Ds03Error()
-            if isinstance(record, Ds03OrderFact):
+            if isinstance(record, (Ds03OrderFact, ActualOrderFact)):
                 identity: object = record.order_ref
-            elif isinstance(record, Ds03PositionFact):
+            elif isinstance(record, (Ds03PositionFact, ActualPositionFact)):
                 identity = record.position_ref
-            elif isinstance(record, Ds03DealFact):
+            elif isinstance(record, (Ds03DealFact, ActualDealFact)):
                 identity = record.deal_ref
+            elif isinstance(record, ActualBar):
+                identity = (record.provider_at, record.timeframe_seconds)
             else:
                 identity = record.provider_at
             key = (record.symbol, identity)
@@ -253,12 +404,41 @@ class Ds03Reader:
                 raise Ds03Error()
             identities.add(key)
             fact_key = (type(record).__name__, record.symbol, identity, record.provider_at)
-            fact_binding = (record.content_hash(), reply.envelope.first_seen_at)
+            first_seen = reply.envelope.first_seen_at
+            if isinstance(
+                record, (ActualBar, ActualTick, ActualOrderFact, ActualPositionFact, ActualDealFact)
+            ):
+                first_seen = record.first_seen_at
+                if not record.provider_at <= first_seen <= reply.envelope.received_at:
+                    raise Ds03Error()
+            fact_binding = (record.content_hash(), first_seen)
             old_fact = self._record_seen.get(fact_key)
             if old_fact is not None and old_fact != fact_binding:
                 raise Ds03Error()
             self._record_seen[fact_key] = fact_binding
             previous = record.provider_at
+
+    def _catalog_page(self, request: ActualSymbolsRequest, payload: ActualSymbolsPayload) -> None:
+        if (
+            self._symbols is not None
+            or request.offset != len(self._catalog)
+            or payload.offset != request.offset
+        ):
+            raise Ds03Error()
+        if request.offset == 0:
+            self._catalog_hash, self._catalog_total = payload.catalog_hash, payload.total
+        elif request.catalog_hash != self._catalog_hash:
+            raise Ds03Error()
+        if payload.catalog_hash != self._catalog_hash or payload.total != self._catalog_total:
+            raise Ds03Error()
+        if set(self._catalog).intersection(payload.symbols):
+            raise Ds03Error()
+        self._catalog.extend(payload.symbols)
+        if payload.complete:
+            symbols = tuple(self._catalog)
+            if len(symbols) != payload.total or catalog_digest(symbols) != payload.catalog_hash:
+                raise Ds03Error()
+            self._symbols = symbols
 
     @staticmethod
     def _gaps(gaps: tuple[Ds03Gap, ...], start: datetime, end: datetime) -> None:
@@ -276,6 +456,8 @@ class Ds03Reader:
         self._gaps(payload.gaps, request.start, request.end)
         interval = timedelta(seconds=seconds)
         for bar in payload.bars:
+            if isinstance(bar, ActualBar) and bar.timeframe_seconds != seconds:
+                raise Ds03Error()
             if (bar.provider_at - epoch).total_seconds() % seconds or (
                 bar.provider_at + interval > request.end
             ):
@@ -293,3 +475,20 @@ class Ds03Reader:
             cursor = end
         if cursor != request.end:
             raise Ds03Error()
+
+
+class Ds03Reader(_ReadSession[Ds03Request, Ds03Reply, Ds03Identity, Ds03Attestation, Ds03Rights]):
+    """The accepted public synthetic API binds only the original synthetic codec."""
+
+    def __init__(
+        self,
+        port: Ds03ReadPort,
+        expected: Ds03Identity,
+        rights: Ds03Rights,
+        *,
+        clock: Callable[[], datetime] | None = None,
+        monotonic_clock: Callable[[], float] = monotonic,
+    ) -> None:
+        super().__init__(
+            port, expected, rights, _SyntheticCodec(), clock=clock, monotonic_clock=monotonic_clock
+        )

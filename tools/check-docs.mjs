@@ -137,7 +137,7 @@ for (let i = 0; i <= 9; i++) {
   }
 }
 for (const path of files) {
-  const allowed = ['.md', '.txt', '.py', '.toml', '.ps1', '.json', '.yml', '.yaml', '.ini', '.mako'].includes(extname(path)) || ['.gitignore', '.gitattributes', '.python-version', 'uv.lock', 'tools/check-docs.mjs', 'src/auvexo_alpha/py.typed'].includes(path);
+  const allowed = ['.md', '.txt', '.py', '.toml', '.ps1', '.json', '.yml', '.yaml', '.ini', '.mako'].includes(extname(path)) || ['.gitignore', '.gitattributes', '.python-version', 'uv.lock', 'tools/check-docs.mjs', 'src/auvexo_alpha/py.typed', 'typings/MetaTrader5/__init__.pyi', 'typings/psutil/__init__.pyi'].includes(path);
   const frontendSource = /^web\/operator-terminal\/(src\/|tests\/|vite\.config\.ts$|index\.html$)/.test(path) && ['.ts', '.tsx', '.css', '.html'].includes(extname(path));
   check(allowed || frontendSource, `Unexpected repository file: ${path}`);
   check(statSync(resolve(root, path)).size < 1_000_000, `Unexpected large file: ${path}`);
