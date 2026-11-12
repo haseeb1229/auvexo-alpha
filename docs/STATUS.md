@@ -48,10 +48,12 @@ be enabled, no withdrawal or transfer capability, and no model-to-order path.
 | #9 | Phase 6A1 open-interest design | `63fd627d0166efcfe716886af31ba96f299c79da` |
 | #10 | Phase 6A1 open-interest engineering | `f47770d7886d12240e24390e23f939cb49535a31` |
 | #11 | DS-03 synthetic read-only foundation | `fa0915130c9572c9c2a4a260b20abeaefc2c62f5` |
-| #12 | DS-03 actual MT5 read-only adapter, with ADR-030 corrections | not merged: open at `e808e816f8b7eecb68b6902149e0e87ec3f0ce8f`, independently reviewed and verified, waiting for the owner to merge |
+| #12 | DS-03 actual MT5 read-only adapter, with ADR-030 corrections | `003a3808a022af5307ac2c00413441dc3b19fde5` |
+| #13 | Independent A-to-Z rebaseline: repairs, CI, runbooks and this file | `296a3307b9803d2283121485d12a39368c83a70a` |
 
-PRs #1 to #11 are normal merge commits. The rebaseline change that introduced this file is
-stacked on PR #12. Later merges appear in `git log --first-parent --merges main`.
+All are normal merge commits. For #12 and #13 it was checked on 2026-11-12 that the first
+parent is the previous `main`, the second is the verified head, and the merge tree equals
+that head's tree. Later merges appear in `git log --first-parent --merges main`.
 
 ## Phases
 
