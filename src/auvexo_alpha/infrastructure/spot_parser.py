@@ -254,7 +254,11 @@ def parse_rest(
 ) -> tuple[list[Candle], CoverageReport]:
     if len(payload) > 2 * 1024 * 1024:
         raise ValueError("OVERSIZED_RESPONSE")
-    raw: object = json.loads(payload)
+    try:
+        raw: object = json.loads(payload)
+    except (ValueError, RecursionError) as error:
+        # Decoder text and nesting-depth crashes become one stable rejection code.
+        raise ValueError("MALFORMED_JSON") from error
     if (
         not isinstance(raw, list)
         or len(raw) > 1000

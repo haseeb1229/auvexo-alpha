@@ -130,6 +130,54 @@ def test_idempotent_correction_lineage_and_exact_replay(store):
     }
 
 
+def test_republished_eight_decimal_rows_count_only_real_changes(store):
+    start = NOW - timedelta(hours=2)
+
+    def provider_rows(second_open="67255.12000000"):
+        rows = [row(start), row(start + timedelta(hours=1))]
+        for values, opened in zip(rows, ("67250.01000000", second_open), strict=True):
+            values[1:6] = [
+                opened,
+                "67260.00000000",
+                "67240.50000000",
+                "67255.12000000",
+                "12.34500000",
+            ]
+            values[7] = "830123.45678900"
+        return rows
+
+    def republish(raw, received):
+        bars, report = parse_rest(
+            raw, "BTCUSDT", "1h", start, NOW, received, "https://fixture.invalid"
+        )
+        return store.publish(
+            bars,
+            report,
+            identity("DS-02"),
+            rights("DS-02"),
+            "eight.decimal.fixture",
+            "https://fixture.invalid",
+            raw,
+            received,
+            "synthetic-test",
+        )
+
+    first = republish(json.dumps(provider_rows()).encode(), NOW)
+    assert first.coverage.status == "PASS" and first.changed_rows == 0
+    assert str(read_bars(store.path(first))[0].open) == "67250.01"
+    # The same rows in different bytes make a new version. Stored and fresh decimals then
+    # differ only in spelling (67250.01 against 67250.01000000), so nothing changed.
+    same = republish(
+        json.dumps(provider_rows(), separators=(",", ":")).encode(), NOW + timedelta(seconds=1)
+    )
+    assert same.dataset_version != first.dataset_version
+    assert same.supersedes == first.dataset_version and same.changed_rows == 0
+    revised = republish(
+        json.dumps(provider_rows("67255.13000000")).encode(), NOW + timedelta(seconds=2)
+    )
+    assert revised.supersedes == same.dataset_version and revised.changed_rows == 1
+
+
 def test_simultaneous_ingestion_checkpoint_contention(store):
     with ThreadPoolExecutor(max_workers=2) as pool:
         results = list(pool.map(lambda _: publish(store, checkpoint="feed"), range(2)))
@@ -342,6 +390,10 @@ def test_poll_restart_and_disconnect_backfill(store, monkeypatch):
     monkeypatch.setattr("auvexo_alpha.infrastructure.data_collection.datetime", FixtureClock)
 
     def transport(url, limit):
+        if urlsplit(url).path == "/api/v3/time":
+            # Every poll first proves provider time; this provider agrees with the host.
+            server_ms = (clock - EPOCH) // timedelta(milliseconds=1)
+            return Response(200, json.dumps({"serverTime": server_ms}).encode())
         params = parse_qs(urlsplit(url).query)
         start = EPOCH + timedelta(milliseconds=int(params["startTime"][0]))
         end = EPOCH + timedelta(milliseconds=int(params["endTime"][0]) + 1)
