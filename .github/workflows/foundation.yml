@@ -91,6 +91,10 @@ jobs:
     # Windows-only pins. PostgreSQL-backed tests stay in the Linux job.
     runs-on: windows-2025
     timeout-minutes: 20
+    env:
+      # The provider binding refuses hard-linked or byte-compiled package files, so the
+      # environment must be installed by copy, as the provider runtime itself must be.
+      UV_LINK_MODE: copy
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
