@@ -2,7 +2,7 @@
 
 from decimal import Decimal
 
-from auvexo_alpha.application.research_metrics import metrics
+from auvexo_alpha.application.research_metrics import metrics, pinned
 from auvexo_alpha.application.research_simulator import SimulationResult
 from auvexo_alpha.domain.research import StrategyConfig
 
@@ -34,6 +34,7 @@ def frozen_configs() -> tuple[StrategyConfig, ...]:
     )
 
 
+@pinned
 def select_validation(
     configs: tuple[StrategyConfig, ...],
     validation: dict[str, SimulationResult],
@@ -52,12 +53,16 @@ def select_validation(
     return tuple(chosen)
 
 
+@pinned
 def screen(
     result: SimulationResult,
     uncertainty: dict[str, object],
     stress_results: tuple[SimulationResult, ...],
     stable_neighbors: bool,
+    *,
+    max_drawdown: Decimal,
 ) -> dict[str, object]:
+    """Apply the preregistered screens; the caller supplies the study's registered limits."""
     stats = metrics(result)
     points = result.equity
     months = ((points[-1].at - points[0].at).days / 30.4375) if points else 0
@@ -65,14 +70,16 @@ def screen(
     unadjusted = uncertainty.get("lower_95")
     drawdown = stats["max_drawdown"]
     assert isinstance(drawdown, Decimal)
+    regimes = tuple(sorted({t.regime for t in result.trades}))
+    net_trade_pnl = sum((t.pnl for t in result.trades), Decimal(0))
     reasons = []
     if len(result.trades) < 100:
         reasons.append("FEWER_THAN_100_CLOSED_OOS_TRADES")
     if months < 6:
         reasons.append("FEWER_THAN_SIX_OOS_MONTHS")
-    if len({t.regime for t in result.trades}) < 2:
+    if len(regimes) < 2:
         reasons.append("SINGLE_OR_NO_OBSERVED_REGIME")
-    if sum((t.pnl for t in result.trades), Decimal(0)) <= 0:
+    if net_trade_pnl <= 0:
         reasons.append("NONPOSITIVE_NET_EXPECTANCY")
     if not isinstance(lower, (int, float)) or lower <= 0:
         reasons.append("BONFERRONI_BLOCK_LOWER_NOT_POSITIVE")
@@ -82,8 +89,9 @@ def screen(
         reasons.append("COST_STRESS_NOT_SURVIVED")
     if not stable_neighbors:
         reasons.append("PREREGISTERED_VALIDATION_NEIGHBORS_UNSTABLE")
-    if drawdown > Decimal("0.20"):
-        reasons.append("DRAWDOWN_EXCEEDS_20_PERCENT")
+    if drawdown > max_drawdown:
+        percent = format((max_drawdown * 100).normalize(), "f")
+        reasons.append(f"DRAWDOWN_EXCEEDS_{percent}_PERCENT")
     insufficient = any(r.startswith(("FEWER_", "SINGLE_")) for r in reasons)
     return {
         "verdict": "INCONCLUSIVE" if insufficient else "NO_EDGE" if reasons else "CANDIDATE",
@@ -91,4 +99,15 @@ def screen(
         "oos_months_approx": months,
         "data_use": "PERSONAL_RESEARCH_NONPRODUCTION_ONLY",
         "promotion_eligible": False,
+        # Exactly what was evaluated, so a recorded verdict can be re-derived without a rerun.
+        "inputs": {
+            "closed_trades": len(result.trades),
+            "observed_regimes": regimes,
+            "net_trade_pnl": net_trade_pnl,
+            "uncertainty": uncertainty,
+            "stress_equity": tuple((r.initial_cash, r.final_equity) for r in stress_results),
+            "stable_neighbors": stable_neighbors,
+            "max_drawdown": drawdown,
+            "max_drawdown_limit": max_drawdown,
+        },
     }

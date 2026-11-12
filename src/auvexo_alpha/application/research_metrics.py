@@ -3,12 +3,26 @@
 import math
 import random
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import Decimal
+from decimal import Decimal, localcontext
+from functools import wraps
 from statistics import mean, stdev
 
-from auvexo_alpha.application.research_simulator import SimulationResult
+from auvexo_alpha.application.research_simulator import DECIMAL_PRECISION, SimulationResult
+
+
+def pinned[**P, R](function: Callable[P, R]) -> Callable[P, R]:
+    """Evaluate under the simulator's Decimal precision, never the caller's ambient one."""
+
+    @wraps(function)
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        with localcontext() as context:
+            context.prec = DECIMAL_PRECISION
+            return function(*args, **kwargs)
+
+    return wrapper
 
 
 @dataclass(frozen=True)
@@ -23,6 +37,7 @@ def ratio(numerator: Decimal | float, denominator: Decimal | float) -> Statistic
     return Statistic(float(numerator) / float(denominator))
 
 
+@pinned
 def daily_returns(result: SimulationResult) -> tuple[tuple[date, Decimal], ...]:
     closes = {
         (point.at - timedelta(microseconds=1)).date(): point.equity for point in result.equity
@@ -40,6 +55,7 @@ def daily_returns(result: SimulationResult) -> tuple[tuple[date, Decimal], ...]:
     return tuple(values)
 
 
+@pinned
 def metrics(result: SimulationResult) -> dict[str, object]:
     trades = result.trades
     wins = [t.pnl for t in trades if t.pnl > 0]
@@ -144,6 +160,7 @@ def metrics(result: SimulationResult) -> dict[str, object]:
     }
 
 
+@pinned
 def block_uncertainty(
     result: SimulationResult,
     *,
@@ -202,6 +219,7 @@ def block_uncertainty(
     }
 
 
+@pinned
 def permutation_sensitivity(result: SimulationResult, seed: int = 1229) -> dict[str, object]:
     values = [trade.pnl for trade in result.trades]
     rng = random.Random(seed)

@@ -267,6 +267,11 @@ class StudyManifest(Contract):
     def coherent(self) -> Self:
         if len(self.configs) > self.parameter_budget or self.max_drawdown >= 1:
             raise ValueError("STUDY_BUDGET")
+        # The unstressed cost model is the primary result; stress only ever adds cost.
+        stress = self.stress_multipliers
+        ascending = all(a < b for a, b in zip(stress, stress[1:], strict=False))
+        if not stress or stress[0] != 1 or not ascending:
+            raise ValueError("STRESS_MULTIPLIERS_MUST_START_AT_ONE_AND_ASCEND")
         if self.split.purge_embargo_seconds < max(c.holding_bars for c in self.configs) * 3600:
             raise ValueError("EMBARGO_SHORTER_THAN_HOLDING_HORIZON")
         for item in self.inputs:
