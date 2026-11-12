@@ -29,27 +29,27 @@
     },
     {
       "type": "library",
-      "name": "ast_serialize",
+      "name": "ast-serialize",
       "version": "0.13.0",
-      "purl": "pkg:pypi/ast_serialize@0.13.0"
+      "purl": "pkg:pypi/ast-serialize@0.13.0"
     },
     {
       "type": "library",
-      "name": "boolean.py",
+      "name": "boolean-py",
       "version": "5.0",
-      "purl": "pkg:pypi/boolean.py@5.0"
+      "purl": "pkg:pypi/boolean-py@5.0"
     },
     {
       "type": "library",
-      "name": "CacheControl",
+      "name": "cachecontrol",
       "version": "0.14.4",
-      "purl": "pkg:pypi/CacheControl@0.14.4"
+      "purl": "pkg:pypi/cachecontrol@0.14.4"
     },
     {
       "type": "library",
       "name": "certifi",
-      "version": "2026.7.22",
-      "purl": "pkg:pypi/certifi@2026.7.22"
+      "version": "2026.10.19",
+      "purl": "pkg:pypi/certifi@2026.10.19"
     },
     {
       "type": "library",
@@ -90,8 +90,8 @@
     {
       "type": "library",
       "name": "filelock",
-      "version": "4.2.0",
-      "purl": "pkg:pypi/filelock@4.2.0"
+      "version": "4.2.1",
+      "purl": "pkg:pypi/filelock@4.2.1"
     },
     {
       "type": "library",
@@ -125,6 +125,12 @@
     },
     {
       "type": "library",
+      "name": "httpx2-jsfetch",
+      "version": "1.0",
+      "purl": "pkg:pypi/httpx2-jsfetch@1.0"
+    },
+    {
+      "type": "library",
       "name": "hypothesis",
       "version": "6.169.4",
       "purl": "pkg:pypi/hypothesis@6.169.4"
@@ -155,9 +161,9 @@
     },
     {
       "type": "library",
-      "name": "Mako",
+      "name": "mako",
       "version": "1.4.3",
-      "purl": "pkg:pypi/Mako@1.4.3"
+      "purl": "pkg:pypi/mako@1.4.3"
     },
     {
       "type": "library",
@@ -167,15 +173,21 @@
     },
     {
       "type": "library",
-      "name": "MarkupSafe",
+      "name": "markupsafe",
       "version": "3.0.4",
-      "purl": "pkg:pypi/MarkupSafe@3.0.4"
+      "purl": "pkg:pypi/markupsafe@3.0.4"
     },
     {
       "type": "library",
       "name": "mdurl",
       "version": "0.1.2",
       "purl": "pkg:pypi/mdurl@0.1.2"
+    },
+    {
+      "type": "library",
+      "name": "metatrader5",
+      "version": "5.0.6231",
+      "purl": "pkg:pypi/metatrader5@5.0.6231"
     },
     {
       "type": "library",
@@ -191,9 +203,15 @@
     },
     {
       "type": "library",
-      "name": "mypy_extensions",
+      "name": "mypy-extensions",
       "version": "1.1.0",
-      "purl": "pkg:pypi/mypy_extensions@1.1.0"
+      "purl": "pkg:pypi/mypy-extensions@1.1.0"
+    },
+    {
+      "type": "library",
+      "name": "numpy",
+      "version": "2.4.6",
+      "purl": "pkg:pypi/numpy@2.4.6"
     },
     {
       "type": "library",
@@ -227,21 +245,21 @@
     },
     {
       "type": "library",
+      "name": "pip-api",
+      "version": "0.0.35",
+      "purl": "pkg:pypi/pip-api@0.0.35"
+    },
+    {
+      "type": "library",
+      "name": "pip-audit",
+      "version": "2.10.1",
+      "purl": "pkg:pypi/pip-audit@2.10.1"
+    },
+    {
+      "type": "library",
       "name": "pip-requirements-parser",
       "version": "32.0.1",
       "purl": "pkg:pypi/pip-requirements-parser@32.0.1"
-    },
-    {
-      "type": "library",
-      "name": "pip_api",
-      "version": "0.0.35",
-      "purl": "pkg:pypi/pip_api@0.0.35"
-    },
-    {
-      "type": "library",
-      "name": "pip_audit",
-      "version": "2.10.1",
-      "purl": "pkg:pypi/pip_audit@2.10.1"
     },
     {
       "type": "library",
@@ -299,15 +317,15 @@
     },
     {
       "type": "library",
-      "name": "pydantic_core",
+      "name": "pydantic-core",
       "version": "2.50.1",
-      "purl": "pkg:pypi/pydantic_core@2.50.1"
+      "purl": "pkg:pypi/pydantic-core@2.50.1"
     },
     {
       "type": "library",
-      "name": "Pygments",
+      "name": "pygments",
       "version": "2.21.0",
-      "purl": "pkg:pypi/Pygments@2.21.0"
+      "purl": "pkg:pypi/pygments@2.21.0"
     },
     {
       "type": "library",
@@ -347,9 +365,9 @@
     },
     {
       "type": "library",
-      "name": "SQLAlchemy",
+      "name": "sqlalchemy",
       "version": "2.0.54",
-      "purl": "pkg:pypi/SQLAlchemy@2.0.54"
+      "purl": "pkg:pypi/sqlalchemy@2.0.54"
     },
     {
       "type": "library",
@@ -365,9 +383,9 @@
     },
     {
       "type": "library",
-      "name": "tomli_w",
+      "name": "tomli-w",
       "version": "1.2.0",
-      "purl": "pkg:pypi/tomli_w@1.2.0"
+      "purl": "pkg:pypi/tomli-w@1.2.0"
     },
     {
       "type": "library",
@@ -389,15 +407,15 @@
     },
     {
       "type": "library",
-      "name": "typing-inspection",
-      "version": "0.4.4",
-      "purl": "pkg:pypi/typing-inspection@0.4.4"
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "purl": "pkg:pypi/typing-extensions@4.16.0"
     },
     {
       "type": "library",
-      "name": "typing_extensions",
-      "version": "4.16.0",
-      "purl": "pkg:pypi/typing_extensions@4.16.0"
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "purl": "pkg:pypi/typing-inspection@0.4.4"
     },
     {
       "type": "library",
