@@ -467,7 +467,8 @@ def test_static_provider_surface_is_exactly_the_adr029_allowlist():
 
 
 def test_typed_provider_stub_exposes_only_the_allowlist_so_new_calls_fail_strict_typing():
-    stub = Path(module.__file__).resolve().parents[3] / "typings/MetaTrader5/__init__.pyi"
+    # Located from this test file: the package itself may be a normal installed wheel.
+    stub = Path(__file__).resolve().parents[1] / "typings/MetaTrader5/__init__.pyi"
     tree = ast.parse(stub.read_text(encoding="utf8"))
     functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
     assert functions == _ADR029_SDK_ALLOWLIST
