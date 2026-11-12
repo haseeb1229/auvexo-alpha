@@ -11,7 +11,6 @@
     "api": "ALIVE",
     "database": "NOT_READY",
     "source": "UNKNOWN",
-    "gateway": "SYNTHETIC_OFFLINE_ACCEPTED",
     "freshness": {
       "state": "AVAILABLE",
       "observed_at": "2026-01-01T00:00:00Z",
@@ -20,18 +19,73 @@
     }
   },
   "qualification": {
-    "phase2": "OPERATIONAL_OPEN",
     "phase2_days": null,
-    "phase4": "OBSERVATION_ACTIVE_OPERATIONAL_OPEN",
     "phase4_days": null,
     "task": "UNKNOWN",
-    "phase5": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
-    "ds03": "BLOCKED",
     "freshness": {
       "state": "UNKNOWN",
       "observed_at": null,
       "provenance": "UNCONNECTED",
       "reason": "NOT_CONNECTED"
+    }
+  },
+  "reviewed": {
+    "scope": "STATIC_REVIEWED_ENGINEERING_SUMMARY_NOT_MEASURED",
+    "phase2": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "OPERATIONAL_ACCEPTANCE_OPEN"
+    },
+    "phase4_observation": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "ENGINEERING_ACCEPTED_OPERATIONAL_ACCEPTANCE_OPEN"
+    },
+    "phase5": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED"
+    },
+    "ds03": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "ENGINEERING_ONLY_NO_ACCOUNT"
+    },
+    "gateway": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "SYNTHETIC_OFFLINE_ONLY"
+    },
+    "broker_transport": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "NONE"
+    },
+    "permit_issuer": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "NONE"
+    },
+    "binance_live_derivatives": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "BLOCKED_BY_POLICY"
     }
   },
   "paper": {
@@ -48,9 +102,9 @@
     "reconciled": null,
     "unknown_orders": null,
     "active_reservations": null,
+    "reservations": [],
     "positions": [],
-    "pending": [],
-    "reservations": []
+    "pending": []
   },
   "research": {
     "outcomes": [

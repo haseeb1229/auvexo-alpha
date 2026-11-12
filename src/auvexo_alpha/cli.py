@@ -6,7 +6,7 @@ import json
 from pydantic import ValidationError
 
 from auvexo_alpha import __version__
-from auvexo_alpha.config import load_settings
+from auvexo_alpha.config import MODE_NOT_AUTHORISED, load_settings
 
 
 def main() -> int:
@@ -20,8 +20,15 @@ def main() -> int:
         return 0
     try:
         settings = load_settings()
-    except (ValidationError, ValueError):
-        print(json.dumps({"code": "INVALID_CONFIG", "execution_enabled": False}))
+    except (ValidationError, ValueError) as error:
+        refusal: dict[str, object] = {"code": "INVALID_CONFIG", "execution_enabled": False}
+        # Only this stable reason is reported; inputs and other messages stay redacted.
+        if isinstance(error, ValidationError) and any(
+            item["loc"] == ("mode",) and MODE_NOT_AUTHORISED in item["msg"]
+            for item in error.errors()
+        ):
+            refusal["reason"] = MODE_NOT_AUTHORISED
+        print(json.dumps(refusal))
         return 2
     if args.command == "serve":
         import uvicorn

@@ -1,0 +1,289 @@
+{
+  "contract_version": "1",
+  "system": {
+    "contract_version": "1",
+    "version": "0.1.0",
+    "build": "PHASE7_READ_ONLY_FOUNDATION",
+    "mode": "PAPER",
+    "policy": "phase1.disabled.v1",
+    "execution_enabled": false,
+    "live_authority": "LOCKED",
+    "api": "ALIVE",
+    "database": "READY",
+    "source": "UNKNOWN",
+    "freshness": {
+      "state": "AVAILABLE",
+      "observed_at": "2026-01-01T00:00:00Z",
+      "provenance": "LOCAL_DIAGNOSTICS",
+      "reason": "CURRENT"
+    }
+  },
+  "qualification": {
+    "phase2_days": null,
+    "phase4_days": null,
+    "task": "UNKNOWN",
+    "freshness": {
+      "state": "UNKNOWN",
+      "observed_at": null,
+      "provenance": "UNCONNECTED",
+      "reason": "NOT_CONNECTED"
+    }
+  },
+  "reviewed": {
+    "scope": "STATIC_REVIEWED_ENGINEERING_SUMMARY_NOT_MEASURED",
+    "phase2": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "OPERATIONAL_ACCEPTANCE_OPEN"
+    },
+    "phase4_observation": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "ENGINEERING_ACCEPTED_OPERATIONAL_ACCEPTANCE_OPEN"
+    },
+    "phase5": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED"
+    },
+    "ds03": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "ENGINEERING_ONLY_NO_ACCOUNT"
+    },
+    "gateway": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "SYNTHETIC_OFFLINE_ONLY"
+    },
+    "broker_transport": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "NONE"
+    },
+    "permit_issuer": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "NONE"
+    },
+    "binance_live_derivatives": {
+      "operational": "UNKNOWN",
+      "provenance": "REVIEWED_ENGINEERING",
+      "reason": "REVIEWED_SUMMARY",
+      "as_of": "2026-11-12",
+      "status": "BLOCKED_BY_POLICY"
+    }
+  },
+  "paper": {
+    "freshness": {
+      "state": "AVAILABLE",
+      "observed_at": "2025-12-31T23:59:40Z",
+      "provenance": "ISOLATED_SYNTHETIC_PAPER",
+      "reason": "CURRENT"
+    },
+    "balance": "9950.25",
+    "equity": "9875.5",
+    "currency": "USD",
+    "kill": "K4",
+    "reconciled": false,
+    "unknown_orders": true,
+    "active_reservations": 2,
+    "reservations": [
+      {
+        "intent_hash": "c2535a034d74b61d6827cc87c3257ef9d9270ddc60a666cdd568b768c80565a6",
+        "state": "ACTIVE",
+        "instrument": "BTCUSDT",
+        "quantity": "0.01",
+        "notional": "500",
+        "modeled_loss": "10"
+      },
+      {
+        "intent_hash": "668b7e53a660792868e338cc6a31ea64d0b24615fdc506e2640205c7968f9ce9",
+        "state": "UNKNOWN",
+        "instrument": "ETHUSDT",
+        "quantity": "0.5",
+        "notional": "1250.75",
+        "modeled_loss": "25.5"
+      }
+    ],
+    "positions": [
+      {
+        "position_hash": "dbb80146de5b974ff5b1d1b8a8d91e6e3e131a958cf85a728a8cffd139a5cf43",
+        "instrument": "BTCUSDT",
+        "quantity": "0.02",
+        "entry_price": "50000",
+        "mark_price": "49250.5"
+      },
+      {
+        "position_hash": "ed21fa7a6eee01715524f0a373c105554cfaa231fa37820befeb6b5db2df1ff9",
+        "instrument": "UNCLASSIFIED",
+        "quantity": "-1.5",
+        "entry_price": "2500",
+        "mark_price": "2510.25"
+      }
+    ],
+    "pending": [
+      {
+        "intent_hash": "c2535a034d74b61d6827cc87c3257ef9d9270ddc60a666cdd568b768c80565a6",
+        "state": "RESERVED"
+      },
+      {
+        "intent_hash": "d4bf516cc09afe306b170327ef5e1c53bf72e1b37b8d8e9de8188d6ad29afc4d",
+        "state": "SENT_PENDING"
+      },
+      {
+        "intent_hash": "fecb3c92a2463f3fcc4683a372e706c314600917f84701fa03b16f590c8db8e3",
+        "state": "ACKNOWLEDGED"
+      },
+      {
+        "intent_hash": "668b7e53a660792868e338cc6a31ea64d0b24615fdc506e2640205c7968f9ce9",
+        "state": "UNKNOWN"
+      },
+      {
+        "intent_hash": "b03e8e0adbd3a92fd06a605f11d60d9004e2d499bbc70299302b34fb4bffb4f5",
+        "state": "PARTIALLY_FILLED"
+      }
+    ]
+  },
+  "research": {
+    "outcomes": [
+      "INCONCLUSIVE",
+      "INCONCLUSIVE",
+      "INCONCLUSIVE",
+      "INCONCLUSIVE"
+    ],
+    "oos": "BOTH_CONSUMED_FOREVER",
+    "candidate": "NONE",
+    "champion": "NONE",
+    "scope": "REVIEWED_NONPRODUCTION_SUMMARY"
+  },
+  "journal": {
+    "freshness": {
+      "state": "AVAILABLE",
+      "observed_at": "2026-01-01T00:00:00Z",
+      "provenance": "ISOLATED_SYNTHETIC_PAPER",
+      "reason": "CURRENT"
+    },
+    "events": [
+      {
+        "sequence": 15,
+        "observed_at": "2025-12-31T23:59:30Z",
+        "reason": "AUTHORIZED",
+        "intent_hash": "c2535a034d74b61d6827cc87c3257ef9d9270ddc60a666cdd568b768c80565a6",
+        "evidence_hash": "2d0f113755636ef61e7b174ce540f779a2c16f67770303a5f1446acfb8fdb188"
+      },
+      {
+        "sequence": 14,
+        "observed_at": "2025-12-31T23:59:00Z",
+        "reason": "DENIED",
+        "intent_hash": "c2535a034d74b61d6827cc87c3257ef9d9270ddc60a666cdd568b768c80565a6",
+        "evidence_hash": "cdd3905d920ec0861e6e628668ec0bd18446d6b46f83c483cc07a961d2ae71a1"
+      },
+      {
+        "sequence": 13,
+        "observed_at": "2025-12-31T23:58:30Z",
+        "reason": "KILL_STATE",
+        "intent_hash": null,
+        "evidence_hash": "c7791b0f607bb67f1c3cccc88428a986d29c21a4adcd571122209aa9098d1575"
+      },
+      {
+        "sequence": 12,
+        "observed_at": "2025-12-31T23:58:00Z",
+        "reason": "RECONCILIATION",
+        "intent_hash": null,
+        "evidence_hash": "0210d4ef7a8a18297df6e6dafeef1d74a88bbdcce08271096f81ed9eda46b9fe"
+      },
+      {
+        "sequence": 11,
+        "observed_at": "2025-12-31T23:57:30Z",
+        "reason": "UNKNOWN_ORDER",
+        "intent_hash": "c2535a034d74b61d6827cc87c3257ef9d9270ddc60a666cdd568b768c80565a6",
+        "evidence_hash": "618e4e1f833bccfd9a06634be08d7fdf7c3e7e6b7f7176f585be7bf0d1b9ff6f"
+      },
+      {
+        "sequence": 10,
+        "observed_at": "2025-12-31T23:57:00Z",
+        "reason": "LOSS_LATCH",
+        "intent_hash": null,
+        "evidence_hash": "fd9a93281800b83c78a53805db81d22e3f996616d099647e3a789a18ff8b7c3d"
+      },
+      {
+        "sequence": 9,
+        "observed_at": "2025-12-31T23:56:30Z",
+        "reason": "DISPATCH_ATTEMPT",
+        "intent_hash": "c2535a034d74b61d6827cc87c3257ef9d9270ddc60a666cdd568b768c80565a6",
+        "evidence_hash": "294c9fb526b04cf17c9a79d8f0b9929258e9dd840cb620cac0b9ec5d731f460b"
+      },
+      {
+        "sequence": 8,
+        "observed_at": "2025-12-31T23:56:00Z",
+        "reason": "OWNER_RESUME",
+        "intent_hash": null,
+        "evidence_hash": "f9c739f094cf69d7da401c5d8ca8d148596eebce989fa2cb2720fae045b28833"
+      },
+      {
+        "sequence": 7,
+        "observed_at": "2025-12-31T23:55:30Z",
+        "reason": "MARK_HEALTH",
+        "intent_hash": null,
+        "evidence_hash": "af7fbb8f576655d8a14dafbe21718ef574d5632b6301d2f3d9337fa56246959a"
+      },
+      {
+        "sequence": 6,
+        "observed_at": "2025-12-31T23:55:00Z",
+        "reason": "WRITER_ACQUIRED",
+        "intent_hash": null,
+        "evidence_hash": "211dcfbc9f7a6d7e2614d044530c8a286c821d7c6f821cfda263bb22e20f797a"
+      },
+      {
+        "sequence": 5,
+        "observed_at": "2025-12-31T23:54:30Z",
+        "reason": "OWNER_PIN",
+        "intent_hash": null,
+        "evidence_hash": "ffdcf9959c5381ccaee5dc49e09f21e40ea2d1faa2b1328c81d207febe6685a8"
+      },
+      {
+        "sequence": 4,
+        "observed_at": "2025-12-31T23:54:00Z",
+        "reason": "EDGE_STATE",
+        "intent_hash": null,
+        "evidence_hash": "89b11c9c6d5b5df2999e0f5b086821c618f3447f8d50a02db0e4f27e2b7899e9"
+      },
+      {
+        "sequence": 3,
+        "observed_at": "2025-12-31T23:53:30Z",
+        "reason": "DAY_ROLLOVER",
+        "intent_hash": null,
+        "evidence_hash": "dea0dea3f0a1afed2e1d5470443f340620923752d22f0a3e434216e0a6ab97bf"
+      },
+      {
+        "sequence": 2,
+        "observed_at": "2025-12-31T23:53:00Z",
+        "reason": "INITIALIZED",
+        "intent_hash": null,
+        "evidence_hash": "9a70ed07fef15a9fed2a5092baac8b2d6bd98917e2d563cc98fe0c559314c21d"
+      },
+      {
+        "sequence": 1,
+        "observed_at": "2025-12-31T23:52:30Z",
+        "reason": "OTHER",
+        "intent_hash": null,
+        "evidence_hash": "714ed2a3dcdb884ed8ce03ed95fe679c95b8b390444bfe6e662e17e7f4ed0ba9"
+      }
+    ]
+  }
+}

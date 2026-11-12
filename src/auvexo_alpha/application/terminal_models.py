@@ -1,7 +1,7 @@
 """Versioned, bounded presentation contracts; never financial authorization."""
 
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -9,6 +9,28 @@ State = Literal["AVAILABLE", "UNKNOWN", "UNAVAILABLE", "STALE"]
 Digest = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Amount = Annotated[str, Field(pattern=r"^-?(0|[1-9][0-9]{0,17})(\.[0-9]{1,18})?$")]
 Count = Annotated[int, Field(ge=0, le=10000)]
+ReviewedDate = Annotated[str, Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")]
+# The single place the static reviewed wording below is dated. It changes only together
+# with a reviewed wording change; it is never a measurement time or a readiness claim.
+REVIEWED_AS_OF: Final = "2026-11-12"
+# Closed reviewed vocabulary; stored journal kind text is never forwarded to a client.
+JournalReason = Literal[
+    "AUTHORIZED",
+    "DENIED",
+    "KILL_STATE",
+    "RECONCILIATION",
+    "UNKNOWN_ORDER",
+    "LOSS_LATCH",
+    "DISPATCH_ATTEMPT",
+    "OWNER_RESUME",
+    "MARK_HEALTH",
+    "WRITER_ACQUIRED",
+    "OWNER_PIN",
+    "EDGE_STATE",
+    "DAY_ROLLOVER",
+    "INITIALIZED",
+    "OTHER",
+]
 
 
 class View(BaseModel):
@@ -22,7 +44,12 @@ class Freshness(View):
         "LOCAL_DIAGNOSTICS", "UNCONNECTED", "ISOLATED_SYNTHETIC_PAPER", "REVIEWED_ENGINEERING"
     ]
     reason: Literal[
-        "CURRENT", "NOT_CONNECTED", "READ_UNAVAILABLE", "SOURCE_STALE", "REVIEWED_SUMMARY"
+        "CURRENT",
+        "NOT_CONNECTED",
+        "READ_UNAVAILABLE",
+        "SOURCE_STALE",
+        "REVIEWED_SUMMARY",
+        "NO_EVENTS",
     ]
 
     @field_validator("observed_at")
@@ -39,28 +66,87 @@ class SystemView(View):
     contract_version: Literal["1"] = "1"
     version: str = Field(max_length=32, pattern=r"^[0-9.]+$")
     build: Literal["PHASE7_READ_ONLY_FOUNDATION"] = "PHASE7_READ_ONLY_FOUNDATION"
-    mode: Literal["RESEARCH", "BACKTEST", "PAPER", "DEMO", "SHADOW", "LIVE_LIMITED", "LIVE"]
+    # Configured label only, never verified authority; later modes are refused at startup.
+    mode: Literal["RESEARCH", "BACKTEST", "PAPER"]
     policy: Literal["phase1.disabled.v1"] = "phase1.disabled.v1"
     execution_enabled: Literal[False] = False
     live_authority: Literal["LOCKED"] = "LOCKED"
     api: Literal["ALIVE"] = "ALIVE"
     database: Literal["READY", "NOT_READY"]
     source: Literal["UNKNOWN"] = "UNKNOWN"
-    gateway: Literal["SYNTHETIC_OFFLINE_ACCEPTED"] = "SYNTHETIC_OFFLINE_ACCEPTED"
     freshness: Freshness
 
 
 class QualificationView(View):
-    phase2: Literal["OPERATIONAL_OPEN"] = "OPERATIONAL_OPEN"
+    """Measured operational qualification only; UNKNOWN until an authorized projection."""
+
     phase2_days: Count | None = None
-    phase4: Literal["OBSERVATION_ACTIVE_OPERATIONAL_OPEN"] = "OBSERVATION_ACTIVE_OPERATIONAL_OPEN"
     phase4_days: Count | None = None
     task: Literal["UNKNOWN"] = "UNKNOWN"
-    phase5: Literal["OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED"] = (
+    freshness: Freshness
+
+
+class ReviewedStatement(View):
+    """Static reviewed engineering wording. This terminal measures nothing about it."""
+
+    operational: Literal["UNKNOWN"] = "UNKNOWN"
+    provenance: Literal["REVIEWED_ENGINEERING"] = "REVIEWED_ENGINEERING"
+    reason: Literal["REVIEWED_SUMMARY"] = "REVIEWED_SUMMARY"
+    as_of: ReviewedDate = REVIEWED_AS_OF
+
+
+class ReviewedPhase2(ReviewedStatement):
+    status: Literal["OPERATIONAL_ACCEPTANCE_OPEN"] = "OPERATIONAL_ACCEPTANCE_OPEN"
+
+
+class ReviewedPhase4Observation(ReviewedStatement):
+    status: Literal["ENGINEERING_ACCEPTED_OPERATIONAL_ACCEPTANCE_OPEN"] = (
+        "ENGINEERING_ACCEPTED_OPERATIONAL_ACCEPTANCE_OPEN"
+    )
+
+
+class ReviewedPhase5(ReviewedStatement):
+    status: Literal["OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED"] = (
         "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED"
     )
-    ds03: Literal["BLOCKED"] = "BLOCKED"
-    freshness: Freshness
+
+
+class ReviewedDs03(ReviewedStatement):
+    status: Literal["ENGINEERING_ONLY_NO_ACCOUNT"] = "ENGINEERING_ONLY_NO_ACCOUNT"
+
+
+class ReviewedGateway(ReviewedStatement):
+    status: Literal["SYNTHETIC_OFFLINE_ONLY"] = "SYNTHETIC_OFFLINE_ONLY"
+
+
+class ReviewedBrokerTransport(ReviewedStatement):
+    status: Literal["NONE"] = "NONE"
+
+
+class ReviewedPermitIssuer(ReviewedStatement):
+    status: Literal["NONE"] = "NONE"
+
+
+class ReviewedBinanceLiveDerivatives(ReviewedStatement):
+    status: Literal["BLOCKED_BY_POLICY"] = "BLOCKED_BY_POLICY"
+
+
+class ReviewedSummary(View):
+    """Explicitly labelled static block; never operational data or a readiness claim."""
+
+    scope: Literal["STATIC_REVIEWED_ENGINEERING_SUMMARY_NOT_MEASURED"] = (
+        "STATIC_REVIEWED_ENGINEERING_SUMMARY_NOT_MEASURED"
+    )
+    phase2: ReviewedPhase2 = Field(default_factory=ReviewedPhase2)
+    phase4_observation: ReviewedPhase4Observation = Field(default_factory=ReviewedPhase4Observation)
+    phase5: ReviewedPhase5 = Field(default_factory=ReviewedPhase5)
+    ds03: ReviewedDs03 = Field(default_factory=ReviewedDs03)
+    gateway: ReviewedGateway = Field(default_factory=ReviewedGateway)
+    broker_transport: ReviewedBrokerTransport = Field(default_factory=ReviewedBrokerTransport)
+    permit_issuer: ReviewedPermitIssuer = Field(default_factory=ReviewedPermitIssuer)
+    binance_live_derivatives: ReviewedBinanceLiveDerivatives = Field(
+        default_factory=ReviewedBinanceLiveDerivatives
+    )
 
 
 class PositionView(View):
@@ -137,10 +223,9 @@ class ResearchView(View):
 class JournalEvent(View):
     sequence: Annotated[int, Field(ge=0, le=9007199254740991)]
     observed_at: datetime
-    reason: Literal["AUTHORIZED", "DENIED", "RECONCILED", "KILL_CHANGED", "OTHER_RECORDED_EVENT"]
+    reason: JournalReason
     intent_hash: Digest | None = None
     evidence_hash: Digest
-    decision_hash: Digest | None = None
 
     @field_validator("observed_at")
     @classmethod
@@ -158,6 +243,7 @@ class TerminalSnapshot(View):
     contract_version: Literal["1"] = "1"
     system: SystemView
     qualification: QualificationView
+    reviewed: ReviewedSummary = Field(default_factory=ReviewedSummary)
     paper: PaperView
     research: ResearchView
     journal: JournalView

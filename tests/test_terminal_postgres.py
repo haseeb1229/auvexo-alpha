@@ -11,6 +11,7 @@ from psycopg import sql
 from sqlalchemy import URL, create_engine, event
 from sqlalchemy.exc import SQLAlchemyError
 
+from auvexo_alpha.domain.paper_lifecycle import KillLevel
 from auvexo_alpha.infrastructure.paper_store import PaperStore
 from auvexo_alpha.infrastructure.terminal_paper import PostgresTerminalReads
 from tools.paper_local import admin_args, engine_for, isolated_database, require_migration
@@ -97,6 +98,10 @@ def test_terminal_pg_read_only_projection_preserves_ledger(read_projection):
     assert view.freshness.state == "AVAILABLE" and view.balance == str(b.account.cash)
     assert view.active_reservations == 0 and view.kill == "K1"
     assert journal.events and all(len(e.evidence_hash) == 64 for e in journal.events)
+    assert journal.freshness.state == "AVAILABLE" and journal.freshness.reason == "CURRENT"
+    assert journal.freshness.observed_at == b.now
+    assert journal.events[-1].reason == "INITIALIZED"
+    assert "OTHER" not in {e.reason for e in journal.events}
     assert any("SET TRANSACTION READ ONLY" in q for q in queries)
     assert not any(
         q.lstrip().upper().startswith(("UPDATE", "INSERT", "DELETE", "TRUNCATE", "SELECT *"))
@@ -129,6 +134,34 @@ def test_terminal_pg_stale_and_missing_not_empty_success(read_projection):
         and missing.balance is None
         and missing.active_reservations is None
     )
+
+
+def test_terminal_pg_kill_surfaces_as_kill_event_and_quiet_journal_is_current(read_projection):
+    _, _, engine, store, _ = read_projection
+    b = fixture_bundle(account_ref="paper.read.kill")
+    store.initialize(b.account, b.policy, b.release, now=b.now)
+    store.set_kill(b.account.account_ref, KillLevel.K4, actor="owner.synthetic.readtest", now=b.now)
+    projection = PostgresTerminalReads(engine, b.account.account_ref)
+    assert projection.paper(now=b.now).kill == "K4"
+    # Read long after the last event: a quiet journal is current as of the read, not stale.
+    later = b.now + timedelta(hours=6)
+    journal = projection.journal(now=later)
+    assert journal.freshness.state == "AVAILABLE" and journal.freshness.reason == "CURRENT"
+    assert journal.freshness.observed_at == later
+    assert journal.events[0].reason == "KILL_STATE"
+    assert journal.events[0].observed_at == b.now
+    assert [e.reason for e in journal.events] == ["KILL_STATE", "INITIALIZED"]
+    assert "actor" not in journal.model_dump_json()
+    assert "owner.synthetic.readtest" not in journal.model_dump_json()
+
+
+def test_terminal_pg_empty_journal_is_connected_no_events(read_projection):
+    _, _, engine, _, b = read_projection
+    journal = PostgresTerminalReads(engine, "paper.read.absent").journal(now=b.now)
+    assert journal.events == ()
+    assert journal.freshness.state == "AVAILABLE" and journal.freshness.reason == "NO_EVENTS"
+    assert journal.freshness.observed_at == b.now
+    assert journal.freshness.provenance == "ISOLATED_SYNTHETIC_PAPER"
 
 
 def test_terminal_pg_write_privilege_denies_projection(read_projection):

@@ -4,11 +4,16 @@ from __future__ import annotations
 
 import os
 from collections.abc import Mapping
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
 from auvexo_alpha.domain.contracts import Mode
+
+# A mode is an unverified configuration label, never authority. DEMO, SHADOW, LIVE_LIMITED
+# and LIVE are refused at startup until a later phase explicitly authorises each of them.
+AUTHORISED_MODES: Final = frozenset({Mode.RESEARCH, Mode.BACKTEST, Mode.PAPER})
+MODE_NOT_AUTHORISED: Final = "MODE_NOT_AUTHORISED"
 
 
 class Settings(BaseModel):
@@ -26,6 +31,13 @@ class Settings(BaseModel):
     api_token: SecretStr = Field(repr=False)
     execution_enabled: Literal[False] = False
     policy_version: Literal["phase1.disabled.v1"] = "phase1.disabled.v1"
+
+    @field_validator("mode")
+    @classmethod
+    def authorised_mode(cls, value: Mode) -> Mode:
+        if value not in AUTHORISED_MODES:
+            raise ValueError(MODE_NOT_AUTHORISED)
+        return value
 
     @field_validator("api_token", "database_password")
     @classmethod

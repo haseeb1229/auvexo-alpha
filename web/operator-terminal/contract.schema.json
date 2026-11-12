@@ -42,7 +42,8 @@
             "NOT_CONNECTED",
             "READ_UNAVAILABLE",
             "SOURCE_STALE",
-            "REVIEWED_SUMMARY"
+            "REVIEWED_SUMMARY",
+            "NO_EVENTS"
           ],
           "title": "Reason",
           "type": "string"
@@ -74,9 +75,19 @@
           "enum": [
             "AUTHORIZED",
             "DENIED",
-            "RECONCILED",
-            "KILL_CHANGED",
-            "OTHER_RECORDED_EVENT"
+            "KILL_STATE",
+            "RECONCILIATION",
+            "UNKNOWN_ORDER",
+            "LOSS_LATCH",
+            "DISPATCH_ATTEMPT",
+            "OWNER_RESUME",
+            "MARK_HEALTH",
+            "WRITER_ACQUIRED",
+            "OWNER_PIN",
+            "EDGE_STATE",
+            "DAY_ROLLOVER",
+            "INITIALIZED",
+            "OTHER"
           ],
           "title": "Reason",
           "type": "string"
@@ -98,19 +109,6 @@
           "pattern": "^[0-9a-f]{64}$",
           "title": "Evidence Hash",
           "type": "string"
-        },
-        "decision_hash": {
-          "anyOf": [
-            {
-              "pattern": "^[0-9a-f]{64}$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Decision Hash"
         }
       },
       "required": [
@@ -355,13 +353,8 @@
     },
     "QualificationView": {
       "additionalProperties": false,
+      "description": "Measured operational qualification only; UNKNOWN until an authorized projection.",
       "properties": {
-        "phase2": {
-          "const": "OPERATIONAL_OPEN",
-          "default": "OPERATIONAL_OPEN",
-          "title": "Phase2",
-          "type": "string"
-        },
         "phase2_days": {
           "anyOf": [
             {
@@ -375,12 +368,6 @@
           ],
           "default": null,
           "title": "Phase2 Days"
-        },
-        "phase4": {
-          "const": "OBSERVATION_ACTIVE_OPERATIONAL_OPEN",
-          "default": "OBSERVATION_ACTIVE_OPERATIONAL_OPEN",
-          "title": "Phase4",
-          "type": "string"
         },
         "phase4_days": {
           "anyOf": [
@@ -400,18 +387,6 @@
           "const": "UNKNOWN",
           "default": "UNKNOWN",
           "title": "Task",
-          "type": "string"
-        },
-        "phase5": {
-          "const": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
-          "default": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
-          "title": "Phase5",
-          "type": "string"
-        },
-        "ds03": {
-          "const": "BLOCKED",
-          "default": "BLOCKED",
-          "title": "Ds03",
           "type": "string"
         },
         "freshness": {
@@ -539,6 +514,340 @@
       "title": "ReservationView",
       "type": "object"
     },
+    "ReviewedBinanceLiveDerivatives": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "BLOCKED_BY_POLICY",
+          "default": "BLOCKED_BY_POLICY",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedBinanceLiveDerivatives",
+      "type": "object"
+    },
+    "ReviewedBrokerTransport": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "NONE",
+          "default": "NONE",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedBrokerTransport",
+      "type": "object"
+    },
+    "ReviewedDs03": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "ENGINEERING_ONLY_NO_ACCOUNT",
+          "default": "ENGINEERING_ONLY_NO_ACCOUNT",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedDs03",
+      "type": "object"
+    },
+    "ReviewedGateway": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "SYNTHETIC_OFFLINE_ONLY",
+          "default": "SYNTHETIC_OFFLINE_ONLY",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedGateway",
+      "type": "object"
+    },
+    "ReviewedPermitIssuer": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "NONE",
+          "default": "NONE",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedPermitIssuer",
+      "type": "object"
+    },
+    "ReviewedPhase2": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "OPERATIONAL_ACCEPTANCE_OPEN",
+          "default": "OPERATIONAL_ACCEPTANCE_OPEN",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedPhase2",
+      "type": "object"
+    },
+    "ReviewedPhase4Observation": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "ENGINEERING_ACCEPTED_OPERATIONAL_ACCEPTANCE_OPEN",
+          "default": "ENGINEERING_ACCEPTED_OPERATIONAL_ACCEPTANCE_OPEN",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedPhase4Observation",
+      "type": "object"
+    },
+    "ReviewedPhase5": {
+      "additionalProperties": false,
+      "properties": {
+        "operational": {
+          "const": "UNKNOWN",
+          "default": "UNKNOWN",
+          "title": "Operational",
+          "type": "string"
+        },
+        "provenance": {
+          "const": "REVIEWED_ENGINEERING",
+          "default": "REVIEWED_ENGINEERING",
+          "title": "Provenance",
+          "type": "string"
+        },
+        "reason": {
+          "const": "REVIEWED_SUMMARY",
+          "default": "REVIEWED_SUMMARY",
+          "title": "Reason",
+          "type": "string"
+        },
+        "as_of": {
+          "default": "2026-11-12",
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+          "title": "As Of",
+          "type": "string"
+        },
+        "status": {
+          "const": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
+          "default": "OFFLINE_ACCEPTED_COMMISSIONING_NOT_STARTED",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "title": "ReviewedPhase5",
+      "type": "object"
+    },
+    "ReviewedSummary": {
+      "additionalProperties": false,
+      "description": "Explicitly labelled static block; never operational data or a readiness claim.",
+      "properties": {
+        "scope": {
+          "const": "STATIC_REVIEWED_ENGINEERING_SUMMARY_NOT_MEASURED",
+          "default": "STATIC_REVIEWED_ENGINEERING_SUMMARY_NOT_MEASURED",
+          "title": "Scope",
+          "type": "string"
+        },
+        "phase2": {
+          "$ref": "#/$defs/ReviewedPhase2"
+        },
+        "phase4_observation": {
+          "$ref": "#/$defs/ReviewedPhase4Observation"
+        },
+        "phase5": {
+          "$ref": "#/$defs/ReviewedPhase5"
+        },
+        "ds03": {
+          "$ref": "#/$defs/ReviewedDs03"
+        },
+        "gateway": {
+          "$ref": "#/$defs/ReviewedGateway"
+        },
+        "broker_transport": {
+          "$ref": "#/$defs/ReviewedBrokerTransport"
+        },
+        "permit_issuer": {
+          "$ref": "#/$defs/ReviewedPermitIssuer"
+        },
+        "binance_live_derivatives": {
+          "$ref": "#/$defs/ReviewedBinanceLiveDerivatives"
+        }
+      },
+      "title": "ReviewedSummary",
+      "type": "object"
+    },
     "SystemView": {
       "additionalProperties": false,
       "properties": {
@@ -564,11 +873,7 @@
           "enum": [
             "RESEARCH",
             "BACKTEST",
-            "PAPER",
-            "DEMO",
-            "SHADOW",
-            "LIVE_LIMITED",
-            "LIVE"
+            "PAPER"
           ],
           "title": "Mode",
           "type": "string"
@@ -611,12 +916,6 @@
           "title": "Source",
           "type": "string"
         },
-        "gateway": {
-          "const": "SYNTHETIC_OFFLINE_ACCEPTED",
-          "default": "SYNTHETIC_OFFLINE_ACCEPTED",
-          "title": "Gateway",
-          "type": "string"
-        },
         "freshness": {
           "$ref": "#/$defs/Freshness"
         }
@@ -644,6 +943,9 @@
     },
     "qualification": {
       "$ref": "#/$defs/QualificationView"
+    },
+    "reviewed": {
+      "$ref": "#/$defs/ReviewedSummary"
     },
     "paper": {
       "$ref": "#/$defs/PaperView"

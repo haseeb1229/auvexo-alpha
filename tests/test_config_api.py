@@ -4,9 +4,13 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from auvexo_alpha.api.app import create_app
+from auvexo_alpha import __version__
+from auvexo_alpha.api.app import CONTENT_SECURITY_POLICY, PERMISSIONS_POLICY, create_app
 from auvexo_alpha.config import Settings, load_settings
 from auvexo_alpha.domain.contracts import Mode
+
+AUTHORISED_MODES = [Mode.RESEARCH, Mode.BACKTEST, Mode.PAPER]
+REFUSED_MODES = [Mode.DEMO, Mode.SHADOW, Mode.LIVE_LIMITED, Mode.LIVE]
 
 
 class Probe:
@@ -15,6 +19,11 @@ class Probe:
 
     def ready(self) -> bool:
         return self.healthy
+
+
+class FailingProbe:
+    def ready(self) -> bool:
+        raise RuntimeError("synthetic-private-driver-detail")
 
 
 def test_settings_load_and_redact() -> None:
@@ -53,17 +62,41 @@ def test_r023_p1_config_elevation_refused(settings: Settings, change: dict[str, 
         Settings.model_validate(settings.model_dump() | change)
 
 
-@pytest.mark.parametrize("mode", list(Mode))
-def test_all_modes_parse_without_capability(settings: Settings, mode: Mode) -> None:
-    loaded = load_settings(
-        {
-            "AUVEXO_MODE": mode.value,
-            "AUVEXO_API_TOKEN": settings.api_token.get_secret_value(),
-            "AUVEXO_DB_PASSWORD": settings.database_password.get_secret_value(),
-        }
-    )
+def mode_environment(settings: Settings, mode: str) -> dict[str, str]:
+    return {
+        "AUVEXO_MODE": mode,
+        "AUVEXO_API_TOKEN": settings.api_token.get_secret_value(),
+        "AUVEXO_DB_PASSWORD": settings.database_password.get_secret_value(),
+    }
+
+
+def test_mode_policy_covers_every_mode() -> None:
+    assert set(AUTHORISED_MODES) | set(REFUSED_MODES) == set(Mode)
+    assert not set(AUTHORISED_MODES) & set(REFUSED_MODES)
+
+
+@pytest.mark.parametrize("mode", AUTHORISED_MODES)
+def test_authorised_modes_parse_without_capability(settings: Settings, mode: Mode) -> None:
+    loaded = load_settings(mode_environment(settings, mode.value))
     assert loaded.mode == mode
     assert loaded.execution_enabled is False
+
+
+@pytest.mark.parametrize("mode", REFUSED_MODES)
+def test_r003_mode_label_never_trusted_from_environment(settings: Settings, mode: Mode) -> None:
+    # A mode is an unverified label: later modes are refused at startup, never displayed.
+    with pytest.raises(ValidationError) as refused:
+        load_settings(mode_environment(settings, mode.value))
+    assert "MODE_NOT_AUTHORISED" in str(refused.value)
+    assert settings.api_token.get_secret_value() not in str(refused.value)
+    with pytest.raises(ValidationError, match="MODE_NOT_AUTHORISED"):
+        Settings.model_validate(settings.model_dump() | {"mode": mode})
+
+
+@pytest.mark.parametrize("mode", ["live", "LIVE ", "PRODUCTION", ""])
+def test_unknown_mode_label_refused(settings: Settings, mode: str) -> None:
+    with pytest.raises(ValueError):
+        load_settings(mode_environment(settings, mode))
 
 
 def client(settings: Settings, healthy: bool = True, peer: str = "127.0.0.1") -> TestClient:
@@ -90,6 +123,71 @@ def test_r023_p1_all_diagnostics_authenticated(settings: Settings, path: str) ->
         assert result.status_code == 200
         assert result.headers["Cache-Control"] == "no-store"
         assert settings.api_token.get_secret_value() not in result.text
+
+
+def test_version_reports_build_without_a_phase_claim(settings: Settings) -> None:
+    with client(settings) as api:
+        result = api.get("/api/v1/version", headers=auth(settings))
+        assert result.json() == {"version": __version__, "contract_version": "1.0"}
+
+
+@pytest.mark.parametrize("authorized", [True, False])
+def test_r023_p1_exact_security_headers_on_success_and_refusal(
+    settings: Settings, authorized: bool
+) -> None:
+    assert CONTENT_SECURITY_POLICY == (
+        "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; "
+        "img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
+    assert PERMISSIONS_POLICY == (
+        "accelerometer=(), autoplay=(), camera=(), display-capture=(), "
+        "encrypted-media=(), fullscreen=(), geolocation=(), gyroscope=(), "
+        "magnetometer=(), microphone=(), midi=(), payment=(), picture-in-picture=(), "
+        "publickey-credentials-get=(), screen-wake-lock=(), usb=(), xr-spatial-tracking=()"
+    )
+    with client(settings) as api:
+        result = api.get("/api/v1/live", headers=auth(settings) if authorized else {})
+        assert result.status_code == (200 if authorized else 401)
+        assert {
+            name: result.headers[name]
+            for name in (
+                "Cache-Control",
+                "X-Content-Type-Options",
+                "Referrer-Policy",
+                "X-Frame-Options",
+                "Content-Security-Policy",
+                "Cross-Origin-Resource-Policy",
+                "Cross-Origin-Opener-Policy",
+                "Permissions-Policy",
+            )
+        } == {
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+            "X-Frame-Options": "DENY",
+            "Content-Security-Policy": CONTENT_SECURITY_POLICY,
+            "Cross-Origin-Resource-Policy": "same-origin",
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Permissions-Policy": PERMISSIONS_POLICY,
+        }
+        assert "Access-Control-Allow-Origin" not in result.headers
+
+
+def test_unexpected_failure_logs_exception_class_never_message(
+    settings: Settings, caplog: pytest.LogCaptureFixture
+) -> None:
+    api = TestClient(
+        create_app(settings, FailingProbe()),
+        base_url="http://127.0.0.1:8765",
+        client=("127.0.0.1", 50000),
+    )
+    with api, caplog.at_level("DEBUG"):
+        response = api.get("/api/v1/ready", headers=auth(settings))
+    assert response.status_code == 503
+    assert response.json() == {"code": "READ_UNAVAILABLE"}
+    assert "PRESENTATION_READ_UNAVAILABLE error_class=RuntimeError" in caplog.text
+    assert "synthetic-private-driver-detail" not in caplog.text + response.text
+    assert settings.api_token.get_secret_value() not in caplog.text
 
 
 def test_r027_p1_readiness_is_not_liveness(settings: Settings) -> None:
