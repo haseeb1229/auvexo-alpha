@@ -22,12 +22,13 @@ from uuid import uuid4
 from pydantic import Field
 from sqlalchemy import Connection, Engine, text
 
-from auvexo_alpha.domain.contracts import Contract, Digest, utc_time
+from auvexo_alpha.domain.contracts import Contract, Digest, UTCTime, utc_time
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, require_oi_rights
 from auvexo_alpha.domain.open_interest import (
     OIManifest,
     OIObservation,
     OIRights,
+    OISymbol,
     accepted_oi_rights,
     oi_dataset_version,
 )
@@ -47,6 +48,7 @@ if TYPE_CHECKING:
 _LOCK = 20801406
 _PREFIX = "ds04-a1:"
 _BUDGET_FEED = "DS-04-A1:transport-budget"
+_FAILURE_FEED = "DS-04-A1:research-failure"
 _MAX_RECORDS = 10000
 
 
@@ -95,6 +97,8 @@ def attest_oi_database(conn: Connection, review_authority: OIReviewAuthority | N
                 "(feed_key='DS-04-A1:quarantine' "
                 "AND event_id ~ '^oi-quarantine:[0-9a-f]{64}:"
                 "(SCHEMA|PARSER_REJECTED|SOURCE_REJECTED|RIGHTS_REJECTED)$') OR "
+                "(feed_key='DS-04-A1:research-failure' "
+                "AND event_id ~ '^oi-research-failure:[0-9a-f]{64}$') OR "
                 "(feed_key IN ('DS-04-A1:ledger:STUDY','DS-04-A1:ledger:FEATURE',"
                 "'DS-04-A1:ledger:FORECAST','DS-04-A1:ledger:SCORE') "
                 "AND event_id ~ '^oi-ledger:(STUDY|FEATURE|FORECAST|SCORE):[0-9a-f]{64}$' "
@@ -474,16 +478,28 @@ class OIStore:
                     conn.execute(text("SELECT pg_advisory_unlock(:n)"), {"n": _LOCK + 1})
 
     def checkpoint(self, symbol: str) -> OIManifest | None:
+        return self._checkpoint(symbol, None)
+
+    def _prior_checkpoint(self, current: OIManifest) -> OIManifest | None:
+        """Stored history before a slot; a ledger writer's own claim is never the proof."""
+        return self._checkpoint(current.observation.symbol, current.observation.slot_at)
+
+    def _checkpoint(self, symbol: str, before: datetime | None) -> OIManifest | None:
         if symbol not in ("BTCUSDT", "ETHUSDT"):
             raise ValueError("OI_SYMBOL")
+        parameters: dict[str, object] = {"k": f"DS-04-A1:{symbol}"}
+        if before is not None:
+            parameters["b"] = utc_time(before)
         with self.engine.connect() as conn:
+            # next_open is slot+1h, so every checkpoint of an earlier slot is <= that slot.
             row = conn.execute(
                 text(
                     "SELECT c.next_open,m.payload,m.manifest_hash FROM data_checkpoint c "
                     "JOIN data_manifest m USING(dataset_version) WHERE c.feed_key=:k "
-                    "ORDER BY c.next_open DESC LIMIT 1"
+                    + ("" if before is None else "AND c.next_open<=:b ")
+                    + "ORDER BY c.next_open DESC LIMIT 1"
                 ),
-                {"k": f"DS-04-A1:{symbol}"},
+                parameters,
             ).first()
         if row is None:
             return None
@@ -602,11 +618,14 @@ class OIStore:
         return record.revision, record.content_hash(), record.state
 
     def load_transport_state(self, now: datetime) -> OIBudgetState:
+        """Latest durable budget state, including a reservation whose outcome is unknown.
+
+        The transport fails such a reservation closed for its own slot and resolves it
+        as a consumed failed attempt in a later slot; no counter or cooldown is reset.
+        """
         now = utc_time(now)
         _, _, state = self._budget_checkpoint()
         if state is not None:
-            if state.pending_attempt:
-                raise ValueError("OI_TRANSPORT_OUTCOME_REVIEW_REQUIRED")
             if state.last_attempt_at is not None and state.last_attempt_at > now:
                 raise ValueError("OI_CLOCK_REWIND")
             return state
@@ -702,6 +721,45 @@ class OIStore:
                     "p": record.canonical_bytes().decode("ascii"),
                 },
             )
+
+    def record_research_failure(
+        self,
+        symbol: OISymbol,
+        slot_at: datetime,
+        manifest_hash: str,
+        code: str,
+        recorded_at: datetime,
+    ) -> str:
+        """Durable redacted note that a published slot's research step did not complete.
+
+        It admits nothing: no feature, forecast or score is created or repaired here.
+        """
+        record = OIResearchFailure(
+            symbol=symbol,
+            slot_at=slot_at,
+            manifest_hash=manifest_hash,
+            code=code,
+            recorded_at=recorded_at,
+        )
+        with self.engine.begin() as conn:
+            conn.execute(text("SELECT pg_advisory_xact_lock(:n)"), {"n": _LOCK})
+            self.check_quota(
+                len(record.canonical_bytes()) + 16384,
+                int(conn.scalar(text("SELECT pg_database_size(current_database())")) or 0),
+            )
+            conn.execute(
+                text(
+                    "INSERT INTO data_event(event_id,feed_key,observed_at,payload) "
+                    "VALUES (:i,:f,:t,:p) ON CONFLICT DO NOTHING"
+                ),
+                {
+                    "i": "oi-research-failure:" + record.content_hash(),
+                    "f": _FAILURE_FEED,
+                    "t": record.recorded_at,
+                    "p": record.canonical_bytes().decode("ascii"),
+                },
+            )
+        return record.content_hash()
 
     def _append_ledger(
         self,
@@ -829,10 +887,13 @@ class OIStore:
         from auvexo_alpha.application.oi_research import OIFeatureSnapshot, compute_oi_features
 
         checked = OIFeatureSnapshot.model_validate_json(feature.canonical_bytes())
-        parents = tuple(self.manifest_by_hash(h) for h in checked.input_manifest_hashes)
+        current = self.manifest_by_hash(checked.current_manifest_hash)
+        # Input hashes alone cannot tell "no history" from a non-adjacent prior slot
+        # (daily 15:00->19:00 UTC, or any missed hour). Recompute from the stored
+        # checkpoint before this slot, exactly what a collector read before publishing.
         expected = compute_oi_features(
-            parents[-1],
-            parents[0] if len(parents) == 2 else None,
+            current,
+            self._prior_checkpoint(current),
             at=checked.computed_at,
             review_authority=self.review_authority,
         )
@@ -966,3 +1027,13 @@ class OILedgerEntry(Contract):
     identity_hash: Digest
     record_hash: Digest
     record_json: Annotated[str, Field(min_length=1, max_length=12000)]
+
+
+class OIResearchFailure(Contract):
+    """A stable code or exception class name only; never exception text or provider data."""
+
+    symbol: OISymbol
+    slot_at: UTCTime
+    manifest_hash: Digest
+    code: Annotated[str, Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]{0,79}$")]
+    recorded_at: UTCTime

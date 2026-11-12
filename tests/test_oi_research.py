@@ -56,7 +56,13 @@ def study(start=datetime(2026, 10, 25, 12, tzinfo=UTC)):
 
 
 def manifest(
-    slot, value="100", symbol="BTCUSDT", use=DataUseClass.ENGINEERING_ONLY, receipt_hash=None
+    slot,
+    value="100",
+    symbol="BTCUSDT",
+    use=DataUseClass.ENGINEERING_ONLY,
+    receipt_hash=None,
+    received=timedelta(milliseconds=200),
+    processed=timedelta(milliseconds=300),
 ):
     raw = ('{"openInterest":"' + value + '","symbol":"' + symbol + '","time":0}').encode()
     raw_hash = hashlib.sha256(raw).hexdigest()
@@ -69,9 +75,9 @@ def manifest(
         provider_at=slot,
         request_sent_at=slot,
         first_seen_at=slot + timedelta(milliseconds=100),
-        received_at=slot + timedelta(milliseconds=200),
-        processed_at=slot + timedelta(milliseconds=300),
-        available_at=slot + timedelta(milliseconds=400),
+        received_at=slot + received,
+        processed_at=slot + processed,
+        available_at=slot + processed + timedelta(milliseconds=100),
         code_revision="fixture",
         review_receipt_hash=receipt_hash,
         code_hash=CODE,
@@ -127,11 +133,22 @@ def intervals(lower="0.0002", upper="0.0004"):
     )
 
 
-def fixture_ledger(window, *, day_count=2, pair_count=19):
+def fixture_ledger(
+    window,
+    *,
+    day_count=2,
+    pair_count=19,
+    use=DataUseClass.ENGINEERING_ONLY,
+    outcome=lambda day, symbol: Decimal("0.002"),
+):
+    """Synthetic records only. ``use`` is the caller-asserted label, never store-verified."""
     forecasts, scores = [], []
     hours = [*range(15), *range(20, 24)]
     for day in range(day_count):
         for symbol in ("BTCUSDT", "ETHUSDT"):
+            observed = outcome(day, symbol)
+            # Fixed augmented forecast 0.001 against the zero baseline.
+            difference = abs(observed) - abs(observed - Decimal("0.001"))
             for hour in hours[:pair_count]:
                 slot = window.evaluation_start + timedelta(days=day, hours=hour)
                 if slot + HOUR >= window.evaluation_end:
@@ -152,7 +169,7 @@ def fixture_ledger(window, *, day_count=2, pair_count=19):
                     parser_version="oi-snapshot.v1",
                     augmented=Decimal("0.001"),
                     input_fractional_change=Decimal("0.001"),
-                    classification=DataUseClass.ENGINEERING_ONLY,
+                    classification=use,
                 )
                 score = OIPairScore(
                     study_hash=window.content_hash(),
@@ -160,12 +177,12 @@ def fixture_ledger(window, *, day_count=2, pair_count=19):
                     symbol=symbol,
                     slot_at=slot,
                     target_manifest_hash=digest((symbol, slot, "target")),
-                    outcome=Decimal("0.002"),
-                    paired_loss_difference=Decimal("0.001"),
+                    outcome=observed,
+                    paired_loss_difference=difference,
                     scored_at=slot + HOUR + timedelta(seconds=1),
                     eligible=True,
                     reason="SCORED",
-                    classification=DataUseClass.ENGINEERING_ONLY,
+                    classification=use,
                 )
                 forecasts.append(forecast)
                 scores.append(score)
@@ -491,8 +508,20 @@ def test_no_early_primary_result_no_real_clock_credit_and_material_stop():
         window, forecasts, scores, as_of=START, current_rights=None, material_failure=True
     )
     assert stopped.decision == "STOPPED_REVIEW_REQUIRED"
-    expired = evaluate_study(
+    # A two-day ledger never evidences the end of the window, whatever as_of claims
+    # (previously this case reached the rights check as if the window had closed).
+    unsupported = evaluate_study(
         window, forecasts, scores, as_of=window.evaluation_end, current_rights=accepted_oi_rights()
+    )
+    assert unsupported.reason == "STUDY_WINDOW_OPEN_NO_INTERIM_RESULT"
+    assert not unsupported.empirical_result and not unsupported.intervals
+    complete_forecasts, complete_scores = fixture_ledger(window, day_count=90)
+    expired = evaluate_study(
+        window,
+        complete_forecasts,
+        complete_scores,
+        as_of=window.evaluation_end,
+        current_rights=accepted_oi_rights(),
     )
     assert expired.reason == "CURRENT_RIGHTS_REVIEW_REQUIRED"
     assert not expired.empirical_result and not expired.intervals
@@ -736,3 +765,269 @@ def test_90day_fixture_interpretation_binds_accepted_review_chain_but_earns_zero
         window, forecasts, scores, as_of=window.evaluation_end, current_rights=accepted_oi_rights()
     )
     assert without_context.reason == "CURRENT_RIGHTS_REVIEW_REQUIRED"
+
+
+LATE = timedelta(seconds=60)
+
+
+@pytest.mark.parametrize(
+    "target,reason",
+    [
+        ({"value": "0"}, "TARGET_NONPOSITIVE_VALUE"),
+        ({"received": LATE, "processed": LATE}, "TARGET_RECEIPT_OR_AGE_INADMISSIBLE"),
+        ({"processed": LATE}, "TARGET_RECEIPT_OR_AGE_INADMISSIBLE"),
+        (
+            {"received": timedelta(seconds=75), "processed": timedelta(seconds=90)},
+            "TARGET_RECEIPT_OR_AGE_INADMISSIBLE",
+        ),
+    ],
+    ids=["zero_value", "received_at_60s", "processed_at_60s", "received_and_processed_late"],
+)
+def test_inadmissible_target_is_recorded_unscored_and_the_prediction_is_retained(target, reason):
+    current, _, forecast = prediction("102", "100")
+    before = forecast.canonical_bytes()
+    failed = manifest(forecast.slot_at + HOUR, **({"value": "105.06"} | target))
+    # Previously this raised, so no missing-outcome flag was ever recorded.
+    score = score_forecast(
+        study(), forecast, current, failed, scored_at=failed.observation.available_at
+    )
+    assert not score.eligible and score.reason == reason
+    assert score.outcome is None and score.paired_loss_difference is None
+    assert score.target_manifest_hash == failed.content_hash()
+    assert score.forecast_hash == forecast.content_hash()
+    assert forecast.canonical_bytes() == before
+    # It is never a pair: no day count, mean or descriptive error can include it.
+    rows = daily_evidence(study(), (forecast,), (score,))
+    assert sum(row.btc_pairs + row.eth_pairs for row in rows) == 0
+    btc, _ = descriptive_metrics((forecast,), (score,), rows)
+    assert btc.scored_count == 0 and btc.missing_or_unscored_count == 1
+
+
+def test_target_admission_boundary_and_identity_refusals_are_unchanged():
+    current, _, forecast = prediction("102", "100")
+    last_instant = LATE - timedelta(microseconds=1)
+    timely = manifest(
+        forecast.slot_at + HOUR, "105.06", received=last_instant, processed=last_instant
+    )
+    score = score_forecast(
+        study(), forecast, current, timely, scored_at=timely.observation.available_at
+    )
+    assert score.eligible and score.reason == "SCORED"
+    assert score.outcome == Decimal("0.03") and score.paired_loss_difference == Decimal("0.02")
+    # A wrong or premature target is still an error, never a recorded outcome.
+    late_other_symbol = manifest(
+        forecast.slot_at + HOUR, "0", "ETHUSDT", received=LATE, processed=LATE
+    )
+    with pytest.raises(ValueError, match="IDENTITY_OR_CAUSALITY"):
+        score_forecast(
+            study(),
+            forecast,
+            current,
+            late_other_symbol,
+            scored_at=late_other_symbol.observation.available_at,
+        )
+    zero = manifest(forecast.slot_at + HOUR, "0")
+    with pytest.raises(ValueError, match="IDENTITY_OR_CAUSALITY"):
+        score_forecast(
+            study(),
+            forecast,
+            current,
+            zero,
+            scored_at=zero.observation.available_at - timedelta(microseconds=1),
+        )
+    blocked = zero.model_copy(update={"classification": DataUseClass.BLOCKED})
+    with pytest.raises(ValueError, match="OI_RESEARCH_INPUT_BLOCKED"):
+        score_forecast(study(), forecast, current, blocked, scored_at=zero.observation.available_at)
+
+
+def completed_window():
+    # Synthetic window arithmetic only; accepted rights are current at its end.
+    return study(datetime(2026, 7, 27, tzinfo=UTC))
+
+
+@pytest.mark.parametrize("beyond", [timedelta(0), timedelta(hours=1), timedelta(days=20)])
+def test_unsupported_or_future_as_of_cannot_turn_an_interim_ledger_into_a_final_result(beyond):
+    window = completed_window()
+    # 82 joint-valid days and 1558 pairs per symbol satisfy every sample minimum, and the
+    # caller-asserted label below would count as genuine: only the window is unfinished.
+    forecasts, scores = fixture_ledger(window, day_count=82, use=DataUseClass.PERSONAL_RESEARCH)
+    assert len(scores) == 2 * 82 * 19
+    result = evaluate_study(
+        window,
+        forecasts,
+        scores,
+        as_of=window.evaluation_end + beyond,
+        current_rights=accepted_oi_rights(),
+    )
+    assert result.decision == "INCONCLUSIVE"
+    assert result.reason == "STUDY_WINDOW_OPEN_NO_INTERIM_RESULT"
+    assert not result.intervals and not result.descriptives and not result.empirical_result
+    assert result.joint_valid_days == 0 and result.eligible_pairs == (0, 0)
+    assert result.genuine_forward_days == 0
+
+
+def test_window_evidence_is_this_study_reaching_its_final_scheduled_slot():
+    window = completed_window()
+    forecasts, scores = fixture_ledger(window, day_count=90)
+    final_slot = window.evaluation_end - HOUR
+    assert max(s.scored_at for s in scores) == final_slot + timedelta(seconds=1)
+
+    def reason(candidate_forecasts, candidate_scores):
+        return evaluate_study(
+            window,
+            candidate_forecasts,
+            candidate_scores,
+            as_of=window.evaluation_end,
+            current_rights=accepted_oi_rights(),
+        ).reason
+
+    assert reason(forecasts, scores) == "INSUFFICIENT_GENUINE_SAMPLE"
+    earlier = tuple(s for s in scores if s.scored_at < final_slot)
+    assert len(earlier) == len(scores) - 2
+    assert max(f.created_at for f in forecasts) < final_slot
+    assert reason(forecasts, earlier) == "STUDY_WINDOW_OPEN_NO_INTERIM_RESULT"
+    # One record stamped exactly at the final scheduled slot is the boundary.
+    boundary = next(s for s in scores if s.scored_at >= final_slot).model_copy(
+        update={"scored_at": final_slot}
+    )
+    assert reason(forecasts, (*earlier, boundary)) == "INSUFFICIENT_GENUINE_SAMPLE"
+    # Records of a different study never evidence this study's window.
+    other = study(datetime(2026, 7, 27, 1, tzinfo=UTC))
+    assert other.evaluation_end == window.evaluation_end
+    other_forecasts, other_scores = fixture_ledger(other, day_count=90)
+    assert (
+        reason((*forecasts, *other_forecasts), (*earlier, *other_scores))
+        == "STUDY_WINDOW_OPEN_NO_INTERIM_RESULT"
+    )
+    assert reason((), ()) == "STUDY_WINDOW_OPEN_NO_INTERIM_RESULT"
+
+
+def reference_bounds(btc_days, eth_days, block):
+    """Independent restatement of the preregistered aligned non-circular bootstrap."""
+    rng, btc, eth = random.Random(1229), [], []
+    with localcontext() as context:
+        context.prec = 50
+        for _ in range(5000):
+            indices = []
+            while len(indices) < 90:
+                start = rng.randrange(90 - block + 1)
+                indices.extend(range(start, start + block))
+            indices = indices[:90]
+            btc.append(sum((btc_days[i] for i in indices), Decimal(0)) / 90)
+            eth.append(sum((eth_days[i] for i in indices), Decimal(0)) / 90)
+    btc.sort()
+    eth.sort()
+    return btc[124], btc[4875], eth[124], eth[4875]
+
+
+@pytest.mark.parametrize(
+    "base,step,decision",
+    [
+        ("0.0008", "0.00002", "PASS_RESEARCH_PREDICTABILITY"),
+        ("0.0001", "0.00002", "NO_VALUE"),
+        # Every bound is positive but below one basis point: not a PASS, not NO_VALUE.
+        ("0.00052", "0.000002", "INCONCLUSIVE"),
+    ],
+)
+def test_evaluate_study_reaches_each_decision_through_the_real_bootstrap(base, step, decision):
+    window = completed_window()
+
+    def outcome(day, symbol):
+        return Decimal(base) + Decimal(step) * ((day + 3 * (symbol == "ETHUSDT")) % 7)
+
+    def effect(day, symbol):
+        return abs(outcome(day, symbol)) - abs(outcome(day, symbol) - Decimal("0.001"))
+
+    # No real observation exists. PERSONAL_RESEARCH here is the fixture's own assertion,
+    # exactly the caller-supplied label evaluate_study cannot verify without a store.
+    forecasts, scores = fixture_ledger(
+        window, day_count=90, use=DataUseClass.PERSONAL_RESEARCH, outcome=outcome
+    )
+    result = evaluate_study(
+        window, forecasts, scores, as_of=window.evaluation_end, current_rights=accepted_oi_rights()
+    )
+    assert result.decision == decision and result.reason == "FIXED_WINDOW_COMPLETE"
+    assert result.joint_valid_days == 90 and result.eligible_pairs == (1709, 1709)
+    assert [interval.block_days for interval in result.intervals] == [14, 7, 28]
+    daily = {s: [effect(day, s) for day in range(90)] for s in ("BTCUSDT", "ETHUSDT")}
+    for interval in result.intervals:
+        assert (
+            interval.btc_lower,
+            interval.btc_upper,
+            interval.eth_lower,
+            interval.eth_upper,
+        ) == reference_bounds(daily["BTCUSDT"], daily["ETHUSDT"], interval.block_days)
+    primary = result.intervals[0]
+    if decision == "PASS_RESEARCH_PREDICTABILITY":
+        assert min(primary.btc_lower, primary.eth_lower) > Decimal("0.0001")
+    elif decision == "NO_VALUE":
+        assert max(primary.btc_upper, primary.eth_upper) <= 0
+    else:
+        assert all(
+            0 < bound < Decimal("0.0001")
+            for i in result.intervals
+            for bound in (i.btc_lower, i.btc_upper, i.eth_lower, i.eth_upper)
+        )
+    # Whatever the statistics say, OI-16 keeps every enablement closed.
+    assert result.value_gate == "VALUE_ABLATION_REQUIRED" and not result.promotion_eligible
+    assert not result.operational_oi_enabled and not result.phase6_module_enabled
+    # The identical ENGINEERING_ONLY ledger runs the same real statistics but can never
+    # become a result: zero genuine days, no intervals, INCONCLUSIVE.
+    engineering_forecasts, engineering_scores = fixture_ledger(
+        window, day_count=90, outcome=outcome
+    )
+    engineering = evaluate_study(
+        window,
+        engineering_forecasts,
+        engineering_scores,
+        as_of=window.evaluation_end,
+        current_rights=accepted_oi_rights(),
+    )
+    assert engineering.decision == "INCONCLUSIVE"
+    assert engineering.reason == "INSUFFICIENT_GENUINE_SAMPLE" and not engineering.intervals
+    assert engineering.genuine_forward_days == 0 and not engineering.empirical_result
+    evidence = daily_evidence(window, engineering_forecasts, engineering_scores)
+    statistical = tuple(bootstrap_intervals(evidence, block) for block in (14, 7, 28))
+    assert statistical == result.intervals
+    assert decide_predictability(statistical, sufficient_sample=True) == decision
+
+
+def lower_bounds(primary, seven, twenty_eight, *, symbol="both", healthy="0.0002"):
+    """Lower bounds per block; ``symbol`` limits the tested value to one co-primary symbol."""
+    tested = {14: primary, 7: seven, 28: twenty_eight}
+    return tuple(
+        OIBootstrapInterval(
+            block_days=block,
+            btc_lower=Decimal(tested[block] if symbol in ("both", "btc") else healthy),
+            btc_upper=Decimal("0.001"),
+            eth_lower=Decimal(tested[block] if symbol in ("both", "eth") else healthy),
+            eth_upper=Decimal("0.001"),
+        )
+        for block in (14, 7, 28)
+    )
+
+
+@pytest.mark.parametrize("symbol", ["both", "btc", "eth"])
+@pytest.mark.parametrize(
+    "primary,seven,twenty_eight,expected",
+    [
+        # Sensitivity blocks need only be strictly positive: one basis point is not theirs.
+        ("0.0002", "0.00005", "0.00005", "PASS_RESEARCH_PREDICTABILITY"),
+        ("0.0002", "0.00000001", "0.0000999", "PASS_RESEARCH_PREDICTABILITY"),
+        ("0.0002", "0.0001", "0.0001", "PASS_RESEARCH_PREDICTABILITY"),
+        ("0.00010001", "0.00000001", "0.00000001", "PASS_RESEARCH_PREDICTABILITY"),
+        ("0.0002", "0", "0.00005", "INCONCLUSIVE"),
+        ("0.0002", "0.00005", "0", "INCONCLUSIVE"),
+        ("0.0002", "0.00005", "-0.00000001", "INCONCLUSIVE"),
+        # The primary block needs strictly more than one basis point: zero is not its bar.
+        ("0.00005", "0.0002", "0.0002", "INCONCLUSIVE"),
+        ("0.0001", "0.0002", "0.0002", "INCONCLUSIVE"),
+        ("0.00000001", "0.00000001", "0.00000001", "INCONCLUSIVE"),
+    ],
+)
+def test_primary_bar_is_one_basis_point_and_sensitivity_bar_is_zero(
+    symbol, primary, seven, twenty_eight, expected
+):
+    bounds = lower_bounds(primary, seven, twenty_eight, symbol=symbol)
+    assert decide_predictability(bounds, sufficient_sample=True) == expected
+    assert decide_predictability(bounds, sufficient_sample=False) == "INCONCLUSIVE"

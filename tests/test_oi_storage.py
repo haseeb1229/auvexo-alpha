@@ -383,8 +383,9 @@ def test_oi_budget_reservation_persists_before_network_and_unknown_restart_block
     state = reservation()
     store.save_transport_state(state)
     restarted = OIStore(store.engine, store.root, store.managed_root)
-    with pytest.raises(ValueError, match="OUTCOME_REVIEW_REQUIRED"):
-        restarted.load_transport_state(NOW + timedelta(seconds=2))
+    # The unknown reservation is returned as-is: the transport fails it closed for its
+    # own slot, and a second reservation can never be stacked on top of it.
+    assert restarted.load_transport_state(NOW + timedelta(seconds=2)) == state
     with pytest.raises(ValueError, match="OUTCOME_REVIEW_REQUIRED"):
         restarted.save_transport_state(reservation(NOW + timedelta(seconds=2), 2))
     store.save_transport_state(complete(state))
@@ -395,6 +396,151 @@ def test_oi_budget_reservation_persists_before_network_and_unknown_restart_block
     restarted.save_transport_state(second)
     restarted.save_transport_state(complete(second))
     assert store.load_transport_state(NOW + timedelta(seconds=3)).day_attempts == 2
+
+
+def test_oi_unknown_attempt_fails_closed_for_its_slot_then_is_resolved_durably(store):
+    from threading import Event
+
+    from auvexo_alpha.infrastructure.oi_http import OIHTTP, OIResponse
+
+    state = reservation()
+    store.save_transport_state(state)  # a crash or kill: no completion was ever recorded
+    restarted = OIStore(store.engine, store.root, store.managed_root)
+
+    def client(at):
+        return OIHTTP(
+            Event(),
+            state=restarted.load_transport_state(at),
+            persist=restarted.save_transport_state,
+            transport=lambda *_: OIResponse(200, b"{}"),
+            now=lambda: at,
+            monotonic=lambda: 0.0,
+            wait=lambda _: False,
+        )
+
+    same_slot = NOW + timedelta(minutes=5)
+    with pytest.raises(ValueError, match="OUTCOME_REVIEW_REQUIRED"):
+        client(same_slot).fetch("BTCUSDT")
+    assert restarted.load_transport_state(same_slot) == state
+    next_slot = NOW + timedelta(hours=1)
+    assert client(next_slot).fetch("BTCUSDT").body == b"{}"
+    final = restarted.load_transport_state(next_slot + timedelta(seconds=1))
+    assert not final.pending_attempt and final.failed_attempt is None
+    # The abandoned attempt still counts against the day; nothing was reset.
+    assert (final.hour_attempts, final.day_attempts) == (1, 2)
+    with store.engine.connect() as conn:
+        history = conn.execute(
+            text(
+                "SELECT payload::jsonb->'state'->>'pending_attempt',"
+                "payload::jsonb->'state'->>'failed_attempt' FROM data_event "
+                "WHERE feed_key='DS-04-A1:transport-budget' "
+                "ORDER BY (payload::jsonb->>'revision')::bigint"
+            )
+        ).all()
+    assert [tuple(row) for row in history] == [
+        ("true", None),
+        ("false", "OI_ATTEMPT_OUTCOME_UNKNOWN"),
+        ("true", None),
+        ("false", None),
+    ]
+
+
+def test_oi_failed_attempt_completion_keeps_budget_and_exact_code(store):
+    state = reservation()
+    store.save_transport_state(state)
+    store.save_transport_state(complete(state, failed_attempt="OI_ATTEMPT_DEADLINE"))
+    restarted = OIStore(store.engine, store.root, store.managed_root)
+    loaded = restarted.load_transport_state(NOW + timedelta(hours=1))
+    assert loaded.failed_attempt == "OI_ATTEMPT_DEADLINE" and not loaded.pending_attempt
+    assert (loaded.hour_attempts, loaded.day_attempts) == (1, 1)
+    following = reservation(NOW + timedelta(hours=1), 1).model_copy(update={"day_attempts": 2})
+    restarted.save_transport_state(following)
+    assert restarted.load_transport_state(NOW + timedelta(hours=1)).failed_attempt is None
+
+
+@pytest.mark.parametrize(
+    "previous_hour,current_hour,reasons",
+    [
+        (14, 15, ()),
+        (15, 19, ("NONADJACENT_SLOT",)),
+        (20, 22, ("NONADJACENT_SLOT",)),
+        (None, 13, ("INSUFFICIENT_HISTORY",)),
+    ],
+    ids=["adjacent", "daily_protected_gap_15_to_19", "missed_slot", "first_snapshot"],
+)
+def test_oi_feature_recompute_derives_history_from_stored_checkpoints(
+    store, previous_hour, current_hour, reasons
+):
+    from auvexo_alpha.application.oi_research import compute_oi_features
+
+    day = NOW.replace(hour=0)
+    previous = (
+        None
+        if previous_hour is None
+        else publish(store, slot=day + timedelta(hours=previous_hour), value="100")
+    )
+    current = publish(store, slot=day + timedelta(hours=current_hour), value="101")
+    # The collector's inputs: the checkpoint it read before publishing this slot.
+    feature = compute_oi_features(current, previous, at=current.created_at)
+    assert feature.reasons == reasons
+    assert store.append_feature(feature) == feature.content_hash()
+    assert store.append_feature(feature) == feature.content_hash()
+    assert store.features() == (feature,)
+
+
+def test_oi_feature_history_claim_is_never_trusted_from_the_caller(store):
+    from auvexo_alpha.application.oi_research import compute_oi_features
+
+    day = NOW.replace(hour=0)
+    older = publish(store, slot=day + timedelta(hours=13), value="100")
+    publish(store, slot=day + timedelta(hours=14), value="101")
+    current = publish(store, slot=day + timedelta(hours=15), value="102")
+    # Hiding the adjacent checkpoint, or substituting an earlier one, is refused.
+    for claimed in (None, older):
+        forged = compute_oi_features(current, claimed, at=current.created_at)
+        with pytest.raises(ValueError, match="FEATURE_BINDING"):
+            store.append_feature(forged)
+    assert store.features() == ()
+    gap = publish(store, slot=day + timedelta(hours=19), value="103")
+    with pytest.raises(ValueError, match="FEATURE_BINDING"):
+        store.append_feature(compute_oi_features(gap, None, at=gap.created_at))
+    assert store.features() == ()
+
+
+def test_oi_research_failure_record_is_durable_idempotent_redacted_and_attested(store):
+    manifest = publish(store)
+    arguments = (
+        "BTCUSDT",
+        NOW,
+        manifest.content_hash(),
+        "OI_LEDGER_FEATURE_BINDING",
+        NOW + timedelta(seconds=5),
+    )
+    digest = store.record_research_failure(*arguments)
+    assert store.record_research_failure(*arguments) == digest
+    with store.engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT event_id,payload FROM data_event WHERE feed_key='DS-04-A1:research-failure'"
+            )
+        ).all()
+    assert [row[0] for row in rows] == ["oi-research-failure:" + digest]
+    recorded = json.loads(rows[0][1])
+    assert recorded["code"] == "OI_LEDGER_FEATURE_BINDING"
+    assert recorded["manifest_hash"] == manifest.content_hash()
+    # It admits nothing and a restart accepts exactly this namespace.
+    assert store.features() == () and store.forecasts() == () and store.scores() == ()
+    OIStore(store.engine, store.root, store.managed_root)
+    for text_code in ("free text with spaces", "x" * 81, "", "9starts_with_digit"):
+        with pytest.raises(ValueError):
+            store.record_research_failure(*arguments[:3], text_code, arguments[4])
+    with store.engine.connect() as conn:
+        assert (
+            conn.scalar(
+                text("SELECT count(*) FROM data_event WHERE feed_key='DS-04-A1:research-failure'")
+            )
+            == 1
+        )
 
 
 def test_oi_cooldown_cannot_reset_on_restart_or_rollover(store):
@@ -509,6 +655,30 @@ def test_oi_missing_target_retains_original_forecast_and_no_retroactive_replacem
     retrospective = score_forecast(study, forecast, current, target, scored_at=target.created_at)
     with pytest.raises(ValueError, match="IMMUTABLE_LEDGER_CONFLICT"):
         store.append_score(retrospective)
+
+
+def test_oi_zero_value_target_is_stored_as_unscored_outcome_bound_to_its_manifest(store):
+    from auvexo_alpha.application.oi_research import score_forecast
+
+    study, current, _, forecast = research_chain(store)
+    target = publish(store, slot=NOW + timedelta(hours=1), value="0")
+    assert target.observation.quality == "VALID"
+    score = score_forecast(study, forecast, current, target, scored_at=target.created_at)
+    assert not score.eligible and score.reason == "TARGET_NONPOSITIVE_VALUE"
+    assert store.append_score(score) == score.content_hash()
+    assert store.scores(study.content_hash()) == (score,)
+    assert store.forecasts(study.content_hash()) == (forecast,)
+    # The failed target can never be rewritten into an eligible pair.
+    forged = score.model_copy(
+        update={
+            "reason": "SCORED",
+            "eligible": True,
+            "outcome": Decimal("0"),
+            "paired_loss_difference": Decimal("0"),
+        }
+    )
+    with pytest.raises(ValueError, match="SCORE_BINDING"):
+        store.append_score(forged)
 
 
 def test_oi_ledger_missing_feature_study_or_manifest_cannot_be_forged(store):
@@ -879,6 +1049,9 @@ def test_oi_initialization_attests_every_generic_table_and_retains_foreign_rows(
         ("DS-04-A1:quarantine", "oi-quarantine:" + "a" * 64 + ":UNKNOWN"),
         ("DS-04-A1:ledger:FEATURE", "oi-ledger:FORECAST:" + "a" * 64),
         ("DS-04-A1:ledger:STUDY", "oi-ledger:STUDY:" + "a" * 63),
+        ("DS-04-A1:research-failure", "oi-research-failure:" + "a" * 63),
+        ("DS-04-A1:research-failure", "oi-ledger:FEATURE:" + "a" * 64),
+        ("DS-04-A1:research-failure:extra", "oi-research-failure:" + "a" * 64),
     ],
 )
 def test_oi_initialization_rejects_event_namespace_identifier_mismatches(store, feed, identifier):
@@ -917,6 +1090,9 @@ def test_oi_restart_accepts_exact_base_review_and_all_implemented_event_namespac
     restarted.save_transport_state(state)
     restarted.save_transport_state(complete(state))
     restarted.quarantine(b"synthetic rejected bytes", NOW, "PARSER_REJECTED")
+    restarted.record_research_failure(
+        "BTCUSDT", NOW, current.content_hash(), "OI_LEDGER_FEATURE_BINDING", target.created_at
+    )
     before = _generic_counts(restarted)
     accepted = OIStore(store.engine, store.root, store.managed_root)
     assert accepted.forecasts() == (forecast,)

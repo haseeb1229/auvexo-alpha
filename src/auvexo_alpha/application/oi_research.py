@@ -11,12 +11,27 @@ from pydantic import Field, model_validator
 from auvexo_alpha.domain.contracts import Contract, Digest, Label, UTCTime, utc_time
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, require_oi_rights
 from auvexo_alpha.domain.oi_schedule import slot_allowed
-from auvexo_alpha.domain.open_interest import OIManifest, OIRights, OISymbol, oi_classify_manifest
+from auvexo_alpha.domain.open_interest import (
+    OIManifest,
+    OIObservation,
+    OIRights,
+    OISymbol,
+    oi_classify_manifest,
+)
 from auvexo_alpha.domain.research import DataUseClass
 
 OIResearchUse = Literal[DataUseClass.ENGINEERING_ONLY, DataUseClass.PERSONAL_RESEARCH]
 OIVerdict = Literal[
     "PASS_RESEARCH_PREDICTABILITY", "NO_VALUE", "INCONCLUSIVE", "STOPPED_REVIEW_REQUIRED"
+]
+# Only SCORED is an eligible pair. Every other reason retains the original prediction
+# beside an explicit missing-outcome flag and never contributes to any statistic.
+OIScoreReason = Literal[
+    "SCORED",
+    "MISSING_TARGET",
+    "TARGET_OUTSIDE_FIXED_WINDOW",
+    "TARGET_RECEIPT_OR_AGE_INADMISSIBLE",
+    "TARGET_NONPOSITIVE_VALUE",
 ]
 _HOUR = timedelta(hours=1)
 _MINUTE = timedelta(minutes=1)
@@ -147,7 +162,7 @@ class OIPairScore(Contract):
     paired_loss_difference: Decimal | None
     scored_at: UTCTime
     eligible: bool
-    reason: Literal["SCORED", "MISSING_TARGET", "TARGET_OUTSIDE_FIXED_WINDOW"]
+    reason: OIScoreReason
     classification: OIResearchUse
 
     @model_validator(mode="after")
@@ -267,8 +282,24 @@ class OIStudyResult(Contract):
         raise ValueError("OI16_VALUE_ABLATION_REQUIRED:" + purpose)
 
 
+def _received_in_slot(observation: OIObservation) -> bool:
+    """Received and processed in the slot's first 60 seconds; provider age in [0, 120] s."""
+    slot = observation.slot_at
+    return (
+        slot <= observation.received_at < slot + _MINUTE
+        and slot <= observation.processed_at < slot + _MINUTE
+        and timedelta(0)
+        <= observation.received_at - observation.provider_at
+        <= timedelta(seconds=120)
+    )
+
+
 def _require_admitted(
-    manifest: OIManifest, at: datetime, review_authority: OIReviewAuthority | None = None
+    manifest: OIManifest,
+    at: datetime,
+    review_authority: OIReviewAuthority | None = None,
+    *,
+    receipt_window: bool = True,
 ) -> None:
     if not isinstance(manifest, OIManifest):
         raise ValueError("OI_CROSS_PRODUCT_INPUT")
@@ -288,13 +319,7 @@ def _require_admitted(
     slot = observation.slot_at
     if not slot_allowed(slot):
         raise ValueError("OI_PROTECTED_SLOT")
-    if not (
-        slot <= observation.received_at < slot + _MINUTE
-        and slot <= observation.processed_at < slot + _MINUTE
-        and timedelta(0)
-        <= observation.received_at - observation.provider_at
-        <= timedelta(seconds=120)
-    ):
+    if receipt_window and not _received_in_slot(observation):
         raise ValueError("OI_SLOT_RECEIPT_PROCESS_AGE")
 
 
@@ -436,7 +461,7 @@ def score_forecast(
     target_slot = forecast.slot_at + _HOUR
     if now < target_slot:
         raise ValueError("OI_SCORE_BEFORE_TARGET")
-    reason: Literal["SCORED", "MISSING_TARGET", "TARGET_OUTSIDE_FIXED_WINDOW"] = "MISSING_TARGET"
+    reason: OIScoreReason = "MISSING_TARGET"
     outcome = difference = None
     target_hash = target.content_hash() if target is not None else None
     if target_slot >= study.evaluation_end:
@@ -446,7 +471,12 @@ def score_forecast(
             raise ValueError("OI_TARGET_STILL_PENDING")
     else:
         _require_admitted(current, current.observation.available_at, review_authority)
-        _require_admitted(target, target.observation.available_at, review_authority)
+        # A wrong, blocked or out-of-order target still refuses. A genuine target that
+        # itself failed admission (late receipt/processing, provider age, zero value) is
+        # recorded below as an unscored outcome so the original prediction is retained.
+        _require_admitted(
+            target, target.observation.available_at, review_authority, receipt_window=False
+        )
         c, t = current.observation, target.observation
         if (
             c.symbol != forecast.symbol
@@ -461,15 +491,19 @@ def score_forecast(
             or t.code_hash != forecast.code_hash
             or target.rights.content_hash() != forecast.rights_snapshot_hash
             or t.provider_at <= c.provider_at
-            or t.value <= 0
             or target.observation.available_at > now
         ):
             raise ValueError("OI_TARGET_IDENTITY_OR_CAUSALITY")
-        with localcontext() as context:
-            context.prec = 50
-            outcome = (t.value - forecast.current_level) / forecast.current_level
-            difference = abs(outcome - forecast.baseline) - abs(outcome - forecast.augmented)
-        reason = "SCORED"
+        if not _received_in_slot(t):
+            reason = "TARGET_RECEIPT_OR_AGE_INADMISSIBLE"
+        elif t.value <= 0:
+            reason = "TARGET_NONPOSITIVE_VALUE"
+        else:
+            with localcontext() as context:
+                context.prec = 50
+                outcome = (t.value - forecast.current_level) / forecast.current_level
+                difference = abs(outcome - forecast.baseline) - abs(outcome - forecast.augmented)
+            reason = "SCORED"
     classification = forecast.classification
     if target is not None and target.classification == DataUseClass.ENGINEERING_ONLY:
         classification = DataUseClass.ENGINEERING_ONLY
@@ -696,8 +730,24 @@ def evaluate_study(
     review_authority: OIReviewAuthority | None = None,
     material_failure: bool = False,
 ) -> OIStudyResult:
-    """No interim result inspection or window extension, and no fixture calendar credit."""
+    """No interim result inspection or window extension, and no fixture calendar credit.
+
+    ``as_of`` is caller supplied, so it alone never closes the window: the ledger's own
+    records must also reach the final scheduled slot. Classification labels likewise
+    remain caller supplied here; genuineness needs store-verified manifests upstream.
+    """
     now = utc_time(as_of)
+    study_hash = study.content_hash()
+    evidenced_through = max(
+        (
+            *(s.scored_at for s in scores if s.study_hash == study_hash),
+            *(f.created_at for f in forecasts if f.study_hash == study_hash),
+        ),
+        default=None,
+    )
+    window_evidenced = (
+        evidenced_through is not None and evidenced_through >= study.evaluation_end - _HOUR
+    )
     use: OIResearchUse = DataUseClass.PERSONAL_RESEARCH
     if (
         not scores
@@ -723,7 +773,8 @@ def evaluate_study(
     valid_days = btc = eth = genuine = 0
     if material_failure:
         verdict, reason = "STOPPED_REVIEW_REQUIRED", "MATERIAL_FAILURE"
-    elif now < study.evaluation_end:
+    elif now < study.evaluation_end or not window_evidenced:
+        # Includes a future or otherwise unsupported as_of over a ledger that stops early.
         reason = "STUDY_WINDOW_OPEN_NO_INTERIM_RESULT"
     elif not rights_current:
         reason = "CURRENT_RIGHTS_REVIEW_REQUIRED"
@@ -743,7 +794,7 @@ def evaluate_study(
         else:
             reason = "INSUFFICIENT_GENUINE_SAMPLE"
     return OIStudyResult(
-        study_hash=study.content_hash(),
+        study_hash=study_hash,
         decided_at=now,
         decision=verdict,
         reason=reason,

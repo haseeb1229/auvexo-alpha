@@ -1,6 +1,7 @@
 """Fixed-source OI transport with durable budgets and a killable bounded network worker."""
 
 import base64
+import http.client
 import json
 import os
 import subprocess
@@ -13,7 +14,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from threading import Event, Lock
-from typing import Annotated, Self
+from typing import Annotated, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -23,6 +24,31 @@ from auvexo_alpha.infrastructure.public_http import NoRedirect, SourceError
 
 MAX_BODY = 4096
 MAX_ATTEMPT_SECONDS = 10.0
+# Allowance for the isolated interpreter to start and import this module (about one
+# second measured on the reference laptop), the child's connect/read idle timeout and
+# the parent's bounded kill-and-reap. An attempt that cannot fit all three is not viable.
+WORKER_START_SECONDS = 2.0
+SOCKET_TIMEOUT_SECONDS = 3.0
+WORKER_CLEANUP_SECONDS = 1.0
+MIN_ATTEMPT_SECONDS = WORKER_START_SECONDS + SOCKET_TIMEOUT_SECONDS + WORKER_CLEANUP_SECONDS
+
+# A reserved attempt that ended without any admitted provider response. Its budget
+# stays consumed and the exact cause stays in the append-only transport state.
+OIAttemptFailure = Literal[
+    "OI_STOPPED",
+    "OI_ATTEMPT_DEADLINE",
+    "OI_WORKER_FAILED",
+    "OI_WORKER_CLEANUP_FAILED",
+    "OI_JOB_DEADLINE",
+    "OI_ATTEMPT_OUTCOME_UNKNOWN",
+]
+_UNADMITTED_ATTEMPT_CODES: tuple[OIAttemptFailure, ...] = (
+    "OI_STOPPED",
+    "OI_ATTEMPT_DEADLINE",
+    "OI_WORKER_FAILED",
+    "OI_WORKER_CLEANUP_FAILED",
+    "OI_JOB_DEADLINE",
+)
 
 
 def allowed_oi_url(url: str) -> bool:
@@ -55,6 +81,7 @@ class OIBudgetState(Contract):
     last_attempt_at: UTCTime | None = None
     blocked_until: UTCTime | None = None
     pending_attempt: bool = False
+    failed_attempt: OIAttemptFailure | None = None
 
     @model_validator(mode="after")
     def boundaries(self) -> Self:
@@ -71,6 +98,10 @@ class OIBudgetState(Contract):
         if (
             self.hour_attempts or self.day_attempts or self.pending_attempt
         ) and self.last_attempt_at is None:
+            raise ValueError("OI_BUDGET_STATE")
+        if self.failed_attempt is not None and (
+            self.pending_attempt or self.last_attempt_at is None
+        ):
             raise ValueError("OI_BUDGET_STATE")
         return self
 
@@ -96,7 +127,7 @@ def _worker_request(url: str, limit: int) -> OIResponse:
         method="GET",
     )
     try:
-        with opener.open(req, timeout=3) as response:
+        with opener.open(req, timeout=SOCKET_TIMEOUT_SECONDS) as response:
             content_type = response.headers.get("Content-Type", "")
             if content_type.split(";", 1)[0].strip().lower() != "application/json":
                 raise SourceError("OI_CONTENT_TYPE")
@@ -118,7 +149,15 @@ def _worker_request(url: str, limit: int) -> OIResponse:
         return OIResponse(error.code, b"", _retry_seconds(error.headers.get("Retry-After", "")))
     except SourceError:
         raise
-    except (urllib.error.URLError, TimeoutError, ConnectionError, OSError) as error:
+    except (
+        urllib.error.URLError,
+        TimeoutError,
+        ConnectionError,
+        OSError,
+        # IncompleteRead, BadStatusLine, LineTooLong and other malformed or truncated
+        # responses are transient transport faults, never a reason to crash the worker.
+        http.client.HTTPException,
+    ) as error:
         raise SourceError("OI_NETWORK") from error
 
 
@@ -138,6 +177,21 @@ def _worker_main(url: str) -> int:
     return 0
 
 
+def _worker_command(url: str) -> list[str]:
+    # Isolated mode ignores every PYTHON* variable and keeps the user site, the script
+    # directory and the current directory off sys.path, so no file beside the launch
+    # directory can shadow the standard library or the installed package.
+    return [
+        sys.executable,
+        "-I",
+        "-B",
+        "-m",
+        "auvexo_alpha.infrastructure.oi_http",
+        "--worker",
+        url,
+    ]
+
+
 def request_oi(url: str, limit: int, timeout: float, *, cancel: Event | None = None) -> OIResponse:
     if not allowed_oi_url(url) or limit != MAX_BODY or not 0 < timeout <= MAX_ATTEMPT_SECONDS:
         raise SourceError("OI_SOURCE_CONFIG")
@@ -146,16 +200,11 @@ def request_oi(url: str, limit: int, timeout: float, *, cancel: Event | None = N
         raise SourceError("OI_STOPPED")
     # Inherit no proxy, authentication, cookie, certificate override or Python startup hooks.
     env = {k: os.environ[k] for k in ("SYSTEMROOT", "WINDIR", "TEMP", "TMP") if k in os.environ}
-    env.update(
-        PYTHONPATH=str(Path(__file__).resolve().parents[2]),
-        PYTHONDONTWRITEBYTECODE="1",
-        PYTHONNOUSERSITE="1",
-    )
     started = time.monotonic()
-    cleanup_budget = min(1.0, timeout / 2)
+    cleanup_budget = min(WORKER_CLEANUP_SECONDS, timeout / 2)
     worker_budget = timeout - cleanup_budget
     process = subprocess.Popen(
-        [sys.executable, "-B", "-m", "auvexo_alpha.infrastructure.oi_http", "--worker", url],
+        _worker_command(url),
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.DEVNULL,
@@ -238,8 +287,6 @@ class OIHTTP:
     ) -> None:
         self.cancel = cancel
         self.state = OIBudgetState.model_validate(state.model_dump(mode="python"))
-        if self.state.pending_attempt:
-            raise SourceError("OI_TRANSPORT_OUTCOME_REVIEW_REQUIRED")
         self.persist = persist
         self.before_attempt = before_attempt
         self.transport = transport
@@ -290,12 +337,30 @@ class OIHTTP:
         self.state = updated
         self.persist(updated)
 
-    def _complete_attempt(self) -> None:
+    def _complete_attempt(self, failure: OIAttemptFailure | None = None) -> None:
         updated = OIBudgetState.model_validate(
-            {**self.state.model_dump(mode="python"), "pending_attempt": False}
+            {
+                **self.state.model_dump(mode="python"),
+                "pending_attempt": False,
+                "failed_attempt": failure,
+            }
         )
         self.persist(updated)
         self.state = updated
+
+    def _resolve_unknown_attempt(self, at: datetime) -> None:
+        """A reservation with no recorded outcome fails closed for its own slot only.
+
+        Its budget was reserved before the request and stays consumed, and no receipt
+        was returned from it, so nothing was admitted. A later slot records it as a
+        failed attempt: one crash, kill or lost completion cannot block every future slot.
+        """
+        reserved = self.state.last_attempt_at
+        if reserved is None or at.replace(minute=0, second=0, microsecond=0) <= reserved.replace(
+            minute=0, second=0, microsecond=0
+        ):
+            raise SourceError("OI_TRANSPORT_OUTCOME_REVIEW_REQUIRED")
+        self._complete_attempt("OI_ATTEMPT_OUTCOME_UNKNOWN")
 
     def fetch(self, symbol: OISymbol, *, slot_deadline: float | None = None) -> OIReceipt:
         if symbol not in ("BTCUSDT", "ETHUSDT"):
@@ -311,11 +376,11 @@ class OIHTTP:
         start = self.monotonic()
         deadline = min(start + 20.0, slot_deadline if slot_deadline is not None else start + 60.0)
         for attempt in range(3):
-            if self.state.pending_attempt:
-                raise SourceError("OI_TRANSPORT_OUTCOME_REVIEW_REQUIRED")
             if self.cancel.is_set():
                 raise SourceError("OI_STOPPED")
             at = utc_time(self.now())
+            if self.state.pending_attempt:
+                self._resolve_unknown_attempt(at)
             if self.state.blocked_until is not None and at < self.state.blocked_until:
                 raise SourceError("OI_COOLDOWN")
             gap = 0.0
@@ -337,7 +402,9 @@ class OIHTTP:
             ):
                 raise SourceError("OI_CLOCK_SPACING")
             remaining = deadline - self.monotonic()
-            if remaining <= 0:
+            if remaining < MIN_ATTEMPT_SECONDS:
+                # Never reserve budget for a request that cannot start, connect and be
+                # reaped inside the symbol/slot deadline; end cleanly, nothing pending.
                 raise SourceError("OI_JOB_DEADLINE")
             if self.before_attempt is not None:
                 try:
@@ -379,14 +446,12 @@ class OIHTTP:
                     raise SourceError("OI_NETWORK")
                 raise SourceError("OI_SOURCE_UNAVAILABLE")
             except SourceError as error:
-                if self.state.pending_attempt and error.code not in {
-                    "OI_STOPPED",
-                    "OI_ATTEMPT_DEADLINE",
-                    "OI_WORKER_FAILED",
-                    "OI_WORKER_CLEANUP_FAILED",
-                    "OI_JOB_DEADLINE",
-                }:
-                    self._complete_attempt()
+                if self.state.pending_attempt:
+                    # A killed, timed-out, crashed or cancelled worker is a completed
+                    # failed attempt: budget consumed, cause recorded, no data admitted.
+                    self._complete_attempt(
+                        next((c for c in _UNADMITTED_ATTEMPT_CODES if c == error.code), None)
+                    )
                 if error.code != "OI_NETWORK" or attempt == 2:
                     raise
         raise SourceError("OI_NETWORK")

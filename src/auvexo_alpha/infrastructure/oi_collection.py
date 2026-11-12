@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from threading import Event
 from typing import Literal
+
+from sqlalchemy.exc import SQLAlchemyError
 
 from auvexo_alpha.application.oi_research import (
     OIStudyWindow,
@@ -32,19 +35,48 @@ from auvexo_alpha.infrastructure.oi_parser import parse_oi
 from auvexo_alpha.infrastructure.oi_store import OIStore
 from auvexo_alpha.infrastructure.public_http import SourceError
 
+OIJobCode = Literal[
+    "COMPLETE",
+    "BLOCKED",
+    "BUSY",
+    "STOPPED",
+    "SOURCE_UNAVAILABLE",
+    "LEDGER_REVIEW_REQUIRED",
+]
+
 
 @dataclass(frozen=True)
 class OIJobStatus:
-    code: Literal["COMPLETE", "BLOCKED", "BUSY", "STOPPED", "SOURCE_UNAVAILABLE"]
+    code: OIJobCode
     reason: str
     manifests: tuple[str, ...] = ()
     forward_days: Literal[0] = 0
+    # "SYMBOL:CODE" for each published slot whose research step failed and was recorded.
+    research_failures: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        # A recorded research failure can never be reported as a clean completion.
+        if self.research_failures and self.code == "COMPLETE":
+            raise ValueError("OI_STATUS_HIDES_RESEARCH_FAILURE")
 
     @property
     def exit_code(self) -> int:
-        return {"COMPLETE": 0, "BLOCKED": 2, "BUSY": 3, "STOPPED": 4, "SOURCE_UNAVAILABLE": 5}[
-            self.code
-        ]
+        return {
+            "COMPLETE": 0,
+            "BLOCKED": 2,
+            "BUSY": 3,
+            "STOPPED": 4,
+            "SOURCE_UNAVAILABLE": 5,
+            "LEDGER_REVIEW_REQUIRED": 6,
+        }[self.code]
+
+
+def _failure_code(error: Exception) -> str:
+    """Stable project code when one was raised; otherwise the class name, never the text."""
+    code = str(error)
+    if isinstance(error, ValueError) and re.fullmatch(r"OI_[A-Z0-9_]{1,76}", code):
+        return code
+    return type(error).__name__
 
 
 class OICollectionJob:
@@ -107,6 +139,11 @@ class OICollectionJob:
         if at >= study.evaluation_end:
             return OIJobStatus("BLOCKED", "OI_STUDY_WINDOW_COMPLETE")
         results: list[str] = []
+        failures: list[str] = []
+
+        def status(code: OIJobCode, reason: str) -> OIJobStatus:
+            return OIJobStatus(code, reason, tuple(results), research_failures=tuple(failures))
+
         with self.store.collection_lease() as acquired:
             if not acquired:
                 return OIJobStatus("BUSY", "OI_SINGLE_INSTANCE")
@@ -114,48 +151,44 @@ class OICollectionJob:
             self.store.append_study(study)
             for symbol in ("BTCUSDT", "ETHUSDT"):
                 if self.cancel.is_set():
-                    return OIJobStatus("STOPPED", "OI_STOPPED", tuple(results))
+                    return status("STOPPED", "OI_STOPPED")
                 if not self.resources_ready():
-                    return OIJobStatus("BLOCKED", "OI_RESOURCE_YIELD", tuple(results))
+                    return status("BLOCKED", "OI_RESOURCE_YIELD")
                 at = utc_time(self.now())
                 try:
                     envelope.require_start(config, accepted_start_digest, at, self.review_authority)
                     clock.require_trusted(config, at)
                 except ValueError:
-                    return OIJobStatus(
-                        "BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID", tuple(results)
-                    )
+                    return status("BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID")
                 delay = max(0.0, (symbol_due(slot, symbol) - at).total_seconds())
                 if self.monotonic() + delay >= deadline:
-                    return OIJobStatus("STOPPED", "OI_SLOT_DEADLINE", tuple(results))
+                    return status("STOPPED", "OI_SLOT_DEADLINE")
                 if self.wait(delay):
-                    return OIJobStatus("STOPPED", "OI_STOPPED", tuple(results))
+                    return status("STOPPED", "OI_STOPPED")
                 # Revalidate after staggering: the wait can cross an authority/clock
                 # boundary, receive cancellation or consume the shared slot deadline.
                 at = utc_time(self.now())
                 if self.cancel.is_set():
-                    return OIJobStatus("STOPPED", "OI_STOPPED", tuple(results))
+                    return status("STOPPED", "OI_STOPPED")
                 if self.monotonic() >= deadline or at >= slot + timedelta(seconds=60):
-                    return OIJobStatus("STOPPED", "OI_SLOT_DEADLINE", tuple(results))
+                    return status("STOPPED", "OI_SLOT_DEADLINE")
                 try:
                     envelope.require_start(config, accepted_start_digest, at, self.review_authority)
                     clock.require_trusted(config, at)
                 except ValueError:
-                    return OIJobStatus(
-                        "BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID", tuple(results)
-                    )
+                    return status("BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID")
                 if not self.resources_ready():
-                    return OIJobStatus("BLOCKED", "OI_RESOURCE_YIELD", tuple(results))
+                    return status("BLOCKED", "OI_RESOURCE_YIELD")
                 previous = self.store.checkpoint(symbol)
                 if previous is not None and previous.observation.slot_at > slot:
-                    return OIJobStatus("BLOCKED", "OI_CLOCK_REGRESSION", tuple(results))
+                    return status("BLOCKED", "OI_CLOCK_REGRESSION")
                 if previous is not None and previous.observation.slot_at == slot:
                     results.append(previous.content_hash())
                     continue
                 try:
                     receipt = self.http.fetch(symbol, slot_deadline=deadline)
                 except SourceError as error:
-                    return OIJobStatus("SOURCE_UNAVAILABLE", error.code, tuple(results))
+                    return status("SOURCE_UNAVAILABLE", error.code)
                 processed_at = utc_time(self.now())
                 try:
                     envelope.require_start(
@@ -164,7 +197,7 @@ class OICollectionJob:
                     clock.require_trusted(config, processed_at)
                 except ValueError:
                     self.store.quarantine(receipt.body, processed_at, "RIGHTS_REJECTED")
-                    return OIJobStatus("BLOCKED", "OI_RECEIPT_ADMISSION_EXPIRED", tuple(results))
+                    return status("BLOCKED", "OI_RECEIPT_ADMISSION_EXPIRED")
                 try:
                     observation = parse_oi(
                         receipt.body,
@@ -184,7 +217,7 @@ class OICollectionJob:
                     )
                 except ValueError:
                     self.store.quarantine(receipt.body, processed_at, "PARSER_REJECTED")
-                    return OIJobStatus("SOURCE_UNAVAILABLE", "OI_SCHEMA_OR_QUALITY", tuple(results))
+                    return status("SOURCE_UNAVAILABLE", "OI_SCHEMA_OR_QUALITY")
                 manifest = self.store.publish(
                     observation,
                     receipt.body,
@@ -193,10 +226,23 @@ class OICollectionJob:
                     now=processed_at,
                 )
                 if manifest.observation.quality != "VALID":
-                    return OIJobStatus("BLOCKED", "OI_CONFLICT_REVIEW_REQUIRED", tuple(results))
+                    return status("BLOCKED", "OI_CONFLICT_REVIEW_REQUIRED")
                 results.append(manifest.content_hash())
-                self._research(study, manifest, previous, symbol)
-        return OIJobStatus("COMPLETE", "OI_RECORDED_NO_QUALIFICATION_CREDIT", tuple(results))
+                try:
+                    self._research(study, manifest, previous, symbol)
+                except (ValueError, OSError, SQLAlchemyError) as error:
+                    # The snapshot is already published. One symbol's ledger problem must
+                    # never cost the other symbol's acquisition, and is never dropped:
+                    # it is recorded durably (an unrecordable failure propagates) and
+                    # every later status of this run reports it with a nonzero exit.
+                    code = _failure_code(error)
+                    self.store.record_research_failure(
+                        symbol, slot, manifest.content_hash(), code, utc_time(self.now())
+                    )
+                    failures.append(f"{symbol}:{code}")
+        if failures:
+            return status("LEDGER_REVIEW_REQUIRED", "OI_RESEARCH_LEDGER_FAILED")
+        return status("COMPLETE", "OI_RECORDED_NO_QUALIFICATION_CREDIT")
 
     def _research(
         self,
