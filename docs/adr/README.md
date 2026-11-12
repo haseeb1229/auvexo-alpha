@@ -54,3 +54,5 @@ Exact versions, capital decisions and deferred triggers live in [open decisions]
 | [ADR-028](028-ds03-synthetic-readonly-foundation.md) | ACCEPTED/FROZEN synthetic engineering at ba66f44; original design bytes retained | Synthetic-only DS-03 read-only boundary; actual account onboarding requires PRIVATE return |
 
 | [ADR-029](029-ds03-mt5-readonly-adapter.md) | FROZEN_BEFORE_IMPLEMENTATION; ENGINEERING_ONLY; NO_ACTUAL_ACCOUNT_SESSION | Actual MT5 read-only adapter code; no account activation; PR12 independent exact-SHA review required |
+
+| [ADR-030](030-ds03-adapter-independent-review-corrections.md) | ACCEPTED amendment to ADR-029; ENGINEERING_ONLY; NO_ACTUAL_ACCOUNT_SESSION | [Independent review](../reviews/PHASE_2_DS03_ACTUAL_ADAPTER_INDEPENDENT_REVIEW.md) corrections: token-derived fixed runtime, complete source binding, static SDK allowlist proof; onboarding preconditions including unresolved source rights |

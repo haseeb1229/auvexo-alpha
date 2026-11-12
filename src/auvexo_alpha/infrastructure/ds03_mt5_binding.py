@@ -14,7 +14,7 @@ from ctypes import wintypes
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psutil
 
@@ -33,6 +33,11 @@ _PACKAGE_FILES = {
     ),
 }
 _SOURCE_FILES = (
+    # Package initializers execute in the provider child before any reviewed module.
+    "__init__.py",
+    "domain/__init__.py",
+    "application/__init__.py",
+    "infrastructure/__init__.py",
     "domain/contracts.py",
     "domain/ds03.py",
     "domain/ds03_actual.py",
@@ -60,8 +65,58 @@ def _canonical(value: object) -> bytes:
     return json.dumps(value, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
 
 
+class _FolderId(ctypes.Structure):
+    _fields_ = [
+        ("a", wintypes.DWORD),
+        ("b", wintypes.WORD),
+        ("c", wintypes.WORD),
+        ("d", ctypes.c_ubyte * 8),
+    ]
+
+
+def _profile_root() -> Path:
+    """Owner profile from the process token, never from USERPROFILE/HOME.
+
+    The provider child receives only SYSTEMROOT/WINDIR, where Path.home() cannot
+    resolve; an inherited variable must also never relocate the fixed runtime.
+    Non-Windows hosts are not a provider platform: every effect refuses there.
+    """
+    if sys.platform != "win32":
+        return Path.home()
+    shell = ctypes.WinDLL("shell32", use_last_error=True)
+    ole = ctypes.WinDLL("ole32", use_last_error=True)
+    shell.SHGetKnownFolderPath.argtypes = [
+        ctypes.POINTER(_FolderId),
+        wintypes.DWORD,
+        wintypes.HANDLE,
+        ctypes.POINTER(wintypes.LPWSTR),
+    ]
+    shell.SHGetKnownFolderPath.restype = ctypes.c_long
+    ole.CoTaskMemFree.argtypes = [ctypes.c_void_p]
+    ole.CoTaskMemFree.restype = None
+    # FOLDERID_Profile; current and default locations must agree (no redirection).
+    identity = _FolderId.from_buffer_copy(UUID("5e6c858f-0e22-4760-9afe-ea3317b67173").bytes_le)
+    results: list[Path] = []
+    for flags in (0, 0x400):
+        output = wintypes.LPWSTR()
+        failed = shell.SHGetKnownFolderPath(
+            ctypes.byref(identity), flags, None, ctypes.byref(output)
+        )
+        try:
+            if failed:
+                raise Ds03Error()
+            results.append(Path(output.value or ""))
+        finally:
+            ole.CoTaskMemFree(ctypes.cast(output, ctypes.c_void_p))
+    if not results[0].is_absolute() or os.path.normcase(str(results[0])) != os.path.normcase(
+        str(results[1])
+    ):
+        raise Ds03Error()
+    return results[0]
+
+
 def runtime_root() -> Path:
-    return Path.home() / "Desktop" / "Auvexo Alpha MT5 Readonly Runtime"
+    return _profile_root() / "Desktop" / "Auvexo Alpha MT5 Readonly Runtime"
 
 
 def terminal_path() -> Path:

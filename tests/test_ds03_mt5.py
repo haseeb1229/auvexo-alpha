@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import ast
 import math
 import sys
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from mt5_fixtures import SYNTHETIC_PASSWORD, fixture, nt, prepared, request
@@ -368,3 +370,133 @@ def test_linux_native_loader_refuses_before_package_import(monkeypatch):
     with pytest.raises(Ds03Error):
         module._load_native_sdk()
     assert "MetaTrader5" not in sys.modules
+
+
+# ADR-029 "Provider allowlist": the complete permitted official SDK surface.
+_ADR029_SDK_ALLOWLIST = frozenset(
+    {
+        "initialize",
+        "shutdown",
+        "version",
+        "terminal_info",
+        "account_info",
+        "symbols_get",
+        "symbol_info",
+        "symbol_info_tick",
+        "copy_rates_range",
+        "copy_ticks_from",
+        "orders_get",
+        "positions_get",
+        "history_orders_get",
+        "history_deals_get",
+    }
+)
+_FORBIDDEN_PROVIDER_CALLS = frozenset(
+    {
+        "order_send",
+        "order_check",
+        "order_calc_margin",
+        "order_calc_profit",
+        "symbol_select",
+        "market_book_add",
+        "market_book_get",
+        "market_book_release",
+        "login",
+    }
+)
+_FORBIDDEN_DYNAMIC_CALLS = frozenset(
+    {
+        "getattr",
+        "setattr",
+        "delattr",
+        "eval",
+        "exec",
+        "compile",
+        "__import__",
+        "import_module",
+        "system",
+        "popen",
+    }
+)
+
+
+def _actual_adapter_trees():
+    package = Path(module.__file__).resolve().parent
+    names = ("ds03_mt5", "ds03_mt5_process", "ds03_mt5_binding", "ds03_metadata", "ds03_secrets")
+    return {
+        name: ast.parse((package / (name + ".py")).read_text(encoding="utf8")) for name in names
+    }
+
+
+def test_static_provider_surface_is_exactly_the_adr029_allowlist():
+    # M5-08 static proof over the ACTUAL adapter source (the accepted capability
+    # test covers synthetic files only). The SDK handle may be reached solely as
+    # a fixed attribute call; it is never aliased, returned, passed or looked up.
+    tree = _actual_adapter_trees()["ds03_mt5"]
+    parents = {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
+    handles = [
+        node for node in ast.walk(tree) if isinstance(node, ast.Attribute) and node.attr == "_sdk"
+    ]
+    used: set[str] = set()
+    stores = 0
+    for handle in handles:
+        assert isinstance(handle.value, ast.Name) and handle.value.id == "self"
+        owner = parents[handle]
+        if isinstance(handle.ctx, ast.Store):
+            stores += 1
+            continue
+        assert isinstance(owner, ast.Attribute) and owner.value is handle, "SDK handle escaped"
+        call = parents[owner]
+        assert isinstance(call, ast.Call) and call.func is owner, "SDK member not called directly"
+        used.add(owner.attr)
+    assert stores == 1, "exactly one fixed assignment in the private port constructor"
+    assert used == _ADR029_SDK_ALLOWLIST
+    module_reads = {
+        node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id == "mt5"
+    }
+    assert module_reads == {"__version__", "__file__"}
+    protocol = next(
+        node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == "Mt5ReadApi"
+    )
+    declared = {node.name for node in protocol.body if isinstance(node, ast.FunctionDef)}
+    assert declared == _ADR029_SDK_ALLOWLIST
+
+
+def test_typed_provider_stub_exposes_only_the_allowlist_so_new_calls_fail_strict_typing():
+    stub = Path(module.__file__).resolve().parents[3] / "typings/MetaTrader5/__init__.pyi"
+    tree = ast.parse(stub.read_text(encoding="utf8"))
+    functions = {node.name for node in tree.body if isinstance(node, ast.FunctionDef)}
+    assert functions == _ADR029_SDK_ALLOWLIST
+    assert not _FORBIDDEN_PROVIDER_CALLS & functions
+
+
+def test_actual_adapter_sources_have_no_trade_mutation_or_dynamic_dispatch_calls():
+    for name, tree in _actual_adapter_trees().items():
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            called = (
+                node.func.id
+                if isinstance(node.func, ast.Name)
+                else node.func.attr
+                if isinstance(node.func, ast.Attribute)
+                else ""
+            )
+            assert called not in _FORBIDDEN_PROVIDER_CALLS, (name, called)
+            assert called not in _FORBIDDEN_DYNAMIC_CALLS, (name, called)
+        imported = {
+            alias.name.split(".")[0]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Import)
+            for alias in node.names
+        } | {
+            (node.module or "").split(".")[0]
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom)
+        }
+        assert not imported & {"socket", "requests", "httpx", "urllib", "http", "ssl", "asyncio"}
+        assert ("MetaTrader5" in imported) == (name == "ds03_mt5")

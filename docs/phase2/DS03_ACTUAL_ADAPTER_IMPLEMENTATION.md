@@ -1,7 +1,7 @@
 # DS-03 actual MT5 read-only adapter implementation
 
-Status: ENGINEERING_ONLY; INDEPENDENT_REVIEW_PENDING; NO_ACTUAL_ACCOUNT_SESSION.
-Date: 2026-11-03. [Frozen ADR-029](../adr/029-ds03-mt5-readonly-adapter.md),
+Status: ENGINEERING_ONLY; INDEPENDENTLY_REVIEWED_WITH_CORRECTIONS (ADR-030); NO_ACTUAL_ACCOUNT_SESSION.
+Date: 2026-11-03; corrected 2026-11-12. [Frozen ADR-029](../adr/029-ds03-mt5-readonly-adapter.md),
 [requirements](DS03_ACTUAL_ADAPTER_REQUIREMENTS.md), [provider review](DS03_ACTUAL_ADAPTER_PROVIDER_REVIEW.md)
 and [runbook](DS03_ACTUAL_ADAPTER_RUNBOOK.md) retain original bytes.
 
@@ -122,3 +122,25 @@ Native regression note: in this nested Windows environment a NULL Job query repo
 host flags12288/memory0 while the exact provider handle reported flags8704/1GiB. The failed
 receipt is preserved. Exact fresh Job-name/QUERY-only membership replaces ambiguous NULL/any-Job
 inference; this is an implementation correction under the unchanged frozen containment contract.
+
+## Independent review corrections - 2026-11-12
+
+The founder-requested independent re-audit of exact `68dd54ad920fcbdf4375d813c6124e03ef8c7233`
+is recorded in [ADR-030](../adr/030-ds03-adapter-independent-review-corrections.md) and the
+[review record](../reviews/PHASE_2_DS03_ACTUAL_ADAPTER_INDEPENDENT_REVIEW.md). The text above
+is the implementation record as written on 2026-11-03; where it differs, this section governs.
+
+- The fixed runtime root is no longer derived with `Path.home()`. It is derived from the
+  process token through the Windows known-folder API, so it resolves inside the provider
+  child, whose environment holds only `SYSTEMROOT` and `WINDIR`, and cannot be relocated by
+  an inherited `USERPROFILE` or `HOME`. Before this correction the child could not resolve
+  the root and the production composition could never start; the suite did not detect it
+  because every test replaced the launcher or the home lookup.
+- "Transitive project source closure" above was not accurate: four package `__init__.py`
+  files executed by the child were outside the binding. Both connector families now bind
+  every executed first-party module, proven by an independent import-closure test.
+- The static M5-08 proof now covers the actual adapter: the SDK handle is reached only as a
+  direct call to the fourteen allowlisted functions, and the typed stub exposes only those.
+- The review earned no actual qualification. Source rights, server-time basis, digest
+  privacy, demo continuity and provider compatibility are recorded in ADR-030 as onboarding
+  preconditions that deny qualification until resolved in a PRIVATE onboarding ADR.

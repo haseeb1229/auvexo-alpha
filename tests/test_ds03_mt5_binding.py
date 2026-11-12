@@ -25,7 +25,7 @@ def failure(call):
 
 
 def test_runtime_paths_derive_only_home_and_accept_no_override(monkeypatch, tmp_path):
-    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    monkeypatch.setattr(module, "_profile_root", lambda: tmp_path)
     monkeypatch.setenv("AUVEXO_MT5_PATH", str(tmp_path / "arbitrary.exe"))
     expected = tmp_path / "Desktop/Auvexo Alpha MT5 Readonly Runtime"
     assert module.runtime_root() == expected
@@ -35,6 +35,100 @@ def test_runtime_paths_derive_only_home_and_accept_no_override(monkeypatch, tmp_
     )
     with pytest.raises(TypeError):
         module.terminal_path(tmp_path / "arbitrary.exe")
+
+
+_ROOT_PROBE = (
+    "from auvexo_alpha.infrastructure.ds03_mt5_binding import runtime_root;"
+    "import sys;sys.stdout.write(str(runtime_root()))"
+)
+
+
+def _probe_runtime_root(environment):
+    done = subprocess.run(
+        [sys.executable, "-I", "-B", "-c", _ROOT_PROBE],
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+    assert done.returncode == 0, "fixed runtime root must resolve: " + done.stderr[-200:]
+    return done.stdout
+
+
+@pytest.mark.skipif(os.name != "nt", reason="token-derived owner profile requires native Windows")
+def test_native_provider_child_environment_resolves_the_same_fixed_runtime_root():
+    # Independent review defect: Path.home() needs USERPROFILE, which the provider
+    # child never receives. This runs a REAL child with the exact production
+    # environment; a monkeypatched home or launcher cannot prove this property.
+    from auvexo_alpha.infrastructure.ds03_process import _child_environment
+
+    child_environment = _child_environment()
+    assert {name.upper() for name in child_environment} <= {"SYSTEMROOT", "WINDIR"}
+    parent = str(module.runtime_root())
+    assert Path(parent).is_absolute()
+    assert Path(parent).parts[-2:] == ("Desktop", "Auvexo Alpha MT5 Readonly Runtime")
+    assert _probe_runtime_root(child_environment) == parent
+
+
+@pytest.mark.skipif(os.name != "nt", reason="token-derived owner profile requires native Windows")
+def test_native_runtime_root_ignores_inherited_home_overrides(tmp_path):
+    poisoned = dict(os.environ)
+    for name in ("USERPROFILE", "HOME"):
+        poisoned[name] = str(tmp_path)
+    poisoned["HOMEDRIVE"], poisoned["HOMEPATH"] = tmp_path.drive, str(tmp_path)[2:]
+    observed = _probe_runtime_root(poisoned)
+    assert observed == str(module.runtime_root())
+    assert not Path(observed).is_relative_to(tmp_path)
+
+
+def _first_party_closure(entry):
+    """Independent AST oracle: every first-party module the entry module executes."""
+    root = Path(module.__file__).resolve().parents[2]
+
+    def locate(name):
+        base = root.joinpath(*name.split("."))
+        if (base / "__init__.py").is_file():
+            return base / "__init__.py"
+        return base.with_suffix(".py") if base.with_suffix(".py").is_file() else None
+
+    seen, pending = {}, [entry]
+    while pending:
+        parts = pending.pop().split(".")
+        for size in range(1, len(parts) + 1):
+            name = ".".join(parts[:size])
+            path = locate(name)
+            if path is None or name in seen:
+                continue
+            seen[name] = path
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf8"))):
+                if isinstance(node, ast.Import):
+                    pending.extend(a.name for a in node.names if a.name.startswith("auvexo_alpha"))
+                elif isinstance(node, ast.ImportFrom):
+                    assert node.level == 0, path
+                    if (node.module or "").startswith("auvexo_alpha"):
+                        pending.append(node.module)
+                        pending.extend(node.module + "." + a.name for a in node.names)
+    package = root / "auvexo_alpha"
+    return {path.relative_to(package).as_posix() for path in seen.values()}
+
+
+@pytest.mark.parametrize("family", ["actual", "synthetic"])
+def test_source_binding_inventory_covers_every_module_the_child_executes(family):
+    # A hash that omits executed code is not an artifact binding. Lazy function-level
+    # imports are included because the AST walk is not limited to module scope.
+    from auvexo_alpha.infrastructure import ds03_process
+
+    entry, bound = {
+        "actual": ("auvexo_alpha.infrastructure.ds03_mt5_process", module._SOURCE_FILES),
+        "synthetic": ("auvexo_alpha.infrastructure.ds03_process", ds03_process._SOURCE_FILES),
+    }[family]
+    executed = _first_party_closure(entry)
+    inventory = set(bound)
+    assert len(inventory) == len(bound)
+    assert executed - inventory == set(), "executed but unbound"
+    assert inventory - executed == set(), "bound but never executed"
+    assert {"__init__.py", "infrastructure/__init__.py", "infrastructure/ds03_ipc.py"} <= executed
 
 
 @pytest.mark.parametrize("case", ["symlink", "junction", "reparse", "hardlink", "not_file"])
