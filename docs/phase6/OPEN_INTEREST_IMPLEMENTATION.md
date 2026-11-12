@@ -1,5 +1,8 @@
 # Phase 6A1 DS-04-A1 engineering implementation
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Status: IMPLEMENTED ENGINEERING CHECKPOINT; independent exact-SHA code review pending.
 No collection START, empirical result, module enablement or financial authority.
 Proposal design source independently accepted at 887b6ac38636e07ff922d2ba2d0ec7b2063edd4f.
@@ -129,3 +132,26 @@ PHASE6_FORWARD_CLOCK=ZERO; persistent collector/task NOT REGISTERED/NOT STARTED.
 Phase 2/4 full operational OPEN, current genuine counts/span/replay UNKNOWN; Phase 5
 commissioning NOT STARTED/DS-03 BLOCKED. No later DS04 family, macro/news/agents, broker,
 MT5/Exness/account/key/order/money/live permit or withdrawal capability.
+
+## Corrections from the 2026-11-12 independent rebaseline
+
+The text above is the implementation record as written. Where it differs, this section
+governs. No preregistered number, statistic or frozen document changed; see the
+[rebaseline audit](../reviews/AUVEXO_FULL_A_TO_Z_REBASELINE_2026-11-12.md).
+
+- A stored feature is recomputed from the store's own checkpoint before its slot, so the
+  daily 15:00 to 19:00 UTC gap and any missed slot no longer abort the job before the
+  ETH fetch. A research-ledger failure for one symbol is isolated, recorded under the new
+  event namespace `DS-04-A1:research-failure` (event identifiers
+  `oi-research-failure:<sha256>`), and reported with status `LEDGER_REVIEW_REQUIRED` and
+  exit code 6.
+- "Unknown fails closed on restart" now applies to the reservation's own hour slot only.
+  A timed-out, crashed or failed worker is completed as a consumed failed attempt; an
+  unknown outcome is completed as `OI_ATTEMPT_OUTCOME_UNKNOWN` in a later slot. Budgets
+  and cooldowns are never reset. Attempts with less than six seconds left are refused.
+- The clock and build gates use the system-directory `w32tm.exe` and an absolute `git`
+  outside the checkout, refuse untracked source files, and prove the imported package is
+  byte-identical to the hashed tree. The HTTP child runs in isolated mode.
+- An inadmissible target is recorded as unscored instead of raising. A final study result
+  requires records through the last scheduled slot of the window.
+

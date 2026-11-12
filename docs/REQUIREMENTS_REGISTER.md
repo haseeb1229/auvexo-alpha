@@ -121,3 +121,21 @@ presentation. [Implementation checkpoint](phase7/READ_ONLY_IMPLEMENTATION.md) ma
 modules/tests and pending full verification. The explicit owner-approved data-free static shell
 exception grants no API data access, financial authority or calendar credit. Original phases,
 numeric/source/activation gates and all historical accepted evidence remain unchanged.
+
+## Later child requirement families (recorded 2026-11-12)
+
+The amendments above stop at 2026-10-20. These families were frozen afterwards with their
+own ADRs and were never entered here. They refine existing parents; no parent, numeric
+target, calendar gate or activation gate is removed or relaxed by any of them.
+
+| Family | Defined in | Decision | Scope |
+| --- | --- | --- | --- |
+| OB-01 to OB-15 | [Observation acceptance](phase4/OBSERVATION_ACCEPTANCE.md) | [ADR-023](adr/023-paper-observation-qualification.md) | Qualification of genuine PAPER observation dates |
+| OI-01 to OI-16 | [Open-interest acceptance](phase6/OPEN_INTEREST_ACCEPTANCE.md) | [ADR-026](adr/026-ds04-open-interest-intelligence.md) | DS-04-A1 snapshot collection and the OI-FWD-v1 predictability study |
+| D3-01 to D3-16 | [DS-03 acceptance](phase2/DS03_ACCEPTANCE.md) | [ADR-028](adr/028-ds03-synthetic-readonly-foundation.md) | Synthetic read-only connector boundary |
+| M5-01 to M5-15 | [DS-03 actual adapter requirements](phase2/DS03_ACTUAL_ADAPTER_REQUIREMENTS.md) | [ADR-029](adr/029-ds03-mt5-readonly-adapter.md), amended by [ADR-030](adr/030-ds03-adapter-independent-review-corrections.md) | Actual MT5 read-only adapter engineering |
+
+[ADR-027](adr/027-temporary-public-ci-and-sanitized-engineering.md) governs repository
+visibility for R-031 in place of the 2026-10-24 review named in R-031-BA-01.
+[ADR-031](adr/031-evidence-semantics-corrections-and-campaign-restart.md) tightens how
+R-027-P2-01, R-035-P2-01 and the OB family are evidenced without changing their thresholds.

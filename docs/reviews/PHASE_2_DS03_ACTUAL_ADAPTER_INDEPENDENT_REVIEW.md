@@ -92,6 +92,26 @@ Local Windows host, working tree containing the corrections:
   tests deselected (they require PostgreSQL and run in hosted CI).
 - Ruff format and lint clean; strict mypy clean on 97 source files.
 
-Exact-commit hosted results, commit identifiers and the merge are recorded in the
-repository-wide rebaseline audit dated 2026-11-12, which is added after this merge
-because a commit cannot contain its own identifier or its own CI result.
+## Exact-commit verification of the corrected head
+
+Corrected head `e808e816f8b7eecb68b6902149e0e87ec3f0ce8f`, tree
+`787c65ea458f26b87397d0acdd887977b6e296b5` (5 commits, 49 changed paths, base unchanged).
+
+- Hosted CI run 43219379860, job 131186689705, pull-request event, 28 executed steps, all
+  successful: 2723 Python tests passed and 35 skipped (the skips are Windows-native
+  proofs), strict typing clean on 97 files, 31 frontend tests passed, dependency and npm
+  audits clean. The preceding run 43152174148 on `b743fc6` passed with the same counts.
+- Fresh clone on Windows of the exact commit, new virtual environment, hash-locked
+  install as a normal wheel: format, lint, typing, documentation and secret checks
+  passed; 2238 tests passed, 1 Linux-only skip, 519 PostgreSQL tests deselected; the
+  tree stayed clean.
+- The fresh clone found one defect in a test added by this review (it located the typed
+  stub relative to the imported package, which fails for an installed wheel); corrected
+  in `e808e81`. It also confirmed by accident that the adapter refuses when the provider
+  package directory contains byte-compiled caches, so the runtime must be installed
+  without byte-compilation.
+- Staged content and full reachable history scanned with Gitleaks 8.30.1: no leaks.
+
+The pull request was left open for the owner to merge: the audit session is not
+permitted to merge without a human review. See the
+[rebaseline audit](AUVEXO_FULL_A_TO_Z_REBASELINE_2026-11-12.md).

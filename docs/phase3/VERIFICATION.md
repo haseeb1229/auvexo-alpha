@@ -1,5 +1,8 @@
 # Phase 3 verification and evidence locations
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Independent exact-head review remains required. Public source contains the generic
 framework, frozen protocol and sanitized provider diagnosis. Actual source archives,
 experiment manifests/results, database dumps and verification logs remain under ignored

@@ -1,0 +1,818 @@
+{
+  "schema": "auvexo.rebaseline.audit.v1",
+  "date": "2026-11-12",
+  "auditor": "Claude (founder-requested independent rebaseline)",
+  "repository": "haseeb1229/auvexo-alpha",
+  "visibility_at_audit": "PUBLIC",
+  "starting_main": "fa0915130c9572c9c2a4a260b20abeaefc2c62f5",
+  "pr12": {
+    "reviewed_head": "68dd54ad920fcbdf4375d813c6124e03ef8c7233",
+    "corrected_head": "e808e816f8b7eecb68b6902149e0e87ec3f0ce8f",
+    "corrected_tree": "787c65ea458f26b87397d0acdd887977b6e296b5",
+    "ci_run": 43219379860,
+    "state_at_audit_end": "OPEN, verified, awaiting owner normal merge"
+  },
+  "checkouts": {
+    "operational": {
+      "head": "9b9038b6966843805c99f15e1c37cdba7c026679",
+      "changed_by_audit": false
+    },
+    "oi_runtime": {
+      "head": "f47770d7886d12240e24390e23f939cb49535a31",
+      "changed_by_audit": false
+    }
+  },
+  "operational_evidence": {
+    "phase2_genuine_qualifying_dates": 0,
+    "phase2_basis": "no scheduled wrapper run ever completed (25 nights: 8 failed, 1 missed start, 16 no summary)",
+    "phase4_qualifying_dates": "UNKNOWN, at most 1",
+    "operational_postgresql_running": false,
+    "operational_postgresql_last_log": "2026-10-23T06:58:51Z",
+    "host_clock": "unsynchronised, about 33 s slow"
+  },
+  "classification": {
+    "engineering_system_ready": "PARTIAL",
+    "operational_qualification_in_progress": false,
+    "live_certified": false
+  },
+  "phase_status": {
+    "0": "COMPLETE",
+    "1": "COMPLETE",
+    "2": "ENGINEERING ACCEPTED; OPERATIONAL OPEN (0 dates)",
+    "3": "COMPLETE AS RESEARCH; 4 INCONCLUSIVE; both holdouts consumed; no champion",
+    "4": "ENGINEERING ACCEPTED; OPERATIONAL OPEN (UNKNOWN, at most 1 date)",
+    "5": "OFFLINE FOUNDATION ONLY; COMMISSIONING NOT STARTED",
+    "6": "OPEN-INTEREST ENGINEERING ONLY; NOT STARTED; forward clock 0",
+    "7": "READ-ONLY TERMINAL ONLY; OPEN",
+    "8": "NOT STARTED",
+    "9": "NOT STARTED"
+  },
+  "disposition_meanings": {
+    "FIXED": "corrected and verified in this change",
+    "RECORDED": "real engineering finding, not fixed here, tracked as required work before the phase it blocks",
+    "OWNER": "needs an owner, legal, provider or elapsed-time action; cannot be engineered away",
+    "NO_CHANGE": "accurate statement of scope that is not built"
+  },
+  "finding_counts": {
+    "CRITICAL": {
+      "OWNER": 1,
+      "FIXED": 1
+    },
+    "HIGH": {
+      "OWNER": 4,
+      "FIXED": 8,
+      "RECORDED": 2
+    },
+    "MEDIUM": {
+      "FIXED": 28,
+      "RECORDED": 18,
+      "OWNER": 1
+    },
+    "LOW": {
+      "RECORDED": 12,
+      "FIXED": 15
+    },
+    "INFO": {
+      "NO_CHANGE": 1,
+      "OWNER": 1
+    }
+  },
+  "findings": [
+    {
+      "id": "OPS-1",
+      "area": "Operations",
+      "severity": "CRITICAL",
+      "title": "Operational PostgreSQL down since 2026-10-23; both evidence campaigns silently dead",
+      "disposition": "OWNER",
+      "note": "Restart is an owner action on the pinned checkout; read-only evidence tool added"
+    },
+    {
+      "id": "OPS-2",
+      "area": "Operations",
+      "severity": "HIGH",
+      "title": "Laptop off, asleep or on battery at trigger time on most nights",
+      "disposition": "OWNER",
+      "note": "Availability window documented in the runbook"
+    },
+    {
+      "id": "OPS-3",
+      "area": "Operations",
+      "severity": "HIGH",
+      "title": "Host clock never synchronised, measured about 33 s slow",
+      "disposition": "OWNER",
+      "note": "Elevated resync or NTP path required"
+    },
+    {
+      "id": "OPS-4",
+      "area": "Operations",
+      "severity": "HIGH",
+      "title": "Public-data rights review hard-coded to expire 2026-11-16; both tasks then refuse",
+      "disposition": "OWNER",
+      "note": "Renewal needs owner confirmation of provider terms and a new release"
+    },
+    {
+      "id": "OPS-5",
+      "area": "Operations",
+      "severity": "MEDIUM",
+      "title": "No failure alerting; Task Scheduler history disabled; failures unseen for three weeks",
+      "disposition": "FIXED",
+      "note": "tools/evidence_status.py reports health read-only; wrapper now records refusals and reasons"
+    },
+    {
+      "id": "OPS-6",
+      "area": "Operations",
+      "severity": "LOW",
+      "title": "Development environment uses the interpreter stored under the Operational checkout",
+      "disposition": "RECORDED",
+      "note": "Read-only coupling; give Development its own interpreter at the next environment rebuild"
+    },
+    {
+      "id": "R12-1",
+      "area": "DS-03",
+      "severity": "HIGH",
+      "title": "Provider child could never start: Path.home() unresolvable in its stripped environment",
+      "disposition": "FIXED",
+      "note": "Token-derived profile; native real-child tests"
+    },
+    {
+      "id": "R12-2",
+      "area": "DS-03",
+      "severity": "MEDIUM",
+      "title": "Source binding omitted four executed package initializers (actual and synthetic)",
+      "disposition": "FIXED",
+      "note": "Inventories completed; import-closure oracle test"
+    },
+    {
+      "id": "R12-3",
+      "area": "DS-03",
+      "severity": "MEDIUM",
+      "title": "No static allowlist proof over the actual adapter (M5-08)",
+      "disposition": "FIXED",
+      "note": "Three static tests"
+    },
+    {
+      "id": "R12-4",
+      "area": "DS-03",
+      "severity": "HIGH",
+      "title": "Source rights unresolved and adverse: Exness agreement restricts quote collection and automated access",
+      "disposition": "OWNER",
+      "note": "Recorded in ADR-030; legal decision"
+    },
+    {
+      "id": "R12-5",
+      "area": "DS-03",
+      "severity": "MEDIUM",
+      "title": "MT5 server-time basis unattested; adapter labels provider times as UTC",
+      "disposition": "RECORDED",
+      "note": "Onboarding precondition in ADR-030"
+    },
+    {
+      "id": "R12-6",
+      "area": "DS-03",
+      "severity": "MEDIUM",
+      "title": "Account and server digests are unsalted hashes of low-entropy values",
+      "disposition": "RECORDED",
+      "note": "Classified as private account data in ADR-030"
+    },
+    {
+      "id": "R12-7",
+      "area": "DS-03",
+      "severity": "LOW",
+      "title": "Single redacted refusal code; no reason codes for onboarding diagnosis",
+      "disposition": "RECORDED",
+      "note": "Contract change for the onboarding ADR"
+    },
+    {
+      "id": "R12-8",
+      "area": "DS-03",
+      "severity": "LOW",
+      "title": "Provider runtime must be installed by copy and without byte-compilation; pip compiles and uv hard-links by default",
+      "disposition": "RECORDED",
+      "note": "Adapter refuses both by design; CI now installs by copy; note for the onboarding runbook"
+    },
+    {
+      "id": "D-1",
+      "area": "Data",
+      "severity": "CRITICAL",
+      "title": "Unclosed candle stored as final when the host clock runs fast; no provider time consulted",
+      "disposition": "FIXED",
+      "note": "Provider server time read before each request; bars must be closed in provider time; skew bound 2 s"
+    },
+    {
+      "id": "D-2",
+      "area": "Data",
+      "severity": "HIGH",
+      "title": "Qualifying window anchored only to the unsynchronised local clock",
+      "disposition": "FIXED",
+      "note": "Same proof refuses collection while the clock disagrees with the provider"
+    },
+    {
+      "id": "D-3",
+      "area": "Data",
+      "severity": "HIGH",
+      "title": "Manual runs indistinguishable from scheduled runs in qualification",
+      "disposition": "FIXED",
+      "note": "A day needs exactly one completed scheduled wrapper summary from the pre-window (ADR-031)"
+    },
+    {
+      "id": "D-4",
+      "area": "Data",
+      "severity": "MEDIUM",
+      "title": "Catch-up after an outage makes the next windows unqualifiable",
+      "disposition": "FIXED",
+      "note": "Warm-up catch-up, never inside the window"
+    },
+    {
+      "id": "D-5",
+      "area": "Data",
+      "severity": "MEDIUM",
+      "title": "Correction impact overstated: changed-row comparison used Decimal text",
+      "disposition": "FIXED",
+      "note": "Rows compared by numeric value"
+    },
+    {
+      "id": "D-6",
+      "area": "Data",
+      "severity": "MEDIUM",
+      "title": "Failures left no durable or specific evidence; local errors quarantined as bad input",
+      "disposition": "FIXED",
+      "note": "Stable reason codes; refused starts recorded; only parser failures quarantined"
+    },
+    {
+      "id": "D-7",
+      "area": "Data",
+      "severity": "MEDIUM",
+      "title": "No reconciliation between archive and REST bars for the same minute",
+      "disposition": "RECORDED",
+      "note": "Needs a design for cross-source comparison"
+    },
+    {
+      "id": "D-8",
+      "area": "Data",
+      "severity": "MEDIUM",
+      "title": "A provider-side missing minute wedges the live feed permanently",
+      "disposition": "RECORDED",
+      "note": "Needs an owner-reviewed explicit gap checkpoint"
+    },
+    {
+      "id": "D-9",
+      "area": "Data",
+      "severity": "LOW",
+      "title": "Read-only commands took the collector lease and could fail a scheduled run",
+      "disposition": "FIXED",
+      "note": "Read-only commands no longer take the lease"
+    },
+    {
+      "id": "D-10",
+      "area": "Data",
+      "severity": "LOW",
+      "title": "Report budget of 10,000 rows will eventually break qualification",
+      "disposition": "RECORDED",
+      "note": "Filter by date range in SQL"
+    },
+    {
+      "id": "D-11",
+      "area": "Data",
+      "severity": "LOW",
+      "title": "Global three-day provider cooldown cannot be cleared",
+      "disposition": "RECORDED",
+      "note": "Documented policy; fatal to a streak"
+    },
+    {
+      "id": "RS-1",
+      "area": "Research",
+      "severity": "HIGH",
+      "title": "Out-of-sample seal was per study: another study's window could read sealed bars",
+      "disposition": "FIXED",
+      "note": "Seal enforced per calendar across studies, at registration and at read"
+    },
+    {
+      "id": "RS-2",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Ledger did not enforce the frozen one-config-per-family selection when opening a holdout",
+      "disposition": "FIXED",
+      "note": "Holdout opens only the verified frozen selection, one config per family"
+    },
+    {
+      "id": "RS-3",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Verdict ignored manifest parameters and used code defaults",
+      "disposition": "FIXED",
+      "note": "Verdict uses the registered manifest parameters"
+    },
+    {
+      "id": "RS-4",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Verdict never recorded in the ledger; stress-multiplier order unvalidated",
+      "disposition": "FIXED",
+      "note": "Verdict recorded as a ledger trial; stress multipliers validated"
+    },
+    {
+      "id": "RS-5",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Rejection book incomplete (silent no-fill, shadowed signals, outage-expired entries)",
+      "disposition": "FIXED",
+      "note": "Unfillable, shadowed and outage-expired entries recorded; fills unchanged"
+    },
+    {
+      "id": "RS-6",
+      "area": "Research",
+      "severity": "LOW",
+      "title": "Mean-reversion trigger strict where the frozen plan says at-or-below",
+      "disposition": "FIXED",
+      "note": "At-or-below, as the frozen plan states; the one intended behaviour change"
+    },
+    {
+      "id": "RS-7",
+      "area": "Research",
+      "severity": "LOW",
+      "title": "Metrics divisions ran under the ambient decimal context",
+      "disposition": "FIXED",
+      "note": "Local decimal context pinned"
+    },
+    {
+      "id": "RS-8",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Holdout consumption not atomic or resumable; post-consumption reads unlogged; gates application-side",
+      "disposition": "RECORDED",
+      "note": "Needs database-side enforcement design before any new study"
+    },
+    {
+      "id": "RS-9",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Trial hash binding partly decorative (code, lock and input-bar digests unverified)",
+      "disposition": "RECORDED",
+      "note": "Before any new study"
+    },
+    {
+      "id": "RS-10",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Walk-forward folds informational only; one fold duplicates validation",
+      "disposition": "RECORDED",
+      "note": "Matches the frozen plan wording; method gap for a future preregistration"
+    },
+    {
+      "id": "RS-11",
+      "area": "Research",
+      "severity": "MEDIUM",
+      "title": "Strategy rules, reader, screen branches and metrics values had no tests",
+      "disposition": "FIXED",
+      "note": "Hand-computed tests for rules, screen, selection and metric values"
+    },
+    {
+      "id": "P-1",
+      "area": "PAPER",
+      "severity": "HIGH",
+      "title": "Observation count unreadable once rights expire; campaign cannot complete as pinned",
+      "disposition": "FIXED",
+      "note": "Receipts verified against rights at their recorded time"
+    },
+    {
+      "id": "P-2",
+      "area": "PAPER",
+      "severity": "HIGH",
+      "title": "Observation campaign is denial-only by construction; ledger evidence vacuous",
+      "disposition": "RECORDED",
+      "note": "Superseding preregistration needed: owner resume, day roll, clock"
+    },
+    {
+      "id": "P-3",
+      "area": "PAPER",
+      "severity": "HIGH",
+      "title": "Kernel trusts caller-supplied market, specification and time",
+      "disposition": "RECORDED",
+      "note": "Latent; pin specs, require truth marks, bound time before Phase 5"
+    },
+    {
+      "id": "P-4",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Schedule guards trust the host clock",
+      "disposition": "RECORDED",
+      "note": "Clock bound per run in a superseding preregistration"
+    },
+    {
+      "id": "P-5",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Provider-finality failure aborted the whole run instead of recording a missed bar",
+      "disposition": "FIXED",
+      "note": "Unprovable bar is a missed bar with a durable reason"
+    },
+    {
+      "id": "P-6",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Missed and failed nights left no INCOMPLETE receipt",
+      "disposition": "FIXED",
+      "note": "One receipt per started night; failures and refused PASS record INCOMPLETE"
+    },
+    {
+      "id": "P-7",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Manual scheduled start inside the 15 s window counts as genuine",
+      "disposition": "RECORDED",
+      "note": "Bind to a task-issued token or accept in the requirement"
+    },
+    {
+      "id": "P-8",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Undispatched reservation never released",
+      "disposition": "RECORDED",
+      "note": "Kernel change; before Phase 5"
+    },
+    {
+      "id": "P-9",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Invalid truth makes reconciliation raise forever, unjournaled",
+      "disposition": "RECORDED",
+      "note": "Quarantine and correction fact; before Phase 5"
+    },
+    {
+      "id": "P-10",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Day roll needs an exact-midnight clock and has no production caller",
+      "disposition": "RECORDED",
+      "note": "Before any campaign with exposure"
+    },
+    {
+      "id": "P-11",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Writer fencing covers dispatch only",
+      "disposition": "RECORDED",
+      "note": "Before Phase 5"
+    },
+    {
+      "id": "P-12",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "Runtime role can rewrite most account state; cursor guard only requires an increase",
+      "disposition": "RECORDED",
+      "note": "New migration with transition triggers; before Phase 5"
+    },
+    {
+      "id": "P-13",
+      "area": "PAPER",
+      "severity": "MEDIUM",
+      "title": "No real ledger-mismatch measurement",
+      "disposition": "RECORDED",
+      "note": "Before claiming mismatch evidence"
+    },
+    {
+      "id": "P-14",
+      "area": "PAPER",
+      "severity": "LOW",
+      "title": "Dust close blocked by minimums; withdrawals loosen percentage caps; weaker DB uniqueness; no spread gate",
+      "disposition": "RECORDED",
+      "note": "Kernel refinements"
+    },
+    {
+      "id": "P-15",
+      "area": "PAPER",
+      "severity": "LOW",
+      "title": "Database role separation exists only inside the database; one Windows user holds all passwords",
+      "disposition": "RECORDED",
+      "note": "Residual of a single-user host"
+    },
+    {
+      "id": "G-1",
+      "area": "Gateway",
+      "severity": "MEDIUM",
+      "title": "Offline permit compared an attestation with itself; self-issued in shape",
+      "disposition": "FIXED",
+      "note": "Compares against an independent pin; AST test keeps the permit unwired"
+    },
+    {
+      "id": "G-2",
+      "area": "Gateway",
+      "severity": "MEDIUM",
+      "title": "Identity drift masked and unjournaled above K1; shutdown raised at K2+",
+      "disposition": "FIXED",
+      "note": "Journals at the current level; original error propagates"
+    },
+    {
+      "id": "G-3",
+      "area": "Gateway",
+      "severity": "MEDIUM",
+      "title": "Every reconnect forced UNKNOWN on healthy working orders",
+      "disposition": "FIXED",
+      "note": "Only unresolved attempts marked UNKNOWN before the query"
+    },
+    {
+      "id": "G-4",
+      "area": "Gateway",
+      "severity": "LOW",
+      "title": "Dispatch reported UNKNOWN when nothing was attempted",
+      "disposition": "FIXED",
+      "note": "NOT_ATTEMPTED outcome"
+    },
+    {
+      "id": "G-5",
+      "area": "Gateway",
+      "severity": "LOW",
+      "title": "Frame MAC has no direction binding; child has no idle timeout or OS containment",
+      "disposition": "RECORDED",
+      "note": "Before any non-test launcher exists"
+    },
+    {
+      "id": "G-6",
+      "area": "Gateway",
+      "severity": "LOW",
+      "title": "A WITHDRAW verb exists in the action enum (denied everywhere)",
+      "disposition": "FIXED",
+      "note": "Test proves no handler exists; member kept so it can be refused"
+    },
+    {
+      "id": "T-1",
+      "area": "Terminal",
+      "severity": "MEDIUM",
+      "title": "Journal kinds mapped wrongly: kills, loss latches and unknown orders shown as other events",
+      "disposition": "FIXED",
+      "note": "Closed mapping over every stored kind"
+    },
+    {
+      "id": "T-2",
+      "area": "Terminal",
+      "severity": "MEDIUM",
+      "title": "Hard-coded governance claims served as live data ('observation active')",
+      "disposition": "FIXED",
+      "note": "Labelled static summary; operational status UNKNOWN"
+    },
+    {
+      "id": "T-3",
+      "area": "Terminal",
+      "severity": "MEDIUM",
+      "title": "Mode label accepted LIVE from the environment",
+      "disposition": "FIXED",
+      "note": "Later modes refused at startup"
+    },
+    {
+      "id": "T-4",
+      "area": "Terminal",
+      "severity": "MEDIUM",
+      "title": "Safety state not continuously visible; retained data kept AVAILABLE labels; failures collapsed",
+      "disposition": "FIXED",
+      "note": "Sticky safety bar, stale band, distinct failure states"
+    },
+    {
+      "id": "T-5",
+      "area": "Terminal",
+      "severity": "LOW",
+      "title": "Snapshot all-or-nothing; constant-only error log; stale version field; missing isolation headers",
+      "disposition": "FIXED",
+      "note": "Per-view guard, class-only logging, headers, version field"
+    },
+    {
+      "id": "T-6",
+      "area": "Terminal",
+      "severity": "LOW",
+      "title": "Frontend validator tested against one all-unknown fixture only",
+      "disposition": "FIXED",
+      "note": "Schema-walking contract tests and a populated fixture"
+    },
+    {
+      "id": "T-7",
+      "area": "Terminal",
+      "severity": "INFO",
+      "title": "No desktop, Android or voice client; no passkeys, sessions or step-up; not connected to operational data",
+      "disposition": "NO_CHANGE",
+      "note": "Phase 7 scope that is not built; stated in STATUS"
+    },
+    {
+      "id": "OI-1",
+      "area": "Open interest",
+      "severity": "HIGH",
+      "title": "Daily job abort at 19:00 UTC: store recomputed a different feature reason for non-adjacent slots",
+      "disposition": "FIXED",
+      "note": "Store recomputes from its own checkpoint; per-symbol isolation with durable record"
+    },
+    {
+      "id": "OI-2",
+      "area": "Open interest",
+      "severity": "HIGH",
+      "title": "One transient transport failure blocked every later run permanently",
+      "disposition": "FIXED",
+      "note": "Failed attempts completed; unknown outcome blocks only its slot"
+    },
+    {
+      "id": "OI-3",
+      "area": "Open interest",
+      "severity": "MEDIUM",
+      "title": "Study evaluation trusted a caller-supplied time",
+      "disposition": "FIXED",
+      "note": "Final result needs records through the end of the window"
+    },
+    {
+      "id": "OI-4",
+      "area": "Open interest",
+      "severity": "MEDIUM",
+      "title": "Genuineness is a caller-asserted label; START acceptance is a same-party digest",
+      "disposition": "RECORDED",
+      "note": "Needs a reviewed evaluation entry point and a pinned or signed acceptance"
+    },
+    {
+      "id": "OI-5",
+      "area": "Open interest",
+      "severity": "MEDIUM",
+      "title": "Clock and build gates invoked git and w32tm by bare name; untracked files invisible",
+      "disposition": "FIXED",
+      "note": "System-directory w32tm, absolute git outside the checkout, untracked refused, isolated child"
+    },
+    {
+      "id": "OI-6",
+      "area": "Open interest",
+      "severity": "MEDIUM",
+      "title": "Build gate hashed the source tree without proving it is the imported package",
+      "disposition": "FIXED",
+      "note": "Imported package proven byte-identical to the hashed tree"
+    },
+    {
+      "id": "OI-7",
+      "area": "Open interest",
+      "severity": "LOW",
+      "title": "Subprocess failures escaped the redaction boundary; inadmissible targets raised",
+      "disposition": "FIXED",
+      "note": "Redaction boundary covers subprocess errors; inadmissible targets unscored"
+    },
+    {
+      "id": "OI-8",
+      "area": "Open interest",
+      "severity": "LOW",
+      "title": "Test helper accepted the production runtime port",
+      "disposition": "FIXED",
+      "note": "Production runtime port refused outside CI"
+    },
+    {
+      "id": "OI-9",
+      "area": "Open interest",
+      "severity": "LOW",
+      "title": "No durable gap record for missed slots; clock gate may refuse a synchronised stock host",
+      "disposition": "RECORDED",
+      "note": "Before START"
+    },
+    {
+      "id": "DB-1",
+      "area": "Database",
+      "severity": "MEDIUM",
+      "title": "PostgreSQL tests run as cluster superuser on the fixed port shared with the operational cluster",
+      "disposition": "RECORDED",
+      "note": "Local guard added; full test-port isolation needs a design change in identity attestation"
+    },
+    {
+      "id": "DB-2",
+      "area": "Database",
+      "severity": "MEDIUM",
+      "title": "Test database name unvalidated; a ledger fixture writes permanent rows",
+      "disposition": "RECORDED",
+      "note": "Validate names and give the fixture its own database"
+    },
+    {
+      "id": "DB-3",
+      "area": "Database",
+      "severity": "MEDIUM",
+      "title": "No real backup: no schedule, no roles dump, unencrypted, same disk",
+      "disposition": "OWNER",
+      "note": "Runbook written; off-device encrypted backup is an owner gate"
+    },
+    {
+      "id": "DB-4",
+      "area": "Database",
+      "severity": "LOW",
+      "title": "Local tool could start a second cluster on the operational port",
+      "disposition": "FIXED",
+      "note": "Port-ownership guard and explicit --create"
+    },
+    {
+      "id": "DB-5",
+      "area": "Database",
+      "severity": "LOW",
+      "title": "Role passwords sent as SQL literals may reach server logs on failure",
+      "disposition": "RECORDED",
+      "note": "Send a SCRAM verifier instead"
+    },
+    {
+      "id": "CI-1",
+      "area": "CI",
+      "severity": "MEDIUM",
+      "title": "Merged main never tested; push triggers listed only old branches",
+      "disposition": "FIXED",
+      "note": "CI runs on push to main, on pull requests and weekly"
+    },
+    {
+      "id": "CI-2",
+      "area": "CI",
+      "severity": "MEDIUM",
+      "title": "No history secret scan in CI on a public repository",
+      "disposition": "FIXED",
+      "note": "Checksum-pinned Gitleaks over full history"
+    },
+    {
+      "id": "CI-3",
+      "area": "CI",
+      "severity": "MEDIUM",
+      "title": "No Windows job: native security proofs and Windows-only pins never ran in CI",
+      "disposition": "FIXED",
+      "note": "windows-2025 job: 2260 native and unit tests, Windows pin audit"
+    },
+    {
+      "id": "CI-4",
+      "area": "CI",
+      "severity": "LOW",
+      "title": "Type checking covers src and migrations only; action pins target a deprecated Node runtime",
+      "disposition": "RECORDED",
+      "note": "Extend typing to tools and tests; refresh action pins deliberately"
+    },
+    {
+      "id": "CI-5",
+      "area": "CI",
+      "severity": "INFO",
+      "title": "No branch protection or rulesets",
+      "disposition": "OWNER",
+      "note": "Required before Phase 8"
+    },
+    {
+      "id": "SC-1",
+      "area": "Supply chain",
+      "severity": "LOW",
+      "title": "Inventory and SBOM stale and missing the Windows-only pins",
+      "disposition": "FIXED",
+      "note": "Both generated from the lock; test binds them to it"
+    },
+    {
+      "id": "SC-2",
+      "area": "Supply chain",
+      "severity": "LOW",
+      "title": "Third-party notices had corrupted fences and understated two licences",
+      "disposition": "FIXED",
+      "note": ""
+    },
+    {
+      "id": "SC-3",
+      "area": "Supply chain",
+      "severity": "LOW",
+      "title": "Provider SDK and NumPy are main dependencies, so every Windows install carries the SDK",
+      "disposition": "RECORDED",
+      "note": "Move to an optional group with a lock regeneration under the pinned uv"
+    },
+    {
+      "id": "SC-4",
+      "area": "Supply chain",
+      "severity": "LOW",
+      "title": "A transitive package imported directly",
+      "disposition": "FIXED",
+      "note": "Response imported from FastAPI"
+    },
+    {
+      "id": "DOC-1",
+      "area": "Documentation",
+      "severity": "HIGH",
+      "title": "Ten files carried stacked, mutually contradictory 'current status' blocks",
+      "disposition": "FIXED",
+      "note": "One STATUS document; verbatim history log; guard in the docs check"
+    },
+    {
+      "id": "DOC-2",
+      "area": "Documentation",
+      "severity": "MEDIUM",
+      "title": "No runbooks for verification, checkouts, clock, backup, break-glass, release, rights or local state",
+      "disposition": "FIXED",
+      "note": "Ten runbooks"
+    },
+    {
+      "id": "DOC-3",
+      "area": "Documentation",
+      "severity": "MEDIUM",
+      "title": "Architecture diagram edges could be read as a client creating candidates or policy",
+      "disposition": "FIXED",
+      "note": "Labelled hierarchy plus authority, data and broker diagrams"
+    },
+    {
+      "id": "DOC-4",
+      "area": "Documentation",
+      "severity": "LOW",
+      "title": "ADR index broken into fragments with stale statuses; decisions register overtaken",
+      "disposition": "FIXED",
+      "note": ""
+    },
+    {
+      "id": "DOC-5",
+      "area": "Documentation",
+      "severity": "LOW",
+      "title": "Requirement families OB, OI, D3 and M5 and ADRs 023-031 absent from the requirements register",
+      "disposition": "FIXED",
+      "note": "Register amendment added"
+    }
+  ]
+}

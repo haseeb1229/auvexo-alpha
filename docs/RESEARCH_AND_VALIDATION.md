@@ -111,6 +111,9 @@ require prospective frozen-model paper/shadow evaluation before any promotion cl
 
 ## Phase 3 first-prompt requirements under ADR-013
 
+This section was written before Phase 3 and is kept as the requirement that Phase 3
+then implemented; see [Phase 3 implementation](phase3/IMPLEMENTATION.md).
+
 No simulator is implemented by this amendment. The first implementation prompt must build
 correctness before alpha claims: a deterministic event-driven simulator with common intent/
 accounting semantics, hand-calculated fixtures and selected independent reference/mature-engine

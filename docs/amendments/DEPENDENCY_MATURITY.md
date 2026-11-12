@@ -1,5 +1,8 @@
 # Current-lock dependency maturity exception
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Recorded 2026-10-17 under R-018-BA-01 / ADR-013; independent amendment review pending.
 Owner preference remains mature/supported software, not novelty. The current exact tested
 `pyproject.toml`, `uv.lock`, `requirements-audit.txt`, inventories/SBOM and notices are retained.

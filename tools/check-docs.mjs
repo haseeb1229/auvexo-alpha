@@ -47,6 +47,8 @@ const required = [
   'docs/phase4/OBSERVATION_ACCEPTANCE.md', 'docs/phase4/OBSERVATION_RUNBOOK.md',
   'docs/reviews/PHASE_4_CHECKPOINT_A_INDEPENDENT_ACCEPTANCE.md',
   'docs/reference/PHASE_4_CHECKPOINT_B_BRIEF.txt',
+  'docs/STATUS.md', 'docs/runbooks/README.md', 'docs/history/README.md',
+  'docs/history/status-blocks-2026-11.txt', 'docs/history/legacy-status-paragraphs.txt',
 ];
 for (const path of required) check(existsSync(resolve(root, path)), `Missing: ${path}`);
 if (errors.length) {
@@ -75,6 +77,15 @@ check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHA
 
 check(createHash('sha256').update(readFileSync(resolve(root, 'docs/reference/PHASE_2_BRIEF.txt'))).digest('hex') === 'f730821f0bc78faf90cb598579b1c1e93109c3d9b59bdda6b2395300062a85a5', 'Archived Phase 2 brief hash changed');
 
+// The removed status stacks are preserved verbatim; the log is a record, never edited.
+for (const [path, expected] of [
+  ['docs/history/status-blocks-2026-11.txt', '5075e39cdb12a6d6a2575f645ae09b692a87fc86ea994281c42adf747d77ecaa'],
+  ['docs/history/legacy-status-paragraphs.txt', 'f83566e5fda7e6346df9e08c36697557885f42e5a826bd23ce806826f3ddce8e'],
+]) {
+  check(createHash('sha256').update(readFileSync(resolve(root, path))).digest('hex') === expected,
+    `Status history log changed; it is a verbatim record: ${path}`);
+}
+
 const files = [];
 function walk(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -93,6 +104,8 @@ for (const path of markdown) {
   check(!content.includes('\uFFFD'), `Invalid UTF-8 replacement character: ${path}`);
   check(!/\b(?:TBD|FIXME|PLACEHOLDER)\b/.test(content.replaceAll('TODO/FIXME', 'tracked-work')), `Unresolved placeholder: ${path}`);
   check((content.match(/^```/gm) ?? []).length % 2 === 0, `Unbalanced code fence: ${path}`);
+  // docs/STATUS.md is the only current-status statement; dated status stacks must not return.
+  check(!/^## CURRENT (IMPLEMENTATION )?STATUS/m.test(content), `Stacked status block; use docs/STATUS.md: ${path}`);
   for (const match of content.matchAll(/\[[^\]\n]+\]\(([^)\n]+)\)/g)) {
     const target = match[1].replace(/^<|>$/g, '').split('#')[0];
     if (!target || /^[a-z]+:/i.test(target)) continue;

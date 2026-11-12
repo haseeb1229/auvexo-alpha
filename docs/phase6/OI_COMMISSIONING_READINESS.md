@@ -1,5 +1,8 @@
 # PR #10 commissioning-readiness correction
 
+> Dated record. Status lines below describe the day this was written; the current
+> state is in [STATUS](../STATUS.md).
+
 Status: engineering changes for independent exact-SHA review; no acceptance, merge,
 commissioning or collection authority. The founder's 2026-10-29 engineering resume
 separates deterministic engineering verification from the unresolved native clock gate.

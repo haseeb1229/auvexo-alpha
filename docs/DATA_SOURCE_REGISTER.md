@@ -1,6 +1,7 @@
 # Data source register
 
-Status: PROVISIONAL provider candidates; no credentials, signups or feeds connected in Phase 0.
+Status: PROVISIONAL provider candidates. DS-01 and DS-02 are implemented for personal
+nonproduction research; DS-04 is accepted only for its A1 scope; nothing else is connected.
 Sources inspected 2026-10-15. Access terms, region, API limits, history depth and account product
 availability must be verified at integration. Public documentation is not an access entitlement.
 
@@ -42,9 +43,17 @@ Current DS-01/02 rights, endpoints, limits, hashes and expiry are recorded in
 [sources and rights](phase2/SOURCES_AND_RIGHTS.md); implemented access is restricted
 to personal nonproduction research. Vision dataset terms take precedence over the
 repository README code-license label. No future live-use license is inferred.
-DS-03 remains externally blocked pending owner-side demo prerequisites; spot cannot
+DS-03 has read-only adapter code but no account, no accepted rights and no
+qualification; its source rights are unresolved
+([ADR-030](adr/030-ds03-adapter-independent-review-corrections.md)). Spot cannot
 substitute for broker CFD prices/specs/history. Actual provider evidence is in
 [verification](phase2/VERIFICATION.md).
+
+DS-04 is accepted only as DS-04-A1, the current open-interest snapshot for BTCUSDT
+and ETHUSDT ([ADR-026](adr/026-ds04-open-interest-intelligence.md),
+[rights](phase6/SOURCES_AND_RIGHTS.md)); no collection has started. Review dates for
+every source and the renewal procedure are in the
+[rights review runbook](runbooks/RIGHTS_REVIEW.md).
 
 [ADR-013](adr/013-source-specific-acceptance.md) requires source-specific research admission
 and future typed experiment/release data-use classification. DS-01/02 selected spot evidence
