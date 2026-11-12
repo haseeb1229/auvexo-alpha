@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 from uuid import uuid4
 
@@ -21,10 +22,15 @@ def connection_args(role: str = "admin") -> dict[str, object]:
     password = os.environ.get(f"TEST_PG_{role.upper()}_PASSWORD", secrets.get(role))
     if not password:
         pytest.fail("Real PostgreSQL setup required; run tools/local_db.py start and migrate")
+    database = os.environ.get("TEST_PG_DATABASE", "auvexo_test")
+    # These tests write, and some rows are append-only. A mis-set variable must never point
+    # them at a development or operational database on the same cluster.
+    if not re.fullmatch(r"auvexo_test(_[a-z0-9]{1,32})?", database):
+        pytest.fail("TEST_PG_DATABASE must name a disposable auvexo_test database")
     return dict(
         host="127.0.0.1",
         port=int(os.environ.get("TEST_PG_PORT", "55432")),
-        dbname=os.environ.get("TEST_PG_DATABASE", "auvexo_test"),
+        dbname=database,
         user=f"auvexo_{role}",
         password=password,
         connect_timeout=3,
