@@ -376,7 +376,8 @@ def test_offline_disconnect_and_failed_protection_require_owner_recovery(offline
     b, store, truth, epoch = offline_core
     execution, transport = coordinator(b, store, truth)
     transport.connected = False
-    assert submit(b, execution, epoch).outcome == "UNKNOWN"
+    # Attestation is unavailable before any claim: nothing was attempted (review G-4).
+    assert submit(b, execution, epoch).outcome == "NOT_ATTEMPTED"
     assert not execution.reconnect(b.account.account_ref, epoch=epoch, now=b.now)
     assert transport.sent == []
     execution.failed_protection(b.account.account_ref, now=b.now)
@@ -386,9 +387,11 @@ def test_offline_disconnect_and_failed_protection_require_owner_recovery(offline
     assert store.outbox(b.intent.content_hash())["attempts"] == 0
     assert execution.reconnect(b.account.account_ref, epoch=epoch, now=b.now)
     assert store.account(b.account.account_ref).kill == KillLevel.K4
-    with pytest.raises(ValueError, match="EXPLICIT_OWNER_RESUME_REQUIRED"):
-        execution.shutdown(b.account.account_ref, now=b.now)
+    # Shutdown above K1 journals at the current level and never lowers it (review G-2).
+    execution.shutdown(b.account.account_ref, now=b.now)
     assert store.account(b.account.account_ref).kill == KillLevel.K4
+    with pytest.raises(ValueError, match="OFFLINE_RECONCILIATION_REQUIRED"):
+        submit(b, execution, epoch)
 
 
 def test_offline_unexpected_transport_corruption_propagates_and_restart_never_resends(offline_core):

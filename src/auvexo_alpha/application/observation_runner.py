@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from threading import Event
 from typing import Literal, cast
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from auvexo_alpha.application.observation_ports import (
     CausalPaperSimulatorPort,
@@ -37,6 +39,8 @@ from auvexo_alpha.domain.observation import (
 )
 from auvexo_alpha.domain.paper_lifecycle import KillLevel
 
+_STABLE_CODE = re.compile(r"[A-Z][A-Z0-9_]{2,63}")
+
 
 def resource_actions(resource: ObservationResources, *, healthy: bool) -> tuple[str, ...]:
     actions = tuple(
@@ -46,6 +50,29 @@ def resource_actions(resource: ObservationResources, *, healthy: bool) -> tuple[
     if not healthy and "PAUSE_NEW_ENTRIES" not in actions:
         actions += ("PAUSE_NEW_ENTRIES",)
     return actions
+
+
+def failure_reason(error: Exception) -> str:
+    """Receipt label for a failed run: the type and a project code, never exception text.
+
+    Arbitrary messages can hold local paths, SQL or credential context, so only a bare
+    UPPER_SNAKE code is carried. A non-empty reason can only make a date INCOMPLETE.
+    """
+    code = str(error)
+    suffix = "." + code if _STABLE_CODE.fullmatch(code) else ""
+    return ("observation.run.failed." + type(error).__name__ + suffix)[:96]
+
+
+@dataclass
+class _Progress:
+    """Run facts that the final receipt binds, kept where a failure path can read them."""
+
+    fenced: bool = False
+    recovery_pending: tuple[str, ...] = ()
+    samples: list[ObservationResources] = field(default_factory=list)
+    feed_failed: bool = False
+    feed_gap: bool = False
+    research_pause_unconfirmed: bool = False
 
 
 class ObservationRunner:
@@ -82,30 +109,43 @@ class ObservationRunner:
         self.observations.verify_schema()
         # Server activation/schema/window checks happen before any feed or writer action.
         run_id = self.observations.begin(self.config.content_hash(), kind=kind, now=now)
+        progress = _Progress()
+        try:
+            self._observe(run_id, now, progress)
+            return self._close(run_id, kind, progress, ())
+        except Exception as error:
+            # A started date gets exactly one further close, carrying the failure as a
+            # reason that can only evaluate INCOMPLETE. The original error still propagates;
+            # if this close fails too, that failure surfaces with the original as context.
+            self._close(run_id, kind, progress, (failure_reason(error),))
+            raise
+
+    def _observe(self, run_id: UUID, now: datetime, progress: _Progress) -> None:
         started_at = utc_time(self.observations.started_run(run_id).started_at)
         window_start, window_end = observation_window(started_at.date())
         release = self.observations.pinned_release(self.config)
         epoch = self.paper.acquire_writer(self.config.account_ref, now=now)
-        recovery_pending = self.simulator.recover_pending(
+        progress.fenced = True
+        progress.recovery_pending = self.simulator.recover_pending(
             self.config.account_ref, epoch=epoch, now=now
         )
         self.paper.reconcile(self.config.account_ref, now=now)
         self.feed.require_ready(self.config, now=now)
-        samples: list[ObservationResources] = []
         paired: dict[datetime, dict[str, ObservationFact]] = {}
         planned: set[str] = set()
-        feed_failed = False
-        feed_gap = False
-        research_pause_unconfirmed = False
         previous_pair: datetime | None = None
-        while not feed_failed and not self.cancel.is_set() and utc_time(self.clock()) < window_end:
+        while (
+            not progress.feed_failed
+            and not self.cancel.is_set()
+            and utc_time(self.clock()) < window_end
+        ):
             for symbol in OBSERVATION_SYMBOLS:
                 try:
                     fact = self.feed.next_observation(
                         cast(Symbol, symbol), window_start=window_start, window_end=window_end
                     )
                 except ObservationSourceUnavailable:
-                    feed_failed = True
+                    progress.feed_failed = True
                     break
                 if fact is None:
                     continue
@@ -137,7 +177,7 @@ class ObservationRunner:
                     and (fact.candle.end_at - previous_pair).total_seconds()
                     > self.config.max_gap_seconds
                 ):
-                    feed_gap = True
+                    progress.feed_gap = True
                     current = self.paper.account(self.config.account_ref)
                     self.paper.set_kill(
                         self.config.account_ref,
@@ -147,7 +187,7 @@ class ObservationRunner:
                     )
                 previous_pair = fact.candle.end_at
                 resource = self.resources(now)
-                samples.append(resource)
+                progress.samples.append(resource)
                 account = self.paper.account(self.config.account_ref)
                 actions = resource_actions(
                     resource, healthy=account.journal_healthy and not account.unknown_orders
@@ -157,7 +197,7 @@ class ObservationRunner:
                         self.pause_optional_research is None
                         or self.pause_optional_research() is not True
                     ):
-                        research_pause_unconfirmed = True
+                        progress.research_pause_unconfirmed = True
                         actions += ("PAUSE_NEW_ENTRIES",)
                 if "PAUSE_NEW_ENTRIES" in actions:
                     self.paper.set_kill(
@@ -208,8 +248,22 @@ class ObservationRunner:
                     if submission.decision.status == "APPROVED":
                         self.simulator.accept(intent, submission, paired_fact, epoch=epoch, now=now)
             self.cancel.wait(1)
+
+    def _close(
+        self,
+        run_id: UUID,
+        kind: Literal["PREFLIGHT", "SCHEDULED"],
+        progress: _Progress,
+        failure: tuple[str, ...],
+    ) -> ObservationDayReceipt:
+        """Bind current reconciled state into one receipt; any `failure` forces INCOMPLETE."""
         now = utc_time(self.clock())
-        self.paper.reconcile(self.config.account_ref, now=now)
+        if progress.fenced:
+            # Without this run's writer fence nothing is reconciled on its behalf; the
+            # store then refuses a closure that is not the current reconciled state.
+            self.paper.reconcile(self.config.account_ref, now=now)
+        started_at = utc_time(self.observations.started_run(run_id).started_at)
+        window_start, _ = observation_window(started_at.date())
         state = self.observations.run_snapshot(run_id)
         evidence = ObservationRunEvidence(
             run_id=run_id,
@@ -231,10 +285,15 @@ class ObservationRunner:
             fill_hashes=state.fill_hashes,
             unknown_order_refs=state.unknown_order_refs,
             mismatch_refs=state.mismatch_refs,
-            operational_reasons=tuple("recovery.pending." + ih for ih in recovery_pending)
-            + (("observation.feed.unavailable",) if feed_failed else ())
-            + (("observation.feed.gap",) if feed_gap else ())
-            + (("observation.research.pause_unconfirmed",) if research_pause_unconfirmed else ()),
-            resource_snapshots=tuple(samples),
+            operational_reasons=tuple("recovery.pending." + ih for ih in progress.recovery_pending)
+            + (("observation.feed.unavailable",) if progress.feed_failed else ())
+            + (("observation.feed.gap",) if progress.feed_gap else ())
+            + (
+                ("observation.research.pause_unconfirmed",)
+                if progress.research_pause_unconfirmed
+                else ()
+            )
+            + failure,
+            resource_snapshots=tuple(progress.samples),
         )
         return self.observations.close(run_id, evidence, now=now)

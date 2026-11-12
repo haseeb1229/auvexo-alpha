@@ -436,6 +436,7 @@ def validate_offline_permit(
     permit: OfflineDemoPermit | None,
     *,
     account: AccountAttestation,
+    expected_account: AccountAttestation,
     mode: Mode,
     instrument_id: str,
     venue: Venue,
@@ -449,14 +450,19 @@ def validate_offline_permit(
     revocation_epoch: int,
     expected_hash: str,
 ) -> bool:
-    """Check inert design bounds only; result cannot authorize any transport or risk bypass."""
+    """Check inert design bounds only; result cannot authorize any transport or risk bypass.
+
+    `expected_account` and `expected_hash` are comparison pins a caller must hold
+    independently of the observed `account` and of `permit`. Nothing here issues, signs
+    or stores either one, so a True result is a shape check and never an authorization.
+    """
     if permit is None:
         return False
     try:
         permit = OfflineDemoPermit.model_validate_json(permit.canonical_bytes())
         account = AccountAttestation.model_validate_json(account.canonical_bytes())
         now = utc_time(now)
-        require_attestation(account, account, mode=Mode.DEMO, now=now)
+        require_attestation(account, expected_account, mode=Mode.DEMO, now=now)
         notional, modeled_loss = exact_decimal(notional), exact_decimal(modeled_loss)
         return (
             mode == Mode.DEMO

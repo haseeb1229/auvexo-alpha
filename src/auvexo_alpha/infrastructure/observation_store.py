@@ -8,7 +8,8 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import Engine, text
+from sqlalchemy import Connection, Engine, text
+from sqlalchemy.exc import DBAPIError
 
 from auvexo_alpha.application.observation_ports import ObservationRunStart, ObservationSnapshot
 from auvexo_alpha.application.observation_replay import replay_observation_traces
@@ -36,6 +37,31 @@ from auvexo_alpha.infrastructure.paper_store import PaperStore
 from auvexo_alpha.infrastructure.paper_truth import canonical_payload, digest, truth_rows
 from auvexo_alpha.infrastructure.source_registry import identity, rights
 from auvexo_alpha.infrastructure.spot_parser import parse_rest
+
+# The only refusals `observation_guard_receipt` raises for a PASS disposition alone.
+PASS_REFUSALS = ("OBSERVATION_FINAL_STATE_OR_WINDOW_DENIED", "OBSERVATION_SOURCE_COVERAGE_DENIED")
+
+
+def receipt_refusal_code(error: DBAPIError) -> str | None:
+    """Name a database PASS refusal; any other database failure is not one and propagates."""
+    cause = error.orig
+    message = getattr(getattr(cause, "diag", None), "message_primary", None)
+    if getattr(cause, "sqlstate", None) != "P0001" or message not in PASS_REFUSALS:
+        return None
+    return str(message)
+
+
+def refused_evidence(evidence: ObservationRunEvidence, code: str) -> ObservationRunEvidence:
+    """Bind a refused PASS into the evidence; any operational reason evaluates INCOMPLETE."""
+    if code not in PASS_REFUSALS:
+        raise ValueError("OBSERVATION_RECEIPT_REFUSAL_UNKNOWN")
+    return ObservationRunEvidence.model_validate(
+        evidence.model_dump()
+        | {
+            "operational_reasons": evidence.operational_reasons
+            + ("observation.receipt.refused." + code,)
+        }
+    )
 
 
 class ObservationStore:
@@ -154,6 +180,15 @@ class ObservationStore:
         config.rights.require_research(utc_time(now))
         if config.rights != rights("DS-02") or config.source != identity("DS-02"):
             raise ValueError("OBSERVATION_CURRENT_SOURCE_RIGHTS_MISMATCH")
+
+    @staticmethod
+    def _rights_when_recorded(config: ObservationConfig, recorded_at: datetime) -> None:
+        """Judge a stored receipt by the campaign's pinned record at its own recorded instant.
+
+        Neither the current time nor the current registry is consulted: reading history
+        cannot extend, renew or infer rights, and later expiry cannot erase earned dates.
+        """
+        config.rights.require_research(utc_time(recorded_at))
 
     def config(self, config_hash: str) -> ObservationConfig:
         with self.engine.connect() as conn:
@@ -613,11 +648,32 @@ class ObservationStore:
         }
 
     def verify(
-        self, run_id: UUID | str, evidence: ObservationRunEvidence, *, now: datetime
+        self,
+        run_id: UUID | str,
+        evidence: ObservationRunEvidence,
+        *,
+        now: datetime,
+        recorded_at: datetime | None = None,
     ) -> ObservationVerification:
+        """Replay one run; `recorded_at` is only the database time of its stored receipt."""
         run = self.run(run_id)
         config = self.config(str(run["campaign_hash"]))
-        self._rights(config, now)
+        if recorded_at is None:
+            # Closing or re-verifying a run now still requires currently valid rights.
+            self._rights(config, now)
+        else:
+            self._rights_when_recorded(config, recorded_at)
+        return self._replay(run_id, run, config, evidence, now=now)
+
+    def _replay(
+        self,
+        run_id: UUID | str,
+        run: dict[str, Any],
+        config: ObservationConfig,
+        evidence: ObservationRunEvidence,
+        *,
+        now: datetime,
+    ) -> ObservationVerification:
         if (
             str(evidence.run_id) != str(run_id)
             or evidence.campaign_id != config.campaign_id
@@ -765,25 +821,53 @@ class ObservationStore:
             witness = self.verify(run_id, evidence, now=now)
             receipt = evaluate_observation_day(config, evidence, witness, now=now)
             disposition = receipt.status if run["kind"] == "SCHEDULED" else "NON_COUNTING"
-            envelope = canonical_payload(
-                {"receipt": receipt, "evidence": evidence, "verification": witness}
-            )
-            conn.execute(
-                text(
-                    "INSERT INTO paper_observation_receipt "
-                    "(receipt_hash,run_id,campaign_hash,local_date,disposition,payload) "
-                    "VALUES (:h,:run,:c,:day,:d,:p)"
-                ),
-                {
-                    "h": receipt.content_hash(),
-                    "run": str(run_id),
-                    "c": config.content_hash(),
-                    "day": run["local_date"],
-                    "d": disposition,
-                    "p": envelope,
-                },
-            )
+            if disposition == "PASS":
+                try:
+                    with conn.begin_nested():
+                        self._insert_receipt(conn, run, receipt, evidence, witness, "PASS")
+                    return receipt
+                except DBAPIError as refusal:
+                    code = receipt_refusal_code(refusal)
+                    if code is None:
+                        raise
+                # The database authority refused PASS. The date is still closed, as
+                # INCOMPLETE: the refusal is bound into the evidence, so the stored
+                # receipt replays to INCOMPLETE and can never count or be replaced.
+                evidence = refused_evidence(evidence, code)
+                witness = self.verify(run_id, evidence, now=now)
+                receipt = evaluate_observation_day(config, evidence, witness, now=now)
+                if receipt.status != "INCOMPLETE":
+                    raise ValueError("OBSERVATION_REFUSED_PASS_MUST_STAY_INCOMPLETE")
+                disposition = "INCOMPLETE"
+            self._insert_receipt(conn, run, receipt, evidence, witness, disposition)
         return receipt
+
+    @staticmethod
+    def _insert_receipt(
+        conn: Connection,
+        run: dict[str, Any],
+        receipt: ObservationDayReceipt,
+        evidence: ObservationRunEvidence,
+        witness: ObservationVerification,
+        disposition: str,
+    ) -> None:
+        conn.execute(
+            text(
+                "INSERT INTO paper_observation_receipt "
+                "(receipt_hash,run_id,campaign_hash,local_date,disposition,payload) "
+                "VALUES (:h,:run,:c,:day,:d,:p)"
+            ),
+            {
+                "h": receipt.content_hash(),
+                "run": str(run["run_id"]),
+                "c": str(run["campaign_hash"]),
+                "day": run["local_date"],
+                "d": disposition,
+                "p": canonical_payload(
+                    {"receipt": receipt, "evidence": evidence, "verification": witness}
+                ),
+            },
+        )
 
     def qualified_dates(self, config_hash: str, *, now: datetime) -> ObservationCalendarSummary:
         from auvexo_alpha.application.observation_qualification import (
@@ -831,7 +915,7 @@ class ObservationStore:
                 or row["recorded_at"] < evidence.ended_at
             ):
                 raise ValueError("OBSERVATION_RECEIPT_AUTHORITY_BINDING_MISMATCH")
-            witness = self.verify(row["run_id"], evidence, now=now)
+            witness = self.verify(row["run_id"], evidence, now=now, recorded_at=row["recorded_at"])
             from auvexo_alpha.application.observation_qualification import evaluate_observation_day
 
             expected = evaluate_observation_day(config, evidence, witness, now=row["recorded_at"])

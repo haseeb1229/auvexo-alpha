@@ -39,6 +39,15 @@ class ObservationFeed:
         self.clock = clock
         self.campaign_tag = sha256(campaign_id.encode()).hexdigest()[:16]
         self.collector = Collector(store, http, revision, enabled=True)
+        # Bar end per feed whose finality/currentness could not be proven. Provider time
+        # only moves forward, so one refused proof is final: the bar is never requested
+        # again, never retried into the bounded request budget and never counted.
+        self.missed: dict[str, datetime] = {}
+
+    def _miss(self, feed: str, end: datetime, reason: str) -> None:
+        """One durable STALE event for an unprovable bar: no fact, publication or quarantine."""
+        self.missed[feed] = end
+        self.collector.record(feed, "STALE", reason, utc_time(self.clock()))
 
     def require_ready(self, config: ObservationConfig, *, now: datetime) -> None:
         if rights("DS-02") != config.rights or identity("DS-02") != config.source:
@@ -83,6 +92,8 @@ class ObservationFeed:
             return None
         start = end - step
         feed = f"DS-02.obs.{self.campaign_tag}.{symbol}.1m"
+        if self.missed.get(feed) == end:
+            return None
         checkpoint = self.store.checkpoint(feed)
         if checkpoint is not None and checkpoint.next_open >= end:
             return None
@@ -119,12 +130,20 @@ class ObservationFeed:
                 received_at=clock_received,
                 server_at=server_at,
             )
-            if not end <= server_at < end + step:
-                raise ValueError("OBSERVATION_PROVIDER_FINALITY_OR_CURRENT_MINUTE_DENIED")
+            # The finality rule itself is unchanged. A bar it cannot prove is a missed bar,
+            # not a failed run: the provider clock payload was valid, so nothing is
+            # quarantined, no klines are requested and the 120 s gap rule judges the day.
+            if server_at < end:
+                self._miss(feed, end, "OBSERVATION_BAR_MISSED_PROVIDER_BEFORE_CLOSE")
+                return None
+            if server_at >= end + step:
+                self._miss(feed, end, "OBSERVATION_BAR_MISSED_PROVIDER_PAST_MINUTE")
+                return None
             raw = self.http.get(url, 2 * 1024 * 1024)
             received = utc_time(self.clock())
             if not start_window <= received < end_window:
-                raise ValueError("OBSERVATION_RECEIPT_OUTSIDE_WINDOW")
+                self._miss(feed, end, "OBSERVATION_BAR_MISSED_RECEIPT_OUTSIDE_WINDOW")
+                return None
             rights("DS-02").require_research(received)
             bars, report = parse_rest(raw, symbol, "1m", start, end, received, url)
             report.require_complete()
@@ -132,7 +151,8 @@ class ObservationFeed:
                 raise ValueError("OBSERVATION_CURRENT_BAR_REQUIRED")
             processed_at = utc_time(self.clock())
             if not received <= processed_at < end_window:
-                raise ValueError("OBSERVATION_PROCESSING_OUTSIDE_WINDOW")
+                self._miss(feed, end, "OBSERVATION_BAR_MISSED_PROCESSING_OUTSIDE_WINDOW")
+                return None
             bars = [
                 Candle.model_validate(
                     bar.model_dump()
