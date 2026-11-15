@@ -110,7 +110,7 @@ Local, on the final source, on 2026-11-15 (Windows, Python 3.13.16, uv 0.13.1):
 
 | Check | Result |
 | --- | --- |
-| Full suite on a disposable PostgreSQL cluster (`tools/disposable_pg.py test -q`), quiet host, 12:38 to 13:18 PKT | 3907 passed, 2 skipped (both non-Windows refusals), 0 failed; cluster destroyed, no PostgreSQL process left |
+| Full suite on a disposable PostgreSQL cluster (`tools/disposable_pg.py test -q`), quiet host | First head, 12:38 to 13:18 PKT: 3907 passed, 2 skipped, 0 failed. Final head (after the CI fixes below), 14:12 to 14:36 PKT: 3914 passed, 2 skipped (both non-Windows refusals), 0 failed; cluster destroyed, no PostgreSQL process left |
 | `ruff format --check`, `ruff check` (src, tests, tools, migrations) | 236 files formatted; no findings |
 | `mypy`, `mypy --platform linux` | no issues in 141 files each |
 | `node tools/check-docs.mjs` | PASS |
@@ -118,4 +118,30 @@ Local, on the final source, on 2026-11-15 (Windows, Python 3.13.16, uv 0.13.1):
 | Two-symbol runner test with a concurrent full unit suite | Passed once without load. Under load it once hit the 2 s statement timeout (fails closed with one INCOMPLETE receipt), and once, during the fixes, ended at K1 with the cause not captured. |
 | `tools/verify_observation_recovery.py` | Refuses until 2026-11-16 00:00 UTC by design (previous-day synthetic window precedes the rights renewal); not in CI. |
 
-Exact-head CI runs are recorded in STATUS by the follow-up change after merge.
+Hosted CI on the first head (`5a1c892`, run 43693991237) failed in two places, both
+fixed in the next commit:
+
+- **Linux, 1 of 3909 tests.** `test_committed_file_must_be_bounded_strict_and_exact[deep]`:
+  on Linux the standard JSON scanner admits 5000 levels of nesting (on Windows it hits
+  its limit), so the input reached the strict model, whose refusal carried pydantic's
+  message instead of the closed code `OI_START_ACCEPTANCE_INVALID`. Still a refusal, but
+  not the closed one. The model's validation error now maps to the closed code, and a
+  well-formed wrong-schema case tests that path on every platform.
+- **Windows dependency audit.** CVE-2026-126360 in `opentelemetry-api` 1.45.1, published
+  after the lock review; scoped upgrade to 1.45.2, recorded in the
+  [lock review addendum](DEPENDENCY_LOCK_MATURITY_REVIEW_2026-11-13.md).
+
+The local rerun on the new lock then failed
+`test_disposable_pg.py::test_create_then_destroy_leaves_no_process_port_or_directory`, which
+an implementer had seen once before and called a timing flake. Ten repeated runs failed
+six times, so it was investigated rather than retried. On this host the Windows TCP table
+reported a running cluster's listening socket, which has no remote endpoint, as
+FIN_WAIT1, CLOSE, NONE or LISTEN from one snapshot to the next (also visible in
+`netstat`). `port_bound` counted only LISTEN and NONE, so it could miss a live listener.
+That also weakened the guard that refuses to start a cluster on an occupied port. It now
+counts any socket on the port with no remote endpoint, whatever its reported state, and a
+connected socket only in a listening state, so it can only over-count. Unit tests cover
+each observed state; the same test then passed ten runs out of ten.
+
+Exact-head CI runs for the merged head are recorded in STATUS by the follow-up change
+after merge.

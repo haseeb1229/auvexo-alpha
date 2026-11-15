@@ -66,3 +66,17 @@ on 2026-11-12 with a clean full-history scan, and its next review is 2026-12-12.
 It does not show that these versions are free of undiscovered defects, that they are
 suitable for broker or financial-critical use, or that a later advisory will not apply.
 An advisory against a locked version triggers an immediate review regardless of the date.
+
+## Addendum 2026-11-15: advisory against a locked version
+
+The hosted Windows audit of the OD-23 closure pull request on 2026-11-15 reported
+CVE-2026-126360 against `opentelemetry-api` 1.45.1, fixed in 1.45.2. It was published
+after this review. `opentelemetry-api` is a transitive dependency of FastAPI, used only by
+the read-only terminal.
+
+Scoped change, as the exception requires: `uv lock --upgrade-package opentelemetry-api`
+under the pinned uv 0.13.1 moved that one package to 1.45.2 and nothing else (three lock
+lines: the version and its two hashes). `requirements-audit.txt`, the Phase 2 inventory
+and the SBOM were regenerated from the lock. `pip-audit` then reported no known
+vulnerability, and the full suite was rerun on the new lock. No other package moved and
+the exception's other terms are unchanged.

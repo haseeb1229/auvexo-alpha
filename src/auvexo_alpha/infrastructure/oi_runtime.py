@@ -16,6 +16,8 @@ from decimal import Decimal
 from pathlib import Path
 from typing import Literal, Protocol, cast
 
+from pydantic import ValidationError
+
 import auvexo_alpha
 from auvexo_alpha.domain.oi_schedule import (
     OI_START_ACCEPTANCE_PATH,
@@ -195,9 +197,11 @@ def committed_start_acceptances(root: Path, commit: str) -> OIStartAcceptanceFil
         raise ValueError("OI_START_ACCEPTANCE_INVALID")
     try:
         json.loads(raw, object_pairs_hook=_unique_keys)
-    except (RecursionError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        # The stdlib scanner's nesting limit depends on the platform's C stack; whatever it
+        # admits, the strict model refuses with this same closed code.
+        return OIStartAcceptanceFile.model_validate_json(raw)
+    except (RecursionError, UnicodeDecodeError, json.JSONDecodeError, ValidationError) as error:
         raise ValueError("OI_START_ACCEPTANCE_INVALID") from error
-    return OIStartAcceptanceFile.model_validate_json(raw)
 
 
 def head_commit(root: Path) -> str:

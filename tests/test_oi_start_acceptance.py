@@ -201,7 +201,16 @@ def duplicate_key_blob(config):
 
 @pytest.mark.parametrize(
     "case",
-    ["duplicate_key", "size_mismatch", "oversize", "empty", "not_json", "deep", "bad_commit"],
+    [
+        "duplicate_key",
+        "size_mismatch",
+        "oversize",
+        "empty",
+        "not_json",
+        "deep",
+        "wrong_schema",
+        "bad_commit",
+    ],
 )
 def test_committed_file_must_be_bounded_strict_and_exact(case, tmp_path, monkeypatch):
     config = configuration()
@@ -220,7 +229,11 @@ def test_committed_file_must_be_bounded_strict_and_exact(case, tmp_path, monkeyp
     elif case == "not_json":
         git.blob = b"\xff\xfe"
     elif case == "deep":
+        # Refused on every platform, whichever parser reaches the nesting limit first.
         git.blob = b"[" * 5000 + b"]" * 5000
+    elif case == "wrong_schema":
+        # Well-formed JSON that only the strict model refuses still gets the closed code.
+        git.blob = b'{"version":"oi-start-acceptance-file.v1","accepted":"none"}'
     else:
         commit = "HEAD"
     with pytest.raises(ValueError, match="OI_START_ACCEPTANCE_INVALID"):

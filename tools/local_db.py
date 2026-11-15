@@ -78,13 +78,16 @@ def run_pg(name: str, *args: str, env: dict[str, str] | None = None) -> None:
 def port_bound(port: int) -> bool:
     """Process-table fact only; no connection is opened to whatever owns the port.
 
-    Windows reports some listening sockets (for example those of another session or
-    integrity level) with status NONE rather than LISTEN; both count as occupied.
+    A TCP socket on the port with no remote endpoint is a listener, whatever state the
+    table reports: Windows reports some listeners with status NONE (another session or
+    integrity level), and on 2026-11-15 this host reported a running cluster's listener
+    as FIN_WAIT1, CLOSE, NONE or LISTEN from one snapshot to the next. A connected socket
+    counts only in a listening state. Over-counting only makes a port look occupied.
     """
     return any(
-        connection.status in (psutil.CONN_LISTEN, psutil.CONN_NONE)
-        and connection.laddr
+        connection.laddr
         and connection.laddr.port == port
+        and (not connection.raddr or connection.status in (psutil.CONN_LISTEN, psutil.CONN_NONE))
         for connection in psutil.net_connections(kind="tcp")
     )
 
