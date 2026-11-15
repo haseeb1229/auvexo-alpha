@@ -252,6 +252,7 @@ class GatewayError(Contract):
         "RECONCILE_REQUIRED",
         "UNSUPPORTED",
         "UNAVAILABLE",
+        "IDLE_TIMEOUT",
     ]
     retryable: bool = False
 

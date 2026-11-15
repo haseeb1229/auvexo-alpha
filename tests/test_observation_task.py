@@ -8,6 +8,7 @@ from xml.etree.ElementTree import fromstring
 import pytest
 from observation_fixtures import BEGIN, make_config
 
+from auvexo_alpha.infrastructure.observation_start_gates import PAPER_OBSERVATION_TASK
 from tools import run_paper_observation as cli
 from tools.paper_observation_task import NS, TASK_NAME, TASK_VERSION, task_definition
 
@@ -29,8 +30,10 @@ def test_future_task_definition_has_no_elevation_catchup_password_wake_or_overla
     def value(name):
         return root.find(".//{" + NS + "}" + name).text
 
-    assert value("URI") == "\\" + TASK_NAME
-    assert TASK_VERSION in value("Description")
+    assert value("URI") == "\\" + TASK_NAME == PAPER_OBSERVATION_TASK
+    # Campaign v2: the definition states the provenance precondition (ADR-032 OBV2-06).
+    assert TASK_VERSION == "paper.observation.task.v2" and TASK_VERSION in value("Description")
+    assert "Microsoft-Windows-TaskScheduler/Operational log enabled" in value("Description")
     assert value("StartBoundary") == "2026-10-21T16:00:00Z"
     assert value("DaysInterval") == "1"
     assert value("LogonType") == "InteractiveToken"

@@ -14,6 +14,7 @@ from observation_fixtures import (
     evaluate,
     fact_for,
     make_config,
+    make_config_v2,
     make_run,
 )
 from pydantic import ValidationError
@@ -202,7 +203,7 @@ def test_observation_planner_cadence_is_direction_independent_and_risk_bounded(p
     decision = assess_paper(
         intent,
         observation_policy(config),
-        observation_market(fact),
+        observation_market(fact, config),
         config.specs[0],
         account,
         release,
@@ -239,11 +240,48 @@ def test_observation_planner_cadence_is_direction_independent_and_risk_bounded(p
         and close_intent.position_ref == position.position_ref
     )
     assert close_intent.quantity == position.quantity
+    # v1 keeps its recorded semantics: a close limited at the decision close.
+    assert close_intent.entry == close_fact.candle.close
+
+
+@pytest.mark.parametrize("price", ("5000", "50000.37", "100000"))
+def test_v2_close_is_marketable_at_the_stop_distance_so_the_run_can_end_flat(price):
+    config = make_config_v2()
+    spec = config.specs[0]
+    release = observation_release(config, now=BEGIN)
+    position = PaperPosition(
+        position_ref="observed.position",
+        instrument_id="binance.spot.BTCUSDT",
+        bucket="crypto",
+        quantity=Decimal("0.001"),
+        entry_price=Decimal(price),
+        mark_price=Decimal(price),
+        stop_price=Decimal(price) * Decimal("0.99"),
+    )
+    close_fact = fact_for("BTCUSDT", 5, close=price)
+    now = close_fact.candle.availability.available_at
+    held = changed(account_at(now), positions=(position,))
+    close_intent = plan_observation_intent(config, close_fact, held, release, now=now)
+    assert close_intent is not None and close_intent.action == MoneyAction.CLOSE
+    limit = close_fact.candle.close * Decimal("0.99")
+    # Tick-floored, at most the decision close (the kernel requires entry <= bid), and
+    # within one tick of the stop distance.
+    assert close_intent.entry % spec.price_tick == 0
+    assert limit - spec.price_tick < close_intent.entry <= limit < close_fact.candle.close
+    # The protective stop of the position is carried, not replaced.
+    assert close_intent.stop == position.stop_price
+    # An open is unchanged: limited at the decision close.
+    open_fact = fact_for("BTCUSDT", 0, close=price)
+    flat = changed(account_at(open_fact.candle.availability.available_at), kill=KillLevel.K0)
+    open_intent = plan_observation_intent(
+        config, open_fact, flat, release, now=open_fact.candle.availability.available_at
+    )
+    assert open_intent is not None and open_intent.entry == open_fact.candle.close
 
 
 def test_observation_mapping_never_retimes_stale_market_or_asserts_usd_peg():
     fact = fact_for("BTCUSDT", 0, delay=10)
-    market = observation_market(fact)
+    market = observation_market(fact, make_config())
     assert market.as_of == market.fx_as_of == fact.candle.end_at
     assert market.available_at == fact.candle.availability.available_at
     assert market.adverse_fx == Decimal("1")

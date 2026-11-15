@@ -13,7 +13,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import Connection, Engine, text
 
 from auvexo_alpha.domain.contracts import Contract, utc_time
-from auvexo_alpha.domain.paper import PaperMarketSnapshot, PaperPosition, paper_position_ref
+from auvexo_alpha.domain.paper import (
+    PaperInstrumentSpec,
+    PaperMarketSnapshot,
+    PaperPosition,
+    paper_position_ref,
+)
 from auvexo_alpha.infrastructure.paper_identity import enforce_paper_engine
 
 
@@ -72,10 +77,12 @@ def validate_market_mark(
         or mark.fx_as_of > mark.available_at
     ):
         raise ValueError("INVALID_OR_FUTURE_VIRTUAL_MARK")
+    # An instrument is in scope once ordered, held, or its specification observed (OBV2-04),
+    # so a verified mark can precede the first order for it (OBV2-07).
     known = {
         str(row["data"].get("instrument_id"))
         for row in rows
-        if row["kind"] in ("ORDER", "EXTERNAL_POSITION")
+        if row["kind"] in ("ORDER", "EXTERNAL_POSITION", "SPEC_OBSERVATION")
     }
     known.update(position.instrument_id for position in baseline_positions)
     if mark.instrument_id not in known:
@@ -202,6 +209,14 @@ def validate_position_mark(
             rows,
             baseline_positions,
         )
+
+
+def validate_spec_observation(payload: object, recorded_at: datetime) -> PaperInstrumentSpec:
+    """A provider specification observation cannot be dated after it was recorded."""
+    spec = PaperInstrumentSpec.model_validate_json(canonical_payload(payload))
+    if spec.observed_at > recorded_at:
+        raise ValueError("FUTURE_SPEC_OBSERVATION")
+    return spec
 
 
 def resolution_facts(rows: list[dict[str, Any]], intent_hash: str) -> str:
@@ -362,6 +377,8 @@ class PaperTruth:
             if kind == "EXTERNAL_POSITION":
                 position = PaperPosition.model_validate_json(canonical_payload(data))
                 validate_position_mark(position, now, rows)
+            if kind == "SPEC_OBSERVATION":
+                validate_spec_observation(data, now)
             if kind == "RESOLUTION":
                 if intent_hash is None:
                     raise ValueError("UNBOUND_VIRTUAL_FINALITY_PROOF")
@@ -497,6 +514,18 @@ class PaperTruth:
             now=now,
             event_id=event_id,
         )
+
+    def observe_spec(
+        self,
+        account_ref: str,
+        spec: PaperInstrumentSpec,
+        *,
+        now: datetime,
+        event_id: str | None = None,
+    ) -> str:
+        """Record a provider-observed specification; its `observed_at` is the provider time."""
+        observed = PaperInstrumentSpec.model_validate_json(spec.canonical_bytes())
+        return self.append(account_ref, "SPEC_OBSERVATION", observed, now=now, event_id=event_id)
 
     def mark(
         self, account_ref: str, market: Contract, *, now: datetime, event_id: str | None = None

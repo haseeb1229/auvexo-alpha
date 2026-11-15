@@ -15,9 +15,13 @@ import local_db  # noqa: E402
 
 def _listening(port: int) -> list[SimpleNamespace]:
     return [
-        SimpleNamespace(status=psutil.CONN_LISTEN, laddr=SimpleNamespace(port=port)),
-        SimpleNamespace(status="ESTABLISHED", laddr=SimpleNamespace(port=local_db.PORT)),
-        SimpleNamespace(status=psutil.CONN_LISTEN, laddr=()),
+        SimpleNamespace(status=psutil.CONN_LISTEN, laddr=SimpleNamespace(port=port), raddr=()),
+        SimpleNamespace(
+            status="ESTABLISHED",
+            laddr=SimpleNamespace(port=local_db.PORT),
+            raddr=SimpleNamespace(port=50000),
+        ),
+        SimpleNamespace(status=psutil.CONN_LISTEN, laddr=(), raddr=()),
     ]
 
 
@@ -75,3 +79,45 @@ def test_existing_stopped_cluster_is_refused_while_the_port_is_taken(
     with pytest.raises(RuntimeError, match="^PORT_55432_OWNED_BY_ANOTHER_CLUSTER"):
         local_db.start()
     assert no_effects == []
+
+
+def test_windows_listener_reported_without_listen_state_still_blocks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Observed on Windows: another session's listening socket has status NONE.
+    hidden = [
+        SimpleNamespace(
+            status=psutil.CONN_NONE, laddr=SimpleNamespace(port=local_db.PORT), raddr=()
+        )
+    ]
+    monkeypatch.setattr(psutil, "net_connections", lambda kind: hidden)
+    assert local_db.port_listener() is True
+    assert local_db.port_bound(local_db.PORT + 1) is False
+
+
+@pytest.mark.parametrize("status", ["FIN_WAIT1", "CLOSE", "CLOSE_WAIT", "NONE", "LISTEN"])
+def test_a_socket_with_no_remote_endpoint_blocks_whatever_state_windows_reports(
+    status: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Observed 2026-11-15: a running cluster's listener reported in all of these states.
+    rows = [SimpleNamespace(status=status, laddr=SimpleNamespace(port=local_db.PORT), raddr=())]
+    monkeypatch.setattr(psutil, "net_connections", lambda kind: rows)
+    assert local_db.port_listener() is True
+
+
+def test_a_connected_socket_on_the_port_counts_only_in_a_listening_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def connected(status: str) -> list[SimpleNamespace]:
+        return [
+            SimpleNamespace(
+                status=status,
+                laddr=SimpleNamespace(port=local_db.PORT),
+                raddr=SimpleNamespace(port=50000),
+            )
+        ]
+
+    monkeypatch.setattr(psutil, "net_connections", lambda kind: connected("ESTABLISHED"))
+    assert local_db.port_listener() is False
+    monkeypatch.setattr(psutil, "net_connections", lambda kind: connected(psutil.CONN_LISTEN))
+    assert local_db.port_listener() is True

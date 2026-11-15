@@ -8,8 +8,14 @@ from pathlib import Path
 from subprocess import list2cmdline
 from xml.etree.ElementTree import Element, SubElement, tostring
 
-TASK_NAME = "AuvexoAlpha-Paper-Observation"
-TASK_VERSION = "paper.observation.task.v1"
+from auvexo_alpha.infrastructure.observation_start_gates import PAPER_OBSERVATION_TASK
+
+# The same task path the run's provenance check looks for in the scheduler log.
+TASK_NAME = PAPER_OBSERVATION_TASK.removeprefix("\\")
+# Campaign v2 (ADR-032). The schedule, principal and limits are those of v1; a night
+# counts only with Task Scheduler provenance (OBV2-06), so the definition states that
+# the operational log must be enabled by the owner before START.
+TASK_VERSION = "paper.observation.task.v2"
 NS = "http://schemas.microsoft.com/windows/2004/02/mit/task"
 
 
@@ -38,7 +44,9 @@ def task_definition(
     info = SubElement(root, "RegistrationInfo")
     SubElement(info, "URI").text = "\\" + TASK_NAME
     SubElement(info, "Description").text = (
-        TASK_VERSION + "; definition only; separate reviewed owner START required"
+        TASK_VERSION
+        + "; definition only; separate reviewed owner START required; nights count only"
+        + " with the Microsoft-Windows-TaskScheduler/Operational log enabled"
     )
     triggers = SubElement(root, "Triggers")
     daily = SubElement(triggers, "CalendarTrigger")

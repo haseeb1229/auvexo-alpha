@@ -115,17 +115,30 @@ class FakeEngine:
 
 
 class ReportStore:
+    """Only the bounded report reads exist: whole-table loaders would fail these tests."""
+
     def __init__(self, engine, root, managed_root):
         self.engine = engine
+        self.calls = []
 
-    def manifests(self):
+    def current_manifests(self, start, end):
+        self.calls.append(("current_manifests", start, end))
         return []
 
-    def events(self):
+    def gaps(self, start, end):
         return []
 
-    def verified_manifests(self):
+    def events_between(self, start, end):
         return []
+
+    def manifests_by_version(self, versions):
+        return []
+
+    def cooldowns_between(self, start, end):
+        return ()
+
+    def qualification_inputs(self, start_day):
+        return [], [], (), []
 
     def reconcile(self):
         return {"verified_manifests": 0, "unpublished_orphans": 0, "staging_files": 0}
@@ -160,7 +173,12 @@ def test_main_reports_the_reason_and_never_the_exception_text(monkeypatch, capsy
 
 @pytest.mark.parametrize(
     "argv",
-    [["coverage"], ["verify"], ["evidence"], ["qualification", "--start-day", "2026-10-18"]],
+    [
+        ["coverage", "--start-day", "2026-10-18", "--end-day", "2026-10-24"],
+        ["verify"],
+        ["evidence", "--start-day", "2026-10-18", "--end-day", "2026-10-18"],
+        ["qualification", "--start-day", "2026-10-18"],
+    ],
 )
 def test_read_only_commands_never_take_the_collector_lease(monkeypatch, capsys, tmp_path, argv):
     monkeypatch.chdir(tmp_path)
@@ -206,6 +224,8 @@ def write_summary(directory, started=STARTED, name=None, **changes):
         "schedule_id": SCHEDULE,
         "mode": "scheduled",
         "status": "COMMAND_COMPLETE",
+        "provenance": "VERIFIED",
+        "provenance_reason": "TIME_TRIGGERED_TASK_INSTANCE",
         "qualification": "NOT_INFERRED; use verified calendar qualification command",
     } | changes
     stamp = started.astimezone(UTC).strftime("%Y%m%dT%H%M%S%fZ")
@@ -265,16 +285,27 @@ def test_summary_reader_is_strict_bounded_and_read_only(tmp_path):
     write_summary(directory, STARTED + 24 * day, schedule_id="s" * 65)
     write_summary(directory, STARTED + 25 * day, padding="p" * data_cli.MAX_SUMMARY_BYTES)
     write_summary(directory, STARTED + 26 * day, started_at="yesterday evening")
+    # The wrapper's provenance (ADR-032 OBV2-06) is a stable code or the receipt is refused.
+    write_summary(directory, STARTED + 27 * day, provenance="verified by me")
+    write_summary(directory, STARTED + 28 * day, provenance=None)
+    # A summary written before the check existed is read as UNRECORDED, never VERIFIED.
+    legacy = write_summary(directory, STARTED + 2 * day)
+    payload = json.loads(legacy.read_text())
+    del payload["provenance"], payload["provenance_reason"]
+    legacy.write_text(json.dumps(payload))
     before = {p.name: (p.stat().st_size, p.stat().st_mtime_ns) for p in directory.iterdir()}
 
     accepted, rejected = data_cli.scheduled_summaries(directory)
 
     assert accepted == [
-        ScheduledSummary(STARTED, SCHEDULE, "scheduled", "COMMAND_COMPLETE"),
-        ScheduledSummary(STARTED + day, SCHEDULE, "scheduled", "MISSED_START"),
+        ScheduledSummary(STARTED, SCHEDULE, "scheduled", "COMMAND_COMPLETE", "VERIFIED"),
+        ScheduledSummary(STARTED + day, SCHEDULE, "scheduled", "MISSED_START", "VERIFIED"),
+        ScheduledSummary(
+            STARTED + 2 * day, SCHEDULE, "scheduled", "COMMAND_COMPLETE", "UNRECORDED"
+        ),
     ]
     assert accepted[1].started_at.utcoffset() == timedelta(0)
-    assert rejected == 12
+    assert rejected == 14
     assert before == {p.name: (p.stat().st_size, p.stat().st_mtime_ns) for p in directory.iterdir()}
 
 
@@ -404,3 +435,97 @@ def test_full_window_with_clock_proofs_fits_the_http_budget_and_cadence(monkeypa
         assert opened <= times[0] and times[-1] < opened + 12 * MINUTE
         assert (times[-1] - times[0]).total_seconds() >= 600
         assert all((b - a).total_seconds() <= 120 for a, b in zip(times, times[1:], strict=False))
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["coverage"],
+        ["coverage", "--start-day", "2026-10-18"],
+        ["evidence", "--end-day", "2026-10-18"],
+        ["compare-sources", "--start", "2026-10-18T00:00:00+00:00"],
+        ["record-gap", "--start", "2026-10-18T00:00:00+00:00", "--end", "2026-10-18T00:01:00Z"],
+        [
+            "record-gap",
+            "--start",
+            "2026-10-18T00:00:00+00:00",
+            "--end",
+            "2026-10-18T00:01:00+00:00",
+            "--reviewer",
+            "owner.review",
+            "--evidence",
+            "a" * 64,
+        ],
+        ["release-cooldown", "--host", "data-api.binance.vision", "--reviewer", "owner"],
+        ["release-cooldown", "--host", "api.binance.com", "--reviewer", "o", "--reason", "x" * 9],
+        ["compare-sources", "--start", "2026-10-18T00:00:00", "--end", "2026-10-19T00:00:00"],
+    ],
+)
+def test_bounded_reports_and_owner_commands_refuse_incomplete_arguments(monkeypatch, argv):
+    """Unbounded reports, naive instants and owner decisions without who/why never run."""
+    monkeypatch.setattr(sys, "argv", ["auvexo-data", *argv])
+    with pytest.raises(SystemExit) as refused:
+        data_cli.main()
+    assert refused.value.code == 2
+
+
+def test_report_ranges_are_bounded_to_31_calendar_days():
+    from datetime import date
+
+    from auvexo_alpha.infrastructure.data_store import report_range
+
+    lower, upper = report_range(date(2026, 10, 1), date(2026, 10, 31))
+    assert (lower.isoformat(), upper.isoformat()) == (
+        "2026-10-01T00:00:00+00:00",
+        "2026-11-01T00:00:00+00:00",
+    )
+    for start, end in (
+        (date(2026, 10, 1), date(2026, 11, 1)),
+        (date(2026, 10, 2), date(2026, 10, 1)),
+    ):
+        with pytest.raises(ValueError, match="^REPORT_RANGE_INVALID$"):
+            report_range(start, end)
+
+
+class OwnerStore(ReportStore):
+    def __init__(self, engine, root, managed_root):
+        super().__init__(engine, root, managed_root)
+        OwnerStore.last = self
+
+    def release_cooldown(self, host, reviewer, reason, now):
+        self.calls.append(("release", host, reviewer, reason))
+        from auvexo_alpha.domain.market_data import CooldownRelease
+
+        return "f" * 64, CooldownRelease(
+            host=host,
+            released_at=now,
+            reviewer=reviewer,
+            reason=reason,
+            released_until=now + timedelta(days=1),
+            released_events=("event.1",),
+        )
+
+
+def test_owner_cooldown_release_records_who_and_why_without_the_lease(monkeypatch, capsys):
+    engine = FakeEngine()
+    code, out = run_main(
+        monkeypatch,
+        capsys,
+        [
+            "release-cooldown",
+            "--host",
+            "data-api.binance.vision",
+            "--reviewer",
+            "owner.haseeb",
+            "--reason",
+            "provider confirmed limit lifted",
+        ],
+        OwnerStore,
+        engine,
+    )
+    result = json.loads(out)
+    assert code == 0 and engine.connections == 0
+    assert OwnerStore.last.calls == [
+        ("release", "data-api.binance.vision", "owner.haseeb", "provider confirmed limit lifted")
+    ]
+    assert result["release"]["reviewer"] == "owner.haseeb" and "ONE probe" in result["permits"]

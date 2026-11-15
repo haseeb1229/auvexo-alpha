@@ -32,7 +32,9 @@ from auvexo_alpha.domain.paper import (
     PaperMarketSnapshot,
     PaperPolicy,
     PaperReservation,
+    canonical_without_defaults,
     provisional_policy,
+    spec_terms_hash,
 )
 from auvexo_alpha.domain.paper_lifecycle import KillLevel, Release, ReleaseKind, ReleaseState
 from auvexo_alpha.domain.research import DataUseClass
@@ -43,6 +45,21 @@ Count = Annotated[int, Field(ge=0, le=1_000_000)]
 Percent = Annotated[Decimal, BeforeValidator(exact_decimal), Field(ge=0, le=100)]
 OBSERVATION_INSTRUMENTS = ("binance.spot.BTCUSDT", "binance.spot.ETHUSDT")
 OBSERVATION_SYMBOLS = ("BTCUSDT", "ETHUSDT")
+CampaignVersion = Literal["paper.observation.v1", "paper.observation.v2"]
+# Campaign v1 stays readable and verifiable exactly as recorded but can begin nothing.
+V1: CampaignVersion = "paper.observation.v1"
+# ADR-032: the only campaign version that can prepare or begin a run.
+V2: CampaignVersion = "paper.observation.v2"
+SPEC_VERSIONS: dict[str, str] = {V1: "paper.observation.spec.v1", V2: "paper.observation.spec.v2"}
+CheckStatus = Literal["PASS", "FAIL", "NOT_CHECKED"]
+
+
+def _bound_ms(sent_at: datetime, received_at: datetime, server_at: datetime) -> int:
+    """Ceiling of the worst absolute local-provider offset over one request interval."""
+    delta = max(abs(server_at - sent_at), abs(server_at - received_at))
+    return (
+        delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds + 999
+    ) // 1000
 
 
 def observation_window(local_day: date | str) -> tuple[datetime, datetime]:
@@ -71,6 +88,16 @@ class ObservationConfig(Contract):
     max_gap_seconds: Literal[120] = 120
     shutdown_grace_seconds: Literal[30] = 30
     max_fixture_risk_fraction: NonnegativeAmount = Decimal("0.0005")
+    # Added for campaign v2 (ADR-032); omitted from canonical bytes at v1, so every v1
+    # configuration keeps its recorded hash.
+    version: CampaignVersion = V1
+
+    def canonical_bytes(self) -> bytes:
+        return canonical_without_defaults(self, {"version": V1})
+
+    @property
+    def is_v2(self) -> bool:
+        return self.version == V2
 
     @model_validator(mode="after")
     def fixed_boundary(self) -> Self:
@@ -90,7 +117,7 @@ class ObservationConfig(Contract):
             or any(
                 spec.origin != "PAPER_FIXTURE"
                 or spec.fixture_version != self.fixture_version
-                or spec.spec_version != "paper.observation.spec.v1"
+                or spec.spec_version != SPEC_VERSIONS[self.version]
                 or spec.base_currency
                 != ("BTC" if spec.instrument_id.endswith("BTCUSDT") else "ETH")
                 or spec.venue != Venue.BINANCE
@@ -137,10 +164,94 @@ class ObservationClockProof(Contract):
 
 def observation_clock_bound_ms(proof: ObservationClockProof) -> int:
     """Ceiling of the worst absolute offset over the measured request interval."""
-    delta = max(abs(proof.server_at - proof.sent_at), abs(proof.server_at - proof.received_at))
-    return (
-        delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds + 999
-    ) // 1000
+    return _bound_ms(proof.sent_at, proof.received_at, proof.server_at)
+
+
+class ObservationClockGate(Contract):
+    """OBV2-05 run-start inputs: the Windows Time status and one provider-time proof.
+
+    Only the check outcomes and the digest of the read-only status text are kept; the
+    trust decision is recomputed from these values wherever a receipt is evaluated.
+    """
+
+    windows_time_hash: Digest
+    windows_checks: tuple[tuple[Label, CheckStatus], ...] = Field(max_length=16)
+    provider: ObservationClockProof
+
+
+class ObservationSpecCheck(Contract):
+    """OBV2-04: one provider exchangeInfo observation of a symbol's trading terms."""
+
+    symbol: Literal["BTCUSDT", "ETHUSDT"]
+    raw_hash: Digest
+    sent_at: UTCTime
+    received_at: UTCTime
+    server_at: UTCTime
+    trade_status: Label
+    price_tick: PositiveAmount
+    quantity_step: PositiveAmount
+    min_quantity: PositiveAmount
+    max_quantity: PositiveAmount
+    min_notional: NonnegativeAmount
+
+    @model_validator(mode="after")
+    def chronology(self) -> Self:
+        if self.sent_at > self.received_at:
+            raise ValueError("OBSERVATION_SPEC_CHECK_INVALID")
+        return self
+
+    def bound_ms(self) -> int:
+        return _bound_ms(self.sent_at, self.received_at, self.server_at)
+
+
+class ObservationProvenance(Contract):
+    """OBV2-06 scheduler provenance of one run; only VERIFIED can let a night count."""
+
+    status: Literal["VERIFIED", "NOT_SCHEDULED", "UNVERIFIABLE"]
+    reason: Label
+    evidence_hash: Digest | None = None
+
+
+class ObservationStandingResume(Contract):
+    """OBV2-01 standing owner authority, recorded with START and bound to its campaign.
+
+    It may clear only the K1 that a writer acquisition sets, through the journaled owner
+    resume, after a clean previous night. It never lowers K2 or higher.
+    """
+
+    authority: Literal["paper.observation.standing_resume.v1"] = (
+        "paper.observation.standing_resume.v1"
+    )
+    scope: Literal["WRITER_ACQUISITION_K1"] = "WRITER_ACQUISITION_K1"
+    campaign_hash: Digest
+    reviewed_sha: Commit
+    start_resume_event_hash: Digest
+    valid_through: LocalDay
+    owner: Label
+
+    @model_validator(mode="after")
+    def owner_only(self) -> Self:
+        observation_window(self.valid_through)
+        if "agent" in self.owner.lower() or not self.owner.startswith("owner."):
+            raise ValueError("OBSERVATION_STANDING_AUTHORITY_INVALID")
+        return self
+
+
+class ObservationStandingResumeUse(Contract):
+    """The facts one standing-resume use relied on; journaled with the resume event."""
+
+    authority_hash: Digest
+    activation_id: Label
+    run_id: Identifier
+    local_day: LocalDay
+    boundary: Literal["START_RESUME", "PREVIOUS_RECEIPT"]
+    boundary_hash: Digest
+    boundary_journal_hash: Digest
+    roll_event_hash: Digest
+    examined_event_hashes: tuple[Digest, ...] = Field(max_length=4096)
+    ledger_mismatch_count: Literal[0] = 0
+    journal_tail_hash: Digest
+    evaluated_at: UTCTime
 
 
 class ObservationFact(Contract):
@@ -206,6 +317,28 @@ class ObservationRunEvidence(Contract):
     mismatch_refs: tuple[Label, ...] = ()
     operational_reasons: tuple[Label, ...] = ()
     resource_snapshots: tuple[ObservationResources, ...] = Field(default=(), max_length=240)
+    # Campaign v2 (ADR-032) evidence; omitted from canonical bytes at these v1 defaults.
+    provenance: ObservationProvenance | None = None
+    clock_gate: ObservationClockGate | None = None
+    closing_clock: ObservationClockProof | None = None
+    spec_checks: tuple[ObservationSpecCheck, ...] = Field(default=(), max_length=2)
+    day_roll_hash: Digest | None = None
+    terminal_authorization_count: Count | None = None
+    ledger_mismatch_count: Count | None = None
+
+    def canonical_bytes(self) -> bytes:
+        return canonical_without_defaults(self, V2_EVIDENCE_DEFAULTS)
+
+
+V2_EVIDENCE_DEFAULTS: dict[str, object] = {
+    "provenance": None,
+    "clock_gate": None,
+    "closing_clock": None,
+    "spec_checks": (),
+    "day_roll_hash": None,
+    "terminal_authorization_count": None,
+    "ledger_mismatch_count": None,
+}
 
 
 class ObservationVerification(Contract):
@@ -267,6 +400,31 @@ class ObservationDayReceipt(Contract):
     position_hashes: tuple[Digest, ...]
     resource_hashes: tuple[Digest, ...]
     resources: tuple[ObservationResources, ...]
+    # Campaign v2 (ADR-032, OBV2-12) disposition inputs; omitted at v1 defaults.
+    campaign_version: CampaignVersion = V1
+    provenance_status: Literal["VERIFIED", "NOT_SCHEDULED", "UNVERIFIABLE"] | None = None
+    clock_trusted: bool | None = None
+    specs_verified: bool | None = None
+    day_rolled: bool | None = None
+    terminal_authorization_count: Count | None = None
+    ledger_mismatch_count: Count | None = None
+    # A bar close is used as both sides, so a passed spread gate measured nothing.
+    price_basis: Literal["BAR_CLOSE"] | None = None
+
+    def canonical_bytes(self) -> bytes:
+        return canonical_without_defaults(
+            self,
+            {
+                "campaign_version": V1,
+                "provenance_status": None,
+                "clock_trusted": None,
+                "specs_verified": None,
+                "day_rolled": None,
+                "terminal_authorization_count": None,
+                "ledger_mismatch_count": None,
+                "price_basis": None,
+            },
+        )
 
     @model_validator(mode="after")
     def disposition(self) -> Self:
@@ -298,7 +456,12 @@ class ObservationCalendarSummary(Contract):
 
 
 def observation_policy(config: ObservationConfig) -> PaperPolicy:
-    """Remap identity only; every accepted canonical numerical cap remains unchanged."""
+    """Remap identity only; every accepted canonical numerical cap remains unchanged.
+
+    Campaign v2 (ADR-032 OBV2-03, OBV2-07) changes exactly three freshness bounds to the
+    one-minute bar (market and FX age 60 s, clock offset 2000 ms) and requires store-verified
+    inputs against the configuration's pinned specification terms.
+    """
     payload = provisional_policy().model_dump()
     payload.update(
         version="paper.observation.policy.v1",
@@ -308,6 +471,15 @@ def observation_policy(config: ObservationConfig) -> PaperPolicy:
             (instrument, "crypto") for instrument in OBSERVATION_INSTRUMENTS
         ),
     )
+    if config.is_v2:
+        payload.update(
+            version="paper.observation.policy.v2",
+            max_market_age_seconds=60,
+            max_fx_age_seconds=60,
+            max_clock_offset_ms=2000,
+            input_trust="STORE_VERIFIED",
+            pinned_spec_terms=tuple(spec_terms_hash(spec) for spec in config.specs),
+        )
     return PaperPolicy.model_validate(payload)
 
 
@@ -329,29 +501,73 @@ def observation_release(config: ObservationConfig, *, now: datetime) -> Release:
     )
 
 
-def observation_spec(symbol: str, *, observed_at: datetime) -> PaperInstrumentSpec:
-    if symbol not in OBSERVATION_SYMBOLS:
+def observation_spec(
+    symbol: str, *, observed_at: datetime, terms: ObservationSpecCheck | None = None
+) -> PaperInstrumentSpec:
+    """v1 fixture terms, or (v2) the provider terms of one observation, pinned as given."""
+    if symbol not in OBSERVATION_SYMBOLS or (terms is not None and terms.symbol != symbol):
         raise ValueError("OBSERVATION_SYMBOL_INVALID")
     return PaperInstrumentSpec(
         instrument_id="binance.spot." + symbol,
-        spec_version="paper.observation.spec.v1",
+        spec_version=SPEC_VERSIONS[V1 if terms is None else V2],
         fixture_version="paper.observation.fixture.v1",
         base_currency="BTC" if symbol == "BTCUSDT" else "ETH",
         quote_currency="USDT",
         account_currency="USDT",
         contract_multiplier=Decimal("1"),
-        price_tick=Decimal("0.01"),
-        quantity_step=Decimal("0.000001"),
-        min_quantity=Decimal("0.000001"),
-        max_quantity=Decimal("1000000"),
-        min_notional=Decimal("1"),
+        price_tick=Decimal("0.01") if terms is None else terms.price_tick,
+        quantity_step=Decimal("0.000001") if terms is None else terms.quantity_step,
+        min_quantity=Decimal("0.000001") if terms is None else terms.min_quantity,
+        max_quantity=Decimal("1000000") if terms is None else terms.max_quantity,
+        min_notional=Decimal("1") if terms is None else terms.min_notional,
         margin_fraction=Decimal("0"),
         observed_at=observed_at,
     )
 
 
-def observation_market(fact: ObservationFact) -> PaperMarketSnapshot:
-    """Actual bar end remains as_of; identity USDT conversion asserts no USD peg."""
+def spec_drift(pinned: PaperInstrumentSpec, check: ObservationSpecCheck) -> tuple[str, ...]:
+    """OBV2-04: the pinned terms that the provider no longer states; empty when unchanged."""
+    if pinned.instrument_id != "binance.spot." + check.symbol:
+        return ("instrument",)
+    return tuple(
+        name
+        for name, drifted in (
+            ("price_tick", pinned.price_tick != check.price_tick),
+            ("quantity_step", pinned.quantity_step != check.quantity_step),
+            ("min_quantity", pinned.min_quantity != check.min_quantity),
+            ("min_notional", pinned.min_notional != check.min_notional),
+            ("trade_status", check.trade_status != "TRADING"),
+        )
+        if drifted
+    )
+
+
+def observed_spec(pinned: PaperInstrumentSpec, check: ObservationSpecCheck) -> PaperInstrumentSpec:
+    """The pinned specification, observed at provider time; a drifted one is never used."""
+    if spec_drift(pinned, check):
+        raise ValueError("SPEC_DRIFT")
+    return PaperInstrumentSpec.model_validate(
+        pinned.model_dump() | {"observed_at": check.server_at}
+    )
+
+
+def pinned_spec(config: ObservationConfig, spec: PaperInstrumentSpec) -> bool:
+    """v1: one of the configured fixtures. v2: a configured pin, observed at any instant."""
+    if not config.is_v2:
+        return spec in config.specs
+    return any(
+        pinned.instrument_id == spec.instrument_id
+        and spec_terms_hash(pinned) == spec_terms_hash(spec)
+        for pinned in config.specs
+    )
+
+
+def observation_market(fact: ObservationFact, config: ObservationConfig) -> PaperMarketSnapshot:
+    """Actual bar end remains as_of; identity USDT conversion asserts no USD peg.
+
+    Campaign v2 states the BAR_CLOSE basis: one close as both sides, zero spread by
+    construction. v1 snapshots keep their recorded (QUOTE default) form and hash.
+    """
     candle = fact.candle
     if (
         candle.instrument_id not in OBSERVATION_INSTRUMENTS
@@ -375,4 +591,5 @@ def observation_market(fact: ObservationFact) -> PaperMarketSnapshot:
         health="HEALTHY",
         session_open=True,
         clock_offset_ms=min(observation_clock_bound_ms(fact.clock), 86_400_000),
+        price_basis="BAR_CLOSE" if config.is_v2 else "QUOTE",
     )

@@ -3,14 +3,24 @@
 No database, provider or genuine evidence: synthetic NON_COUNTING fixtures only.
 """
 
+import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-from observation_fixtures import BEGIN, END, changed, make_config, make_run, witness
+from observation_fixtures import (
+    BEGIN,
+    END,
+    changed,
+    make_config,
+    make_config_v2,
+    make_run,
+    witness,
+)
 from sqlalchemy.exc import DBAPIError
 
 from auvexo_alpha.application.observation_qualification import evaluate_observation_day
+from auvexo_alpha.domain.source_reviews import RENEWED_AT, REVIEWS
 from auvexo_alpha.infrastructure import observation_store
 from auvexo_alpha.infrastructure.observation_store import (
     PASS_REFUSALS,
@@ -25,6 +35,33 @@ EXPIRY = datetime(2026, 11, 16, tzinfo=UTC)
 LAST_VALID_INSTANT = datetime(2026, 11, 15, 23, 59, 59, 999999, tzinfo=UTC)
 AFTER_EXPIRY = datetime(2026, 11, 20, 9, tzinfo=UTC)
 DATABASE = "auvexo_paperobs_" + "a" * 20
+
+
+@pytest.fixture(autouse=True)
+def registry_before_renewal(monkeypatch):
+    """These tests exercise pinned-versus-current rights at instants around 2026-11-16.
+
+    The owner renewed DS-02 on 2026-11-14, so the real registry now returns the renewal
+    there; that case (a campaign pinned to the prior review cannot begin) is covered in
+    tests/test_source_reviews.py and below. Here the registry is held at the prior review.
+    """
+    prior = REVIEWS["DS-02"][0]
+    monkeypatch.setattr(observation_store, "rights", lambda source_id, at=None: prior)
+    monkeypatch.setattr(
+        observation_store, "identity", lambda source_id, at=None: make_config().source
+    )
+
+
+def test_real_registry_refuses_a_campaign_pinned_to_the_prior_review_after_renewal(
+    monkeypatch,
+):
+    monkeypatch.undo()
+    config = make_config_v2()
+    assert config.rights == REVIEWS["DS-02"][0]
+    store = detached_store(config, None)
+    with pytest.raises(ValueError, match="OBSERVATION_CURRENT_SOURCE_RIGHTS_MISMATCH"):
+        store.begin(config.content_hash(), kind="PREFLIGHT", now=RENEWED_AT)
+    assert store.engine.writes == []
 
 
 class LedgerEngine:
@@ -109,7 +146,7 @@ def test_reading_history_neither_uses_nor_extends_a_renewed_registry_record(monk
     renewed = changed(
         config.rights, version="review.2026-11-15.v2", review_due=datetime(2027, 1, 1, tzinfo=UTC)
     )
-    monkeypatch.setattr(observation_store, "rights", lambda source_id: renewed)
+    monkeypatch.setattr(observation_store, "rights", lambda source_id, at=None: renewed)
     # The campaign's own pinned record still ends at its own expiry.
     with pytest.raises(ValueError, match="SOURCE_RIGHTS_BLOCKED_OR_EXPIRED"):
         store.verify(evidence.run_id, evidence, now=AFTER_EXPIRY, recorded_at=EXPIRY)
@@ -120,14 +157,18 @@ def test_reading_history_neither_uses_nor_extends_a_renewed_registry_record(monk
     # Starting or closing now remains pinned to the current registry record.
     with pytest.raises(ValueError, match="OBSERVATION_CURRENT_SOURCE_RIGHTS_MISMATCH"):
         store.verify(evidence.run_id, evidence, now=LAST_VALID_INSTANT)
+    # Only campaign v2 can begin (ADR-032); its pin is judged against the same registry.
+    current = make_config_v2()
+    starting = detached_store(current, None)
     with pytest.raises(ValueError, match="OBSERVATION_CURRENT_SOURCE_RIGHTS_MISMATCH"):
-        store.begin(config.content_hash(), kind="PREFLIGHT", now=LAST_VALID_INSTANT)
+        starting.begin(current.content_hash(), kind="PREFLIGHT", now=LAST_VALID_INSTANT)
+    assert starting.engine.writes == []
     assert store.engine.writes == []
 
 
 @pytest.mark.parametrize("kind", ("PREFLIGHT", "SCHEDULED"))
 def test_begin_still_requires_currently_valid_rights(kind):
-    config = make_config()
+    config = make_config_v2()
     store = detached_store(config, None)
     store.activation = lambda config_hash: pytest.fail("rights precede activation lookup")
     for now in (EXPIRY, AFTER_EXPIRY):
@@ -137,12 +178,28 @@ def test_begin_still_requires_currently_valid_rights(kind):
 
 
 def test_begin_one_microsecond_before_expiry_reaches_the_run_insert():
-    config = make_config()
+    config = make_config_v2()
     store = detached_store(config, None)
     run_id = store.begin(config.content_hash(), kind="PREFLIGHT", now=LAST_VALID_INSTANT)
     assert [(w["id"], w["k"], w["now"]) for w in store.engine.writes] == [
         (str(run_id), "PREFLIGHT", LAST_VALID_INSTANT)
     ]
+
+
+@pytest.mark.parametrize("kind", ("PREFLIGHT", "SCHEDULED", "RESTORE"))
+def test_campaign_v1_can_neither_prepare_nor_begin_but_stays_readable(kind):
+    config = make_config()
+    store = detached_store(config, None)
+    store.owner_engine = LedgerEngine()
+    store.activation = lambda config_hash: pytest.fail("version precedes activation lookup")
+    with pytest.raises(ValueError, match="^OBSERVATION_CAMPAIGN_VERSION_RETIRED$"):
+        store.begin(config.content_hash(), kind=kind, now=LAST_VALID_INSTANT)
+    with pytest.raises(ValueError, match="^OBSERVATION_CAMPAIGN_VERSION_RETIRED$"):
+        store.prepare(config, now=LAST_VALID_INSTANT)
+    assert store.engine.writes == [] and store.owner_engine.writes == []
+    # The v1 hash is the one recorded before the version field existed.
+    assert "version" not in json.loads(config.canonical_bytes())
+    assert json.loads(make_config_v2().canonical_bytes())["version"] == "paper.observation.v2"
 
 
 def scheduled_ledger(recorded_at):
@@ -207,10 +264,12 @@ class Refusal(Exception):
 
 
 @pytest.mark.parametrize("code", PASS_REFUSALS)
-def test_only_the_two_pass_guard_refusals_are_named(code):
+def test_only_the_pass_guard_refusals_are_named(code):
+    # obs0002 adds the campaign v2 final-state refusal (flat, rolled, terminal order).
     assert PASS_REFUSALS == (
         "OBSERVATION_FINAL_STATE_OR_WINDOW_DENIED",
         "OBSERVATION_SOURCE_COVERAGE_DENIED",
+        "OBSERVATION_V2_FINAL_STATE_DENIED",
     )
     assert receipt_refusal_code(DBAPIError("INSERT", {}, Refusal("P0001", code))) == code
 

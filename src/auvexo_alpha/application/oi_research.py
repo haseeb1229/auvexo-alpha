@@ -10,7 +10,7 @@ from pydantic import Field, model_validator
 
 from auvexo_alpha.domain.contracts import Contract, Digest, Label, UTCTime, utc_time
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, require_oi_rights
-from auvexo_alpha.domain.oi_schedule import slot_allowed
+from auvexo_alpha.domain.oi_schedule import OIAcceptedStart, OISlotGap, slot_allowed
 from auvexo_alpha.domain.open_interest import (
     OIManifest,
     OIObservation,
@@ -50,6 +50,8 @@ class OIStudyWindow(Contract):
     seed: Literal[1229] = 1229
     warmup_hours: Literal[48] = 48
     evaluation_days: Literal[90] = 90
+    # The committed START this study runs under; None for engineering fixtures.
+    start_digest: Digest | None = None
 
     @property
     def t0(self) -> datetime:
@@ -262,6 +264,9 @@ class OIStudyResult(Contract):
     intervals: tuple[OIBootstrapInterval, ...] = ()
     descriptives: tuple[OIDescriptiveSymbol, ...] = ()
     review_chain_hash: Digest | None = None
+    # Lineage only; neither field enters any statistic or decision.
+    start_digest: Digest | None = None
+    recorded_gap_slots: int = Field(default=0, ge=0, le=10000)
     empirical_result: bool = False
     value_gate: Literal["VALUE_ABLATION_REQUIRED"] = "VALUE_ABLATION_REQUIRED"
     operational_oi_enabled: Literal[False] = False
@@ -280,6 +285,48 @@ class OIStudyResult(Contract):
 
     def require_enablement(self, purpose: str) -> None:
         raise ValueError("OI16_VALUE_ABLATION_REQUIRED:" + purpose)
+
+
+class OIStudyLineage(Contract):
+    """Store-derived evidence of which inputs are genuine; data, not authority.
+
+    The store builds it from manifests it verified against their immutable artifacts,
+    keeping only those recorded under ``start`` with the production transport. Forecast
+    and score labels never enter. No public evaluation accepts one: only
+    ``evaluate_recorded_study`` builds it, from a START it read from the build-proven
+    commit, and uses it in the same call.
+    """
+
+    study_hash: Digest
+    start: OIAcceptedStart
+    genuine_manifest_hashes: tuple[Digest, ...] = Field(max_length=10000)
+    gaps: tuple[OISlotGap, ...] = Field(default=(), max_length=10000)
+
+    @model_validator(mode="after")
+    def coherent(self) -> Self:
+        if len(set(self.genuine_manifest_hashes)) != len(self.genuine_manifest_hashes) or len(
+            {gap.identity for gap in self.gaps}
+        ) != len(self.gaps):
+            raise ValueError("OI_LINEAGE_DUPLICATE")
+        return self
+
+    def binds(self, study: OIStudyWindow) -> bool:
+        envelope = self.start.envelope
+        return (
+            self.study_hash == study.content_hash()
+            and study.start_digest == self.start.digest
+            and study.study_id == self.start.acceptance.study_id
+            and study.owner_start_at == envelope.owner_start_at
+            and study.preregistration_hash == envelope.preregistration_hash
+            and study.code_hash == envelope.code_hash
+            and study.rights_snapshot_hash == envelope.rights_hash
+        )
+
+    def covers(self, forecasts: tuple[OIForecast, ...], scores: tuple[OIPairScore, ...]) -> bool:
+        genuine = set(self.genuine_manifest_hashes)
+        return all(set(f.input_manifest_hashes) <= genuine for f in forecasts) and all(
+            s.target_manifest_hash in genuine for s in scores if s.eligible
+        )
 
 
 def _received_in_slot(observation: OIObservation) -> bool:
@@ -730,14 +777,48 @@ def evaluate_study(
     review_authority: OIReviewAuthority | None = None,
     material_failure: bool = False,
 ) -> OIStudyResult:
-    """No interim result inspection or window extension, and no fixture calendar credit.
+    """Evaluate caller-supplied records: always ENGINEERING_ONLY, whatever their labels.
+
+    No interim result inspection or window extension, and no fixture calendar credit.
+    This entry point accepts no lineage, so no caller can make a result genuine here.
+    The only genuine route is the infrastructure ``evaluate_recorded_study``, which
+    proves the build, reads the committed START from the proven commit and derives the
+    lineage from the store's own re-verified records.
+    """
+    return _evaluate_with_store_lineage(
+        study,
+        forecasts,
+        scores,
+        as_of=as_of,
+        current_rights=current_rights,
+        review_authority=review_authority,
+        material_failure=material_failure,
+        lineage=None,
+    )
+
+
+def _evaluate_with_store_lineage(
+    study: OIStudyWindow,
+    forecasts: tuple[OIForecast, ...],
+    scores: tuple[OIPairScore, ...],
+    *,
+    as_of: datetime,
+    current_rights: OIRights | None,
+    review_authority: OIReviewAuthority | None,
+    material_failure: bool,
+    lineage: OIStudyLineage | None,
+) -> OIStudyResult:
+    """The decision core. Not public: its one production caller is ``evaluate_recorded_study``.
 
     ``as_of`` is caller supplied, so it alone never closes the window: the ledger's own
-    records must also reach the final scheduled slot. Classification labels likewise
-    remain caller supplied here; genuineness needs store-verified manifests upstream.
+    records must also reach the final scheduled slot. Classification labels can only
+    lower the result: genuine days need a store-derived ``lineage`` bound to this study's
+    committed START that covers every forecast input and every scored target.
     """
     now = utc_time(as_of)
     study_hash = study.content_hash()
+    if lineage is not None:
+        lineage = OIStudyLineage.model_validate(lineage.model_dump(mode="python"))
     evidenced_through = max(
         (
             *(s.scored_at for s in scores if s.study_hash == study_hash),
@@ -751,6 +832,9 @@ def evaluate_study(
     use: OIResearchUse = DataUseClass.PERSONAL_RESEARCH
     if (
         not scores
+        or lineage is None
+        or not lineage.binds(study)
+        or not lineage.covers(forecasts, scores)
         or any(f.classification == DataUseClass.ENGINEERING_ONLY for f in forecasts)
         or any(s.classification == DataUseClass.ENGINEERING_ONLY for s in scores)
     ):
@@ -807,4 +891,11 @@ def evaluate_study(
         review_chain_hash=review_authority.chain_hash() if review_authority is not None else None,
         empirical_result=use == DataUseClass.PERSONAL_RESEARCH
         and reason == "FIXED_WINDOW_COMPLETE",
+        start_digest=study.start_digest,
+        # Retained calendar gaps inside the fixed window; descriptive lineage only.
+        recorded_gap_slots=0
+        if lineage is None
+        else sum(
+            study.evaluation_start <= gap.slot_at < study.evaluation_end for gap in lineage.gaps
+        ),
     )

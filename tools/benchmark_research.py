@@ -16,7 +16,7 @@ from auvexo_alpha.domain.research import CostModel, PriceAvailability
 from auvexo_alpha.infrastructure.data_store import file_hash, parquet_bytes, pressure, read_bars
 
 
-def main():
+def main() -> None:
     import polars as pl
 
     root = Path(".local") / ("synthetic-research-scale-" + uuid4().hex[:12])
@@ -62,7 +62,7 @@ def main():
     peak = [process.memory_info().rss]
     stop = threading.Event()
 
-    def monitor():
+    def monitor() -> None:
         while not stop.wait(0.05):
             peak[0] = max(peak[0], process.memory_info().rss)
 
@@ -71,11 +71,11 @@ def main():
     start = time.monotonic()
     cpu_start = process.cpu_times()
     try:
-        files = []
+        files: list[Path] = []
         for offset in range(0, count, 25000):
             if process.memory_info().rss > 2_000_000_000:
                 raise RuntimeError("BENCHMARK_RAM_LIMIT")
-            bars = []
+            bars: list[Candle] = []
             for i in range(offset, min(offset + 25000, count)):
                 opened = begin + timedelta(minutes=i)
                 bars.append(
@@ -142,6 +142,8 @@ def main():
         event_seconds = time.monotonic() - started
         assert result.label == "SIMULATED"
         cpu_end = process.cpu_times()
+        cpu_threads = pl.thread_pool_size()
+        stored_bytes = sum(p.stat().st_size for p in files)
         report = dict(
             status="PASS",
             classification="SYNTHETIC_PERFORMANCE_ONLY_NEVER_PROVIDER_QUALIFICATION",
@@ -161,8 +163,8 @@ def main():
             peak_rss_bytes=peak[0],
             cpu_seconds=(cpu_end.user + cpu_end.system - cpu_start.user - cpu_start.system),
             wall_seconds=time.monotonic() - start,
-            cpu_threads=pl.thread_pool_size(),
-            stored_bytes=sum(p.stat().st_size for p in files),
+            cpu_threads=cpu_threads,
+            stored_bytes=stored_bytes,
             sample_parquet_sha256=file_hash(files[0]),
             directory=root.name,
             optimization=(
@@ -174,11 +176,8 @@ def main():
                 "capacity or alpha claim. Full financial materialization uses bounded batches."
             ),
         )
-        assert peak[0] < 2_000_000_000 and report["cpu_threads"] <= 2
-        assert (
-            pressure(report["stored_bytes"], psutil.disk_usage(str(root.resolve())).free)
-            == "NORMAL"
-        )
+        assert peak[0] < 2_000_000_000 and cpu_threads <= 2
+        assert pressure(stored_bytes, psutil.disk_usage(str(root.resolve())).free) == "NORMAL"
         Path(".local/research-scale-evidence.json").write_text(json.dumps(report, indent=2) + "\n")
         print(json.dumps(report, indent=2))
     finally:

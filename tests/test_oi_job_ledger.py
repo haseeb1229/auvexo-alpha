@@ -15,7 +15,15 @@ from threading import Event
 import pytest
 
 from auvexo_alpha.application.oi_research import compute_oi_features
-from auvexo_alpha.domain.oi_schedule import OIClockProof, OICollectionConfig, OIStartEnvelope
+from auvexo_alpha.domain.oi_schedule import (
+    OIAcceptedStart,
+    OIClockProof,
+    OICollectionConfig,
+    OIRuntimeIdentity,
+    OIStartAcceptance,
+    OIStartEnvelope,
+    slot_gap_identity,
+)
 from auvexo_alpha.domain.open_interest import OIManifest, oi_dataset_version
 from auvexo_alpha.domain.research import DataUseClass
 from auvexo_alpha.infrastructure.oi_collection import OICollectionJob
@@ -41,6 +49,7 @@ class MemoryStore(OIStore):
         self.events = {}
         self.research_failures = []
         self.quarantines = []
+        self.slot_gaps = {}
 
     @contextmanager
     def collection_lease(self):
@@ -57,7 +66,17 @@ class MemoryStore(OIStore):
         ]
         return earlier[-1] if earlier else None
 
-    def publish(self, observation, raw, rights=None, classification=None, *, now=None):
+    def publish(
+        self,
+        observation,
+        raw,
+        rights=None,
+        classification=None,
+        *,
+        now=None,
+        start_digest=None,
+        transport="ENGINEERING_FIXTURE",
+    ):
         manifest = OIManifest(
             dataset_version=oi_dataset_version(observation),
             logical_key=(
@@ -74,6 +93,8 @@ class MemoryStore(OIStore):
             created_at=observation.available_at,
             processed_at=observation.available_at,
             classification=classification,
+            start_digest=start_digest,
+            transport=transport,
         )
         self.by_hash[manifest.content_hash()] = manifest
         self.history[observation.symbol].append(manifest)
@@ -122,6 +143,25 @@ class MemoryStore(OIStore):
 
     def record_research_failure(self, symbol, slot_at, manifest_hash, code, recorded_at):
         self.research_failures.append((symbol, slot_at, manifest_hash, code, recorded_at))
+
+    # Gap rows in memory; the production record_missed_slots computation runs unchanged.
+    def record_gaps(self, gaps):
+        new = [gap for gap in gaps if gap.identity not in self.slot_gaps]
+        self.slot_gaps.update((gap.identity, gap) for gap in new)
+        return len(new)
+
+    def gaps(self):
+        return tuple(self.slot_gaps.values())
+
+    def slot_gap_recorded(self, symbol, slot_at):
+        return slot_gap_identity(symbol, slot_at) in self.slot_gaps
+
+    def _manifest_slots(self):
+        return {
+            (m.observation.symbol, m.observation.slot_at)
+            for history in self.history.values()
+            for m in history
+        }
 
 
 class Clock:
@@ -188,10 +228,31 @@ def start_envelope(config):
     )
 
 
+def accepted_start(config, envelope):
+    # Synthetic stand-in for a committed acceptance entry; never written or accepted.
+    return OIAcceptedStart(
+        acceptance_commit="f" * 40,
+        acceptance=OIStartAcceptance(
+            study_id=config.study_id,
+            envelope=envelope,
+            runtime=OIRuntimeIdentity(
+                checkout_root="C:/synthetic/oi-runtime",
+                python_executable="C:/synthetic/oi-runtime/python.exe",
+                python_executable_sha256="1" * 64,
+                base_interpreter_sha256="2" * 64,
+            ),
+            commissioning_clock_source=config.clock_source,
+            commissioning_clock_evidence_hash="9" * 64,
+            acceptance_review_ref="synthetic-independent-review",
+        ),
+    )
+
+
 class Harness:
     def __init__(self, store=None, values=None):
         self.config = configuration()
         self.envelope = start_envelope(self.config)
+        self.start = accepted_start(self.config, self.envelope)
         self.clock = Clock(at_hour(13))
         self.store = store or MemoryStore()
         self.http = HTTP(self.clock, values)
@@ -215,11 +276,7 @@ class Harness:
             offset_bound_ms=5,
             evidence_hash="e" * 64,
         )
-        return self.job.run(
-            envelope=self.envelope,
-            accepted_start_digest=self.envelope.content_hash(),
-            clock=proof,
-        )
+        return self.job.run(start=self.start, clock=proof)
 
     def fetched(self, hour):
         return [symbol for symbol, at in self.http.calls if at.hour == hour]
@@ -450,3 +507,66 @@ def test_zero_or_late_target_is_recorded_unscored_and_the_job_continues():
     assert harness.feature("BTCUSDT", 15).level == Decimal(0)
     # The original prediction is retained unchanged beside its missing-outcome flag.
     assert [f.slot_at.hour for f in harness.store.forecasts() if f.symbol == "BTCUSDT"] == [14]
+
+
+def test_missed_and_refused_slots_leave_durable_gaps_and_are_never_caught_up():
+    from auvexo_alpha.domain.oi_schedule import slot_allowed
+
+    harness = Harness()
+    # owner START 2026-10-26T23:59Z, so T0 is the next UTC midnight.
+    t0 = DAY - timedelta(days=3)
+    assert harness.run(13).code == "COMPLETE"
+    # Nothing ran between T0 and this first run: every scheduled slot is an explicit gap,
+    # protected hours are not slots, and nothing earlier was fetched (no catch-up).
+    before = [t0 + i * HOUR for i in range(85) if slot_allowed(t0 + i * HOUR)]
+    assert {(g.symbol, g.slot_at) for g in harness.store.gaps()} == {
+        (symbol, slot) for slot in before for symbol in ("BTCUSDT", "ETHUSDT")
+    }
+    assert {g.reason for g in harness.store.gaps()} == {"OI_NO_RUN_RECORDED"}
+    assert {at.hour for _, at in harness.http.calls} == {13}
+    fetch = harness.http.fetch
+
+    def unavailable(symbol, **kwargs):
+        if symbol == "ETHUSDT":
+            from auvexo_alpha.infrastructure.public_http import SourceError
+
+            raise SourceError("OI_NETWORK")
+        return fetch(symbol, **kwargs)
+
+    harness.http.fetch = unavailable
+    assert harness.run(14).reason == "OI_NETWORK"
+    harness.http.fetch = fetch
+    # 15:00 never runs; 19:00 records it. 16-18 UTC stay excluded, not gaps.
+    assert harness.run(19).code == "COMPLETE"
+    later = {(g.symbol, g.slot_at.hour): g.reason for g in harness.store.gaps() if g.slot_at >= DAY}
+    assert {key: reason for key, reason in later.items() if key[1] >= 13} == {
+        ("ETHUSDT", 14): "OI_NETWORK",
+        ("BTCUSDT", 15): "OI_NO_RUN_RECORDED",
+        ("ETHUSDT", 15): "OI_NO_RUN_RECORDED",
+    }
+    # The refused ETH attempt raised before the fixture logged it.
+    assert harness.fetched(15) == [] and harness.fetched(14) == ["BTCUSDT"]
+    # A recorded reason is never rewritten and a gap is never later filled.
+    count = len(harness.store.gaps())
+    assert (
+        harness.store.record_missed_slots(
+            harness.job._study(harness.start), at_hour(19), at_hour(19)
+        )
+        == 0
+    )
+    assert len(harness.store.gaps()) == count
+    assert [
+        g.reason for g in harness.store.gaps() if g.identity == f"ETHUSDT:{at_hour(14).isoformat()}"
+    ] == ["OI_NETWORK"]
+
+
+def test_published_manifests_carry_the_start_digest_and_never_a_production_label():
+    harness = Harness()
+    assert harness.run(13).code == "COMPLETE"
+    for symbol in ("BTCUSDT", "ETHUSDT"):
+        manifest = harness.store.checkpoint(symbol)
+        assert manifest.start_digest == harness.start.digest
+        # The fixture transport is not the isolated production worker.
+        assert manifest.transport == "ENGINEERING_FIXTURE"
+    study = harness.job._study(harness.start)
+    assert study.start_digest == harness.start.digest

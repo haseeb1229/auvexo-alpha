@@ -4,7 +4,15 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
-from observation_fixtures import BEGIN, account_at, changed, fact_for, make_config, make_run
+from observation_fixtures import (
+    BEGIN,
+    account_at,
+    changed,
+    fact_for,
+    make_config,
+    make_config_v2,
+    make_run,
+)
 
 from auvexo_alpha.application.observation_qualification import plan_observation_intent
 from auvexo_alpha.application.observation_replay import replay_observation_traces
@@ -112,13 +120,14 @@ def test_prepared_campaign_refuses_before_writer_or_feed():
             pytest.fail("Unexpected execution before PREPARED refusal: " + name)
 
     runner = ObservationRunner(
-        make_config(),
+        make_config_v2(),
         Prepared(),
         NoAction(),
         NoAction(),
         NoAction(),
         clock=lambda: BEGIN,
         simulator=NoAction(),
+        gates=NoAction(),
         resources=lambda now: None,
     )
     with pytest.raises(ValueError, match="NOT_ACTIVATED"):

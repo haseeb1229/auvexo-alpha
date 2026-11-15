@@ -69,7 +69,7 @@ Restarting on a corrected release therefore costs almost nothing. It needs, in o
 3. a reviewed release containing the collector and observation corrections, and a
    superseding preregistration for the PAPER campaign;
 4. the Operational database started with the canonical tool, and a way to keep it running
-   across reboots;
+   across reboots ([autostart candidate](POSTGRES_AUTOSTART.md));
 5. the laptop available every evening as described in
    [checkouts and tasks](CHECKOUTS_AND_TASKS.md).
 

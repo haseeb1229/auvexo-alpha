@@ -89,8 +89,32 @@ def test_postgres_harness_refuses_a_non_disposable_database(
 def test_postgres_harness_accepts_disposable_test_databases(
     database: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    import test_postgres
+
+    # The cluster proof itself is covered in test_disposable_pg; only the name is here.
+    monkeypatch.setattr(test_postgres, "harness_args", lambda role: {"port": 41000})
+    monkeypatch.setenv("TEST_PG_DATABASE", database)
+    assert test_postgres.connection_args() == {"port": 41000, "dbname": database}
+
+
+@pytest.mark.parametrize(
+    "environment",
+    [
+        {},
+        {"TEST_PG_PORT": "55432", "TEST_PG_CLUSTER_ID": "0" * 32},
+        {"TEST_PG_PORT": "55433", "TEST_PG_CLUSTER_ID": "0" * 32},
+        {"TEST_PG_PORT": "41000", "TEST_PG_CLUSTER_ID": "not-a-uuid"},
+    ],
+)
+def test_postgres_harness_fails_rather_than_reaching_another_cluster(
+    environment: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     from test_postgres import connection_args
 
+    for name in ("TEST_PG_PORT", "TEST_PG_CLUSTER_ID", "TEST_PG_DATABASE"):
+        monkeypatch.delenv(name, raising=False)
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
     monkeypatch.setenv("TEST_PG_ADMIN_PASSWORD", "synthetic-not-a-secret")
-    monkeypatch.setenv("TEST_PG_DATABASE", database)
-    assert connection_args()["dbname"] == database
+    with pytest.raises(pytest.fail.Exception, match="Disposable PostgreSQL test cluster required"):
+        connection_args()

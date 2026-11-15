@@ -21,9 +21,12 @@ $uvPath = Join-Path $uvRoot 'uv-0.13.1.data/scripts/uv.exe'
 if (-not (Test-Path -LiteralPath $uvPath)) { Expand-Archive -LiteralPath $uvArchive -DestinationPath $uvRoot }
 $env:UV_PYTHON_INSTALL_DIR = Join-Path $repoRoot '.local/python'
 $env:UV_CACHE_DIR = Join-Path $repoRoot '.local/uv-cache'
+# Copy, never hard-link: the DS-03 provider binding refuses linked package files.
+$env:UV_LINK_MODE = 'copy'
 & $uvPath python install 3.13.16 --no-bin
 if ($LASTEXITCODE -ne 0) { throw 'Python install failed' }
-& $uvPath sync --locked
+# The provider group holds the Windows-only read-only MT5 SDK pins for native tests.
+& $uvPath sync --locked --group provider
 if ($LASTEXITCODE -ne 0) { throw 'Locked install failed' }
 if (-not $SkipPostgres) {
     $pgArchive = Join-Path $toolRoot 'postgresql.zip'

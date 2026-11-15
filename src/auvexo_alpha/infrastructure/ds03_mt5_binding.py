@@ -19,10 +19,12 @@ from uuid import UUID, uuid4
 import psutil
 
 from auvexo_alpha.domain.ds03 import Ds03Error
+from auvexo_alpha.domain.ds03_actual import Ds03Refusal, refusal
 from auvexo_alpha.domain.ds03_authority import Ds03RuntimeBinding
 
 PACKAGE_VERSION = "5.0.6231"
 WHEEL_HASH = "3a8c8349ce691a4ef05e314afc034ad82f4dbb19415efc7442af5ea075d5e797"
+NUMPY_VERSION = "2.4.6"
 _PACKAGE_FILES = {
     "MetaTrader5/__init__.py": "2e3bc321ab35b5c9e6c777665f381bc686bbf60791160838a0e84406dc0052cf",
     "MetaTrader5/_core.cp313-win_amd64.pyd": (
@@ -104,14 +106,14 @@ def _profile_root() -> Path:
         )
         try:
             if failed:
-                raise Ds03Error()
+                raise Ds03Refusal("BINDING_MISMATCH")
             results.append(Path(output.value or ""))
         finally:
             ole.CoTaskMemFree(ctypes.cast(output, ctypes.c_void_p))
     if not results[0].is_absolute() or os.path.normcase(str(results[0])) != os.path.normcase(
         str(results[1])
     ):
-        raise Ds03Error()
+        raise Ds03Refusal("BINDING_MISMATCH")
     return results[0]
 
 
@@ -155,12 +157,21 @@ def verify_installed_package() -> str:
     try:
         if sys.platform != "win32" or sys.version_info[:2] != (3, 13) or struct.calcsize("P") != 8:
             raise Ds03Error()
-        dist = importlib.metadata.distribution("metatrader5")
-        if (
-            dist.version != PACKAGE_VERSION
-            or not dist.files
-            or importlib.metadata.version("numpy") != "2.4.6"
-        ):
+        return verify_package_payload(
+            importlib.metadata.distribution("metatrader5"), importlib.metadata.version("numpy")
+        )
+    except Exception:
+        raise Ds03Refusal("PACKAGE_MISMATCH") from None
+
+
+def verify_package_payload(dist: importlib.metadata.Distribution, numpy_version: str) -> str:
+    """Exact recorded and on-disk SDK payload of one distribution; nothing is imported.
+
+    Shared by the running provider check and the offline runtime install verifier, which
+    locates the distribution under an explicit site-packages directory instead.
+    """
+    try:
+        if dist.version != PACKAGE_VERSION or not dist.files or numpy_version != NUMPY_VERSION:
             raise Ds03Error()
         installed = {str(p).replace("\\", "/") for p in dist.files}
         expected = set(_PACKAGE_FILES)
@@ -186,7 +197,7 @@ def verify_installed_package() -> str:
                 raise Ds03Error()
         return _hash(_canonical(_PACKAGE_FILES))
     except Exception:
-        raise Ds03Error() from None
+        raise Ds03Refusal("PACKAGE_MISMATCH") from None
 
 
 def _base_python() -> Path:
@@ -194,20 +205,20 @@ def _base_python() -> Path:
     # Read one fixed key; there is no caller-selected attribute or callable dispatch.
     value: object = vars(sys).get("_base_executable")
     if type(value) is not str or not value:
-        raise Ds03Error()
+        raise Ds03Refusal("INTERPRETER_MISMATCH")
     return Path(value)
 
 
 def _loaded_python_dll() -> Path:
     if sys.platform != "win32":
-        raise Ds03Error()
+        raise Ds03Refusal("INTERPRETER_MISMATCH")
     api = ctypes.WinDLL("kernel32", use_last_error=True)
     api.GetModuleFileNameW.argtypes = [wintypes.HMODULE, wintypes.LPWSTR, wintypes.DWORD]
     api.GetModuleFileNameW.restype = wintypes.DWORD
     buffer = ctypes.create_unicode_buffer(32768)
     count = api.GetModuleFileNameW(ctypes.pythonapi._handle, buffer, len(buffer))
     if not count or count >= len(buffer):
-        raise Ds03Error()
+        raise Ds03Refusal("INTERPRETER_MISMATCH")
     return Path(buffer.value)
 
 
@@ -235,8 +246,8 @@ def source_binding() -> str:
         manifest["mt5_package"] = verify_installed_package()
         manifest["mt5_wheel"] = WHEEL_HASH
         return _hash(_canonical(manifest))
-    except Exception:
-        raise Ds03Error() from None
+    except Exception as error:
+        raise refusal(error, "BINDING_MISMATCH") from None
 
 
 def _profile_identity() -> str:
@@ -244,7 +255,7 @@ def _profile_identity() -> str:
     _plain_path(path, file=False)
     info = path.stat(follow_symlinks=False)
     if info.st_ino == 0:
-        raise Ds03Error()
+        raise Ds03Refusal("TERMINAL_PROFILE")
     return _hash(
         _canonical({"path": _path_hash(path), "device": info.st_dev, "inode": info.st_ino})
     )
@@ -270,14 +281,14 @@ def measure_binding(
         if os.path.normcase(os.path.abspath(sys.executable)) != os.path.normcase(
             str(expected_python)
         ) or Path(__file__).resolve().parents[1] != expected_package.resolve(strict=True):
-            raise Ds03Error()
+            raise Ds03Refusal("INTERPRETER_MISMATCH")
         base = _base_python()
         if (
             not base.is_relative_to(runtime_root() / ".local" / "python")
             or base.name.casefold() != "python.exe"
             or _loaded_python_dll() != base.parent / "python313.dll"
         ):
-            raise Ds03Error()
+            raise Ds03Refusal("INTERPRETER_MISMATCH")
         _plain_path(base, file=True)
         _plain_path(expected_python, file=True)
         _plain_path(expected_package, file=False)
@@ -297,8 +308,8 @@ def measure_binding(
             fixed_profile_path_hash=paths[2],
             profile_identity_hash=_profile_identity(),
         )
-    except Exception:
-        raise Ds03Error() from None
+    except Exception as error:
+        raise refusal(error, "BINDING_MISMATCH") from None
 
 
 @dataclass(frozen=True)
@@ -328,7 +339,7 @@ def _terminal_pids() -> tuple[int, ...]:
     # Toolhelp exposes image basenames without opening privileged unrelated processes.
     # Only exact terminal64.exe candidates subsequently receive limited native queries.
     if sys.platform != "win32":
-        raise Ds03Error()
+        raise Ds03Refusal("TERMINAL_IDENTITY")
     api = ctypes.WinDLL("kernel32", use_last_error=True)
     api.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
     api.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
@@ -340,23 +351,23 @@ def _terminal_pids() -> tuple[int, ...]:
     api.CloseHandle.restype = wintypes.BOOL
     snapshot = api.CreateToolhelp32Snapshot(2, 0)
     if snapshot in (None, ctypes.c_void_p(-1).value):
-        raise Ds03Error()
+        raise Ds03Refusal("TERMINAL_IDENTITY")
     found: list[int] = []
     entry = _ProcessEntry()
     entry.dwSize = ctypes.sizeof(entry)
     try:
         success = api.Process32FirstW(snapshot, ctypes.byref(entry))
         if not success:
-            raise Ds03Error()
+            raise Ds03Refusal("TERMINAL_IDENTITY")
         while success:
             if entry.szExeFile.casefold() == "terminal64.exe":
                 found.append(int(entry.th32ProcessID))
             success = api.Process32NextW(snapshot, ctypes.byref(entry))
         if ctypes.get_last_error() != 18:  # ERROR_NO_MORE_FILES is the only clean exhaustion.
-            raise Ds03Error()
+            raise Ds03Refusal("TERMINAL_IDENTITY")
     finally:
         if not api.CloseHandle(snapshot):
-            raise Ds03Error()
+            raise Ds03Refusal("TERMINAL_IDENTITY")
     return tuple(found)
 
 
@@ -372,7 +383,7 @@ def probe_terminal_process(binding: Ds03RuntimeBinding) -> TerminalProcessEviden
             )
             != binding
         ):
-            raise Ds03Error()
+            raise Ds03Refusal("BINDING_MISMATCH")
         _plain_path(terminal_path(), file=True)
         paths = fixed_path_hashes()
         binary_hash = _hash(terminal_path().read_bytes())
@@ -422,8 +433,8 @@ def probe_terminal_process(binding: Ds03RuntimeBinding) -> TerminalProcessEviden
         return TerminalProcessEvidence(
             "ds03.process." + process_hash, profile, paths[1], binary_hash
         )
-    except Exception:
-        raise Ds03Error() from None
+    except Exception as error:
+        raise refusal(error, "TERMINAL_IDENTITY") from None
 
 
 def verify_terminal_process(
@@ -431,7 +442,7 @@ def verify_terminal_process(
 ) -> TerminalProcessEvidence:
     actual = probe_terminal_process(binding)
     if actual != expected:
-        raise Ds03Error()
+        raise Ds03Refusal("TERMINAL_IDENTITY")
     return actual
 
 
@@ -493,7 +504,7 @@ def _resume_suspended_primary(process_id: int) -> None:
     CREATE_SUSPENDED is mandatory. No PID-guessing or unrelated thread mutation.
     """
     if sys.platform != "win32":
-        raise Ds03Error()
+        raise Ds03Refusal("JOB_CONTAINMENT")
     api = ctypes.WinDLL("kernel32", use_last_error=True)
     api.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
     api.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
@@ -509,32 +520,34 @@ def _resume_suspended_primary(process_id: int) -> None:
     api.CloseHandle.restype = wintypes.BOOL
     snapshot = api.CreateToolhelp32Snapshot(4, 0)
     if snapshot in (None, ctypes.c_void_p(-1).value):
-        raise Ds03Error()
+        raise Ds03Refusal("JOB_CONTAINMENT")
     threads: list[int] = []
     entry = _ThreadEntry()
     entry.dwSize = ctypes.sizeof(entry)
     try:
         success = api.Thread32First(snapshot, ctypes.byref(entry))
         if not success:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         while success:
             if entry.th32OwnerProcessID == process_id:
                 threads.append(int(entry.th32ThreadID))
             success = api.Thread32Next(snapshot, ctypes.byref(entry))
         if ctypes.get_last_error() != 18 or len(threads) != 1:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
     finally:
         if not api.CloseHandle(snapshot):
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
     thread = api.OpenThread(2, False, threads[0])  # THREAD_SUSPEND_RESUME only.
     if not thread:
-        raise Ds03Error()
+        raise Ds03Refusal("JOB_CONTAINMENT")
     try:
         if api.ResumeThread(thread) != 1:
-            raise Ds03Error()  # Unstarted CREATE_SUSPENDED thread must have count one.
+            raise Ds03Refusal(
+                "JOB_CONTAINMENT"
+            )  # Unstarted CREATE_SUSPENDED thread must have count one.
     finally:
         if not api.CloseHandle(thread):
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
 
 
 class ProviderJob:
@@ -550,7 +563,7 @@ class ProviderJob:
 
     def __init__(self) -> None:
         if sys.platform != "win32":
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         self._api = ctypes.WinDLL("kernel32", use_last_error=True)
         self._api.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
         self._api.CreateJobObjectW.restype = wintypes.HANDLE
@@ -573,12 +586,12 @@ class ProviderJob:
         ctypes.set_last_error(0)
         self._handle = self._api.CreateJobObjectW(None, self._name)
         if not self._handle:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         if ctypes.get_last_error() == 183:  # Never adopt or terminate a pre-existing object.
             existing, self._handle = self._handle, None
             if not self._api.CloseHandle(existing):
-                raise Ds03Error()
-            raise Ds03Error()
+                raise Ds03Refusal("JOB_CONTAINMENT")
+            raise Ds03Refusal("JOB_CONTAINMENT")
         limits = _ExtendedLimit()
         # KILL_ON_JOB_CLOSE | JOB_MEMORY. No BREAKAWAY_OK or SILENT_BREAKAWAY_OK.
         limits.BasicLimitInformation.LimitFlags = 0x2000 | 0x200
@@ -587,22 +600,22 @@ class ProviderJob:
             self._handle, 9, ctypes.byref(limits), ctypes.sizeof(limits)
         ):
             self.close()
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
 
     def assign(self, process: subprocess.Popen[bytes]) -> None:
         """Caller MUST use CREATE_SUSPENDED; assignment precedes the first instruction."""
         if not self._handle or process.poll() is not None:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         handle = self._api.OpenProcess(0x100 | 0x1, False, process.pid)
         if not handle:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         try:
             if not self._api.AssignProcessToJobObject(self._handle, handle):
-                raise Ds03Error()
+                raise Ds03Refusal("JOB_CONTAINMENT")
             _resume_suspended_primary(process.pid)
         finally:
             if not self._api.CloseHandle(handle):
-                raise Ds03Error()
+                raise Ds03Refusal("JOB_CONTAINMENT")
 
     def close(self) -> None:
         if self._handle:
@@ -611,7 +624,7 @@ class ProviderJob:
             terminated = self._api.TerminateJobObject(handle, 1)
             closed = self._api.CloseHandle(handle)
             if not terminated or not closed:
-                raise Ds03Error()
+                raise Ds03Refusal("JOB_CONTAINMENT")
 
     def __enter__(self) -> ProviderJob:
         return self
@@ -626,7 +639,10 @@ class ProviderJob:
 
 
 def provider_job() -> ProviderJob:
-    return ProviderJob()
+    try:
+        return ProviderJob()
+    except Exception:
+        raise Ds03Refusal("JOB_CONTAINMENT") from None
 
 
 def _validate_job_name(value: object) -> str:
@@ -637,7 +653,7 @@ def _validate_job_name(value: object) -> str:
         or len(value) != len(prefix) + 32
         or any(character not in "0123456789abcdef" for character in value[len(prefix) :])
     ):
-        raise Ds03Error()
+        raise Ds03Refusal("JOB_CONTAINMENT")
     return value
 
 
@@ -645,7 +661,7 @@ def _current_job_pids(job_name: str) -> frozenset[int]:
     """QUERY-only proof of the exact authenticated session Job, never NULL/any Job."""
     name = _validate_job_name(job_name)
     if sys.platform != "win32":
-        raise Ds03Error()
+        raise Ds03Refusal("JOB_CONTAINMENT")
     api = ctypes.WinDLL("kernel32", use_last_error=True)
     api.OpenJobObjectW.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.LPCWSTR]
     api.OpenJobObjectW.restype = wintypes.HANDLE
@@ -661,15 +677,15 @@ def _current_job_pids(job_name: str) -> frozenset[int]:
     api.QueryInformationJobObject.restype = wintypes.BOOL
     handle = api.OpenJobObjectW(4, False, name)  # JOB_OBJECT_QUERY only, noninheritable.
     if not handle:
-        raise Ds03Error()
+        raise Ds03Refusal("JOB_CONTAINMENT")
     try:
         limits = _ExtendedLimit()
         if not api.QueryInformationJobObject(
             handle, 9, ctypes.byref(limits), ctypes.sizeof(limits), None
         ):
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         if limits.JobMemoryLimit != 1024**3 or limits.BasicLimitInformation.LimitFlags != 0x2200:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
 
         class ProcessList(ctypes.Structure):
             _fields_ = [
@@ -682,16 +698,16 @@ def _current_job_pids(job_name: str) -> frozenset[int]:
         if not api.QueryInformationJobObject(
             handle, 3, ctypes.byref(result), ctypes.sizeof(result), None
         ):
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         if not 0 < result.count == result.assigned <= 4096:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         members = frozenset(int(result.pids[index]) for index in range(result.count))
         if os.getpid() not in members:
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
         return members
     finally:
         if not api.CloseHandle(handle):
-            raise Ds03Error()
+            raise Ds03Refusal("JOB_CONTAINMENT")
 
 
 def require_terminal_in_current_job(
@@ -709,9 +725,9 @@ def require_terminal_in_current_job(
         )
         contained = _current_job_pids(job_name)
         if len(selected) != 1 or selected[0] not in contained or os.getpid() not in contained:
-            raise Ds03Error()
-    except Exception:
-        raise Ds03Error() from None
+            raise Ds03Refusal("TERMINAL_NOT_CONTAINED")
+    except Exception as error:
+        raise refusal(error, "TERMINAL_NOT_CONTAINED") from None
 
 
 def verify_runtime_binding(binding: Ds03RuntimeBinding) -> None:
@@ -725,4 +741,4 @@ def verify_runtime_binding(binding: Ds03RuntimeBinding) -> None:
         )
         != binding
     ):
-        raise Ds03Error()
+        raise Ds03Refusal("BINDING_MISMATCH")

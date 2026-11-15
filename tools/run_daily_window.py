@@ -13,15 +13,19 @@ from pathlib import Path
 from uuid import uuid4
 
 import psutil
-from local_db import LOCAL, ROOT
+from local_db import LOCAL, NO_WINDOW, ROOT
 
 from auvexo_alpha.application.data_reporting import stable_code
 from auvexo_alpha.application.data_schedule import (
     SCHEDULE_DESCRIPTION,
     SCHEDULE_ID,
+    prewindow,
+    schedule_time,
     target_window,
 )
+from auvexo_alpha.infrastructure.scheduler_provenance import current_provenance
 
+PUBLIC_DATA_TASK = "\\AuvexoAlpha-PublicData-Daily"
 LOG_LIMIT = 1024 * 1024
 DIRECTORY_LIMIT = 20 * LOG_LIMIT
 LOG_NAME = re.compile(r"\d{8}T\d{12}Z-[0-9a-f]{12}(?:-warmup)?\.log")
@@ -107,14 +111,15 @@ def run_bounded(arguments: list[str], log: Path, timeout: int) -> dict[str, obje
             cwd=ROOT,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            creationflags=NO_WINDOW,
         )
-        assert process.stdout is not None
+        output = process.stdout
+        assert output is not None
 
         def copy_output() -> None:
             written = 0
             try:
-                while chunk := process.stdout.read(65536):
+                while chunk := output.read(65536):
                     remaining = max(0, LOG_LIMIT - written)
                     stream.write(chunk[:remaining])
                     written += min(len(chunk), remaining)
@@ -136,7 +141,7 @@ def run_bounded(arguments: list[str], log: Path, timeout: int) -> dict[str, obje
         reader.join(timeout=5)
         if reader.is_alive():
             errors.append("OUTPUT_NOT_CLOSED")
-        process.stdout.close()
+        output.close()
     return {
         "returncode": process.returncode,
         "seconds": round(time.monotonic() - started, 3),
@@ -178,6 +183,14 @@ def main() -> int:
     }
     target = None
     if args.scheduled:
+        # Read-only Task Scheduler provenance of this wrapper (ADR-032 OBV2-06 applied to
+        # public-data campaign v2): recorded with its reason; qualification needs VERIFIED.
+        earliest, window_start = prewindow(schedule_time(now).date())
+        provenance = current_provenance(
+            PUBLIC_DATA_TASK, window_start=earliest, window_end=window_start
+        )
+        report["provenance"] = provenance.status
+        report["provenance_reason"] = provenance.reason
         try:
             target = target_window(now)
         except ValueError as error:

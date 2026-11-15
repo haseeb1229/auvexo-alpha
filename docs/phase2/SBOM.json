@@ -216,8 +216,8 @@
     {
       "type": "library",
       "name": "opentelemetry-api",
-      "version": "1.45.1",
-      "purl": "pkg:pypi/opentelemetry-api@1.45.1"
+      "version": "1.45.2",
+      "purl": "pkg:pypi/opentelemetry-api@1.45.2"
     },
     {
       "type": "library",

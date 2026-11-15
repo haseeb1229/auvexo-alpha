@@ -18,6 +18,7 @@ from auvexo_alpha.domain.paper import (
     PaperReason,
     PaperReservation,
     paper_position_ref,
+    spec_terms_hash,
 )
 from auvexo_alpha.domain.paper_lifecycle import (
     KillLevel,
@@ -34,6 +35,37 @@ BPS = Decimal("10000")
 def _validated[T: Contract](value: T) -> T:
     # Unlike model_validate(instance), this rechecks copy/construct bypasses recursively.
     return type(value).model_validate_json(value.model_dump_json(warnings="error"))
+
+
+def loss_limits(
+    account: PaperAccountSnapshot, policy: PaperPolicy
+) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+    """Return (daily loss, daily cap, drawdown, drawdown cap) for one account snapshot.
+
+    Losses are measured net of observed flows. Each cap's base is reduced by net outflows,
+    min(base, base + flows) and never below zero, so a withdrawal cannot raise the
+    permitted loss as a share of what remains (P-14). Net inflows never raise a base.
+    """
+    daily = max(account.day_start_equity - (account.equity - account.day_net_flows), ZERO)
+    drawdown = max(
+        account.high_water_equity - (account.equity - account.net_flows_since_high_water), ZERO
+    )
+    daily_base = max(
+        min(account.day_start_equity, account.day_start_equity + account.day_net_flows), ZERO
+    )
+    drawdown_base = max(
+        min(
+            account.high_water_equity,
+            account.high_water_equity + account.net_flows_since_high_water,
+        ),
+        ZERO,
+    )
+    return (
+        daily,
+        daily_base * policy.max_daily_loss_fraction,
+        drawdown,
+        drawdown_base * policy.max_drawdown_fraction,
+    )
 
 
 def _hash(value: Contract) -> str:
@@ -272,6 +304,14 @@ def _assess(
         add(PaperReason.CLOCK_OFFSET)
     if not market.session_open:
         add(PaperReason.SESSION_CLOSED)
+    # Entries only: a reduce-only close must stay possible in a wide market.
+    if opening and market.spread_bps() > policy.max_spread_bps:
+        add(PaperReason.SPREAD_WIDE)
+    if (
+        policy.input_trust == "STORE_VERIFIED"
+        and spec_terms_hash(spec) not in policy.pinned_spec_terms
+    ):
+        add(PaperReason.SPEC_UNPINNED)
     if intent.entry % spec.price_tick or intent.stop % spec.price_tick:
         add(PaperReason.PRICE_INVALID)
     if opening and intent.entry < market.ask:
@@ -318,11 +358,36 @@ def _assess(
     ):
         add(PaperReason.ORDER_RATE_CAP)
 
-    quantity = (intent.quantity / spec.quantity_step).to_integral_value(rounding=ROUND_DOWN)
-    quantity *= spec.quantity_step
-    if quantity < spec.min_quantity:
-        add(PaperReason.MINIMUM_QUANTITY)
-    if quantity > spec.max_quantity or quantity <= 0:
+    close_target = (
+        next((p for p in account.positions if p.position_ref == intent.position_ref), None)
+        if intent.action == MoneyAction.CLOSE
+        else None
+    )
+    pending_close = sum(
+        (
+            r.quantity
+            for r in active
+            if r.action == MoneyAction.CLOSE and r.position_ref == intent.position_ref
+        ),
+        ZERO,
+    )
+    # P-14: a reduce-only close of exactly the whole unreserved remainder is exempt from the
+    # step, minimum and maximum, so a dust or off-step position can always be closed.
+    full_close = (
+        close_target is not None
+        and close_target.instrument_id == intent.instrument_id
+        and intent.quantity == close_target.quantity - pending_close
+    )
+    if full_close:
+        quantity = intent.quantity
+    else:
+        quantity = (intent.quantity / spec.quantity_step).to_integral_value(rounding=ROUND_DOWN)
+        quantity *= spec.quantity_step
+        if quantity < spec.min_quantity:
+            add(PaperReason.MINIMUM_QUANTITY)
+        if quantity > spec.max_quantity:
+            add(PaperReason.QUANTITY_INVALID)
+    if quantity <= 0:
         add(PaperReason.QUANTITY_INVALID)
     notional = quantity * spec.contract_multiplier * intent.entry * (fx or ZERO)
     costs = notional * (2 * policy.fee_bps + 2 * policy.slippage_bps + policy.gap_bps) / BPS
@@ -331,26 +396,18 @@ def _assess(
     )
     margin = notional * spec.margin_fraction
     cash_required = notional + costs
-    if notional < spec.min_notional:
+    if notional < spec.min_notional and not full_close:
         add(PaperReason.MINIMUM_NOTIONAL)
 
     if intent.action == MoneyAction.CLOSE:
-        position = next(
-            (p for p in account.positions if p.position_ref == intent.position_ref), None
-        )
-        if position is None or position.instrument_id != intent.instrument_id:
+        if close_target is None or close_target.instrument_id != intent.instrument_id:
             add(PaperReason.POSITION_UNKNOWN)
         else:
-            closing = sum(
-                (
-                    r.quantity
-                    for r in active
-                    if r.action == MoneyAction.CLOSE and r.position_ref == position.position_ref
-                ),
-                ZERO,
-            )
             # Do not round an over-close into an apparently valid close.
-            if intent.quantity > position.quantity - closing or quantity != intent.quantity:
+            if (
+                intent.quantity > close_target.quantity - pending_close
+                or quantity != intent.quantity
+            ):
                 add(PaperReason.OVER_CLOSE)
             if intent.entry > market.bid:
                 add(PaperReason.PRICE_INVALID)
@@ -450,13 +507,10 @@ def _assess(
         # No netting guarantee is inferred: each position/pending open can remain distinct.
         if len(account.positions) + len(pending) + 1 > policy.max_positions:
             add(PaperReason.POSITIONS_CAP)
-        daily_loss = max(account.day_start_equity - (account.equity - account.day_net_flows), ZERO)
-        drawdown = max(
-            account.high_water_equity - (account.equity - account.net_flows_since_high_water), ZERO
-        )
-        if daily_loss + total_risk > account.day_start_equity * policy.max_daily_loss_fraction:
+        daily_loss, daily_cap, drawdown, drawdown_cap = loss_limits(account, policy)
+        if daily_loss + total_risk > daily_cap:
             add(PaperReason.DAILY_LOSS_CAP)
-        if drawdown + total_risk > account.high_water_equity * policy.max_drawdown_fraction:
+        if drawdown + total_risk > drawdown_cap:
             add(PaperReason.DRAWDOWN_CAP)
     exposure = PaperExposure(
         quantity=quantity,

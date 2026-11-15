@@ -9,10 +9,12 @@ from test_ds03_actual_contracts import (
     NOW,
     PROTOCOL_FAMILY,
     SYMBOL,
+    TIMED,
     attest,
     bar,
     envelope,
     identity,
+    ms,
     req,
     rights,
     spec,
@@ -279,6 +281,8 @@ def test_nonmarket_balance_fact_is_preserved_without_invented_symbol_or_trade():
         provider_at=NOW - timedelta(seconds=1),
         first_seen_at=NOW,
         source_ref="e" * 64,
+        time_msc_raw=ms(NOW - timedelta(seconds=1)),
+        **TIMED,
     )
     backend.payload = ActualDealsPayload(deals=(fact,))
     result = reader.read(
@@ -305,6 +309,9 @@ def test_actual_partial_order_enum_and_known_spec_bindings_survive_guard():
         provider_at=NOW,
         first_seen_at=NOW,
         source_ref="e" * 64,
+        setup_time_msc_raw=ms(NOW - timedelta(seconds=1)),
+        done_time_msc_raw=0,
+        **TIMED,
     )
     backend.payload = ActualOrdersPayload(orders=(fact,))
     result = reader.read(req(OrdersRequest), now=NOW)
@@ -329,6 +336,9 @@ def test_wrong_spec_or_unsupported_enum_cannot_be_dropped_from_history():
             provider_at=NOW,
             first_seen_at=NOW,
             source_ref="e" * 64,
+            setup_time_msc_raw=ms(NOW),
+            done_time_msc_raw=0,
+            **TIMED,
         )
         backend.payload = ActualOrdersPayload(orders=(fact,))
 

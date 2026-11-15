@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from auvexo_alpha import data_cli
+from auvexo_alpha.application.data_reporting import scheduled_binding
 from auvexo_alpha.application.data_schedule import (
     CATCHUP_BUDGET,
     START_TOLERANCE,
@@ -16,6 +17,7 @@ from auvexo_alpha.application.data_schedule import (
     prewindow,
     qualification_window,
 )
+from auvexo_alpha.domain.observation import ObservationProvenance
 
 spec = importlib.util.spec_from_file_location(
     "scheduled_wrapper", Path("tools/run_daily_window.py")
@@ -71,6 +73,7 @@ def test_warmup_overrun_refuses_late_collection(tmp_path, monkeypatch):
     monkeypatch.setattr(wrapper, "LOCAL", tmp_path)
     monkeypatch.setattr(wrapper, "protect", lambda path: path.mkdir())
     monkeypatch.setattr(wrapper, "run_bounded", warmup)
+    monkeypatch.setattr(wrapper, "current_provenance", provenance)
     monkeypatch.setattr(sys, "argv", ["run_daily_window.py", "--scheduled"])
     assert wrapper.main() == 1
     # Only the warm-up is given the backlog catch-up mode.
@@ -161,8 +164,18 @@ def unexpected_child(arguments, log, timeout):
     raise AssertionError("a refused start must not launch a child")
 
 
+PROVENANCE_CALLS = []
+
+
+def provenance(task_path, *, window_start, window_end):
+    """Injected read-only Task Scheduler check; the real one reads the OS log."""
+    PROVENANCE_CALLS.append((task_path, window_start, window_end))
+    return ObservationProvenance(status="UNVERIFIABLE", reason="TASK_SCHEDULER_LOG_DISABLED")
+
+
 def run_scheduled(tmp_path, monkeypatch, moments, child=None, bounded=unexpected_child):
     """Drive main() --scheduled with a scripted wrapper clock and a synthetic child."""
+    PROVENANCE_CALLS.clear()
     moments = list(moments)
 
     class Clock:
@@ -173,6 +186,7 @@ def run_scheduled(tmp_path, monkeypatch, moments, child=None, bounded=unexpected
     monkeypatch.setattr(wrapper, "datetime", Clock)
     monkeypatch.setattr(wrapper, "LOCAL", tmp_path)
     monkeypatch.setattr(wrapper, "protect", lambda path: path.mkdir())
+    monkeypatch.setattr(wrapper, "current_provenance", provenance)
     if child is None:
         monkeypatch.setattr(wrapper, "run_bounded", bounded)
     else:
@@ -236,6 +250,14 @@ def test_on_time_run_completes_and_only_the_warmup_catches_up(tmp_path, monkeypa
     (parsed,), rejected = data_cli.scheduled_summaries(path.parent)
     assert rejected == 0 and parsed.started_at == started
     assert (parsed.mode, parsed.status) == ("scheduled", "COMMAND_COMPLETE")
+    # ADR-032 OBV2-06 for the wrapper: the scheduler check covers the pre-window, its
+    # outcome and reason are in the summary, and without VERIFIED the day cannot match.
+    assert PROVENANCE_CALLS == [
+        ("\\AuvexoAlpha-PublicData-Daily", TARGET - timedelta(minutes=4), TARGET)
+    ]
+    assert summary["provenance"] == parsed.provenance == "UNVERIFIABLE"
+    assert summary["provenance_reason"] == "TASK_SCHEDULER_LOG_DISABLED"
+    assert scheduled_binding(started.date(), [parsed]) == "PROVENANCE_UNVERIFIABLE"
 
 
 @pytest.mark.parametrize(

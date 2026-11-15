@@ -23,20 +23,38 @@ from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from auvexo_alpha.application.data_reporting import (
     ScheduledSummary,
     coverage_matrix,
+    gap_rows,
     qualification,
     stable_code,
 )
 from auvexo_alpha.application.data_schedule import CATCHUP_BUDGET, catchup_permitted
+from auvexo_alpha.domain.market_data import (
+    PROVIDER_HOSTS,
+    GapObservation,
+    GapReview,
+    Interval,
+    Symbol,
+)
 from auvexo_alpha.infrastructure.data_collection import Collector
-from auvexo_alpha.infrastructure.data_store import DataStore
+from auvexo_alpha.infrastructure.data_store import DataStore, report_range
 from auvexo_alpha.infrastructure.public_http import PublicHTTP
 
 READ_ONLY = ("coverage", "verify", "qualification", "evidence")
+# Owner commands append their own evidence records; they never collect or take the lease.
+OWNER = ("compare-sources", "record-gap", "release-cooldown")
 SUMMARY_DIRECTORY = Path(".local/scheduled-data")
 # The wrapper names each receipt after its own start instant; anything else is unrelated.
 SUMMARY_NAME = re.compile(r"(\d{8}T\d{12}Z)-[0-9a-f]{12}\.json")
 MAX_SUMMARIES = 4096
 MAX_SUMMARY_BYTES = 65536
+
+
+def utc_instant(value: str) -> datetime:
+    """An explicit UTC-aware instant; naive or local-time input is refused."""
+    parsed = datetime.fromisoformat(value)
+    if parsed.utcoffset() is None:
+        raise ValueError("NAIVE_INSTANT")
+    return parsed.astimezone(UTC)
 
 
 def failure_reason(error: ValueError | OSError | SQLAlchemyError) -> str:
@@ -71,7 +89,11 @@ def read_summary(path: Path, stamp: str) -> ScheduledSummary | None:
     # The receipt must agree with the start instant in its own exclusive file name.
     if started.utcoffset() is None or started.astimezone(UTC).strftime("%Y%m%dT%H%M%S%fZ") != stamp:
         return None
-    return ScheduledSummary(started.astimezone(UTC), schedule_id, mode, status)
+    # Summaries written before the provenance check existed carry none: UNRECORDED.
+    provenance = payload.get("provenance", "UNRECORDED")
+    if not isinstance(provenance, str) or stable_code(provenance) is None:
+        return None
+    return ScheduledSummary(started.astimezone(UTC), schedule_id, mode, status, provenance)
 
 
 def scheduled_summaries(directory: Path) -> tuple[list[ScheduledSummary], int]:
@@ -95,18 +117,80 @@ def scheduled_summaries(directory: Path) -> tuple[list[ScheduledSummary], int]:
 def report(args: argparse.Namespace, store: DataStore) -> object:
     """Read-only commands never take the collector lease, so they cannot block a run."""
     if args.command == "coverage":
-        return coverage_matrix(store.manifests())
+        lower, upper = report_range(args.start_day, args.end_day)
+        return coverage_matrix(store.current_manifests(args.start_day, args.end_day)) + gap_rows(
+            store.gaps(lower, upper)
+        )
     if args.command == "verify":
         return store.reconcile()
     if args.command == "evidence":
+        lower, upper = report_range(args.start_day, args.end_day)
+        events = store.events_between(lower, upper)
+        versions = sorted({e.dataset_version for e in events if e.dataset_version})
         return {
-            "manifests": [m.model_dump(mode="json") for m in store.manifests()],
-            "events": [e.model_dump(mode="json") for e in store.events()],
+            "range": [lower.isoformat(), upper.isoformat()],
+            "manifests": [m.model_dump(mode="json") for m in store.manifests_by_version(versions)],
+            "events": [e.model_dump(mode="json") for e in events],
+            "cooldowns": [c.model_dump(mode="json") for c in store.cooldowns_between(lower, upper)],
+            "reviewed_gaps": gap_rows(store.gaps(lower, upper)),
         }
     summaries, rejected = scheduled_summaries(SUMMARY_DIRECTORY)
+    events, manifests, cooldowns, gaps = store.qualification_inputs(args.start_day)
     return qualification(
-        store.events(), args.start_day, datetime.now(UTC), store.verified_manifests(), summaries
+        events,
+        args.start_day,
+        datetime.now(UTC),
+        manifests,
+        summaries,
+        cooldowns=cooldowns,
+        gaps=gaps,
     ) | {"scheduled_summary_files": {"accepted": len(summaries), "rejected": rejected}}
+
+
+def owner(args: argparse.Namespace, store: DataStore) -> object:
+    """Explicit owner decisions and comparisons. Each leaves an append-only record."""
+    now = datetime.now(UTC)
+    symbol: Symbol = args.symbol
+    interval: Interval = args.interval
+    instrument = "binance.spot." + symbol
+    if args.command == "compare-sources":
+        comparison, conflicts = store.compare_sources(
+            instrument, interval, args.start, args.end, now
+        )
+        return {
+            "comparison": comparison.model_dump(mode="json"),
+            "comparison_id": comparison.content_hash(),
+            "conflicts": [c.model_dump(mode="json") for c in conflicts],
+            "selection": "NONE; both sources keep their own rights and stored bars",
+        }
+    if args.command == "record-gap":
+        evidence = [
+            GapObservation(
+                dataset_version=m.dataset_version,
+                source_hash=m.source_hash,
+                received_at=m.created_at,
+            )
+            for m in store.manifests_by_version(args.evidence)
+        ]
+        review = GapReview.model_validate(
+            dict(
+                feed_key=f"DS-02.{symbol}.{interval}",
+                instrument_id=instrument,
+                interval=interval,
+                gap_start=args.start,
+                gap_end=args.end,
+                evidence=tuple(evidence),
+                reviewer=args.reviewer,
+                reviewed_at=now,
+            )
+        )
+        return {"gap_id": store.record_gap(review), "review": review.model_dump(mode="json")}
+    release_id, release = store.release_cooldown(args.host, args.reviewer, args.reason, now)
+    return {
+        "release_id": release_id,
+        "release": release.model_dump(mode="json"),
+        "permits": "ONE probe request to this host; any failure keeps it blocked",
+    }
 
 
 def collect(collector: Collector, cancel: Event, cycles: int, catchup: bool) -> dict[str, object]:
@@ -174,7 +258,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="auvexo-data")
     parser.add_argument(
         "command",
-        choices=["history", "collect", "specs", "coverage", "verify", "qualification", "evidence"],
+        choices=[
+            "history",
+            "collect",
+            "specs",
+            "coverage",
+            "verify",
+            "qualification",
+            "evidence",
+            *OWNER,
+        ],
     )
     parser.add_argument("--enable-public-data", action="store_true")
     parser.add_argument("--symbol", choices=["BTCUSDT", "ETHUSDT"], default="BTCUSDT")
@@ -183,6 +276,13 @@ def main() -> int:
     parser.add_argument("--cycles", type=int, default=12)
     parser.add_argument("--catchup", action="store_true")
     parser.add_argument("--start-day", type=date.fromisoformat)
+    parser.add_argument("--end-day", type=date.fromisoformat)
+    parser.add_argument("--start", type=utc_instant)
+    parser.add_argument("--end", type=utc_instant)
+    parser.add_argument("--evidence", action="append", default=[])
+    parser.add_argument("--reviewer")
+    parser.add_argument("--reason")
+    parser.add_argument("--host", choices=list(PROVIDER_HOSTS))
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     if not 1 <= args.cycles <= 60 or len(args.period) > 12:
@@ -196,6 +296,14 @@ def main() -> int:
         parser.error("history requires explicit periods")
     if args.command == "qualification" and args.start_day is None:
         parser.error("qualification requires --start-day")
+    if args.command in ("coverage", "evidence") and None in (args.start_day, args.end_day):
+        parser.error("coverage and evidence report a bounded --start-day/--end-day range")
+    if args.command in ("compare-sources", "record-gap") and None in (args.start, args.end):
+        parser.error("compare-sources and record-gap need explicit --start and --end")
+    if args.command == "record-gap" and (not args.reviewer or len(args.evidence) < 2):
+        parser.error("record-gap needs --reviewer and at least two --evidence versions")
+    if args.command == "release-cooldown" and not (args.host and args.reviewer and args.reason):
+        parser.error("release-cooldown needs --host, --reviewer and --reason")
     password = os.environ.get("DATA_DB_PASSWORD", "")
     if len(password) < 32:
         print('{"code":"DATA_DATABASE_CONFIG_REQUIRED","execution_enabled":false}')
@@ -222,9 +330,12 @@ def main() -> int:
     signal.signal(signal.SIGINT, lambda signum, frame: cancel.set())
     try:
         store = DataStore(engine, Path(".local/market"), Path.cwd())
-        result = (
-            report(args, store) if args.command in READ_ONLY else write(args, store, engine, cancel)
-        )
+        if args.command in READ_ONLY:
+            result = report(args, store)
+        elif args.command in OWNER:
+            result = owner(args, store)
+        else:
+            result = write(args, store, engine, cancel)
         rendered = json.dumps(result, indent=2) + "\n"
         if args.output:
             # Never overwrite a receipt; each invocation must choose its own evidence name.

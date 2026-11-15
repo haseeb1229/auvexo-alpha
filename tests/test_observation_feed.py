@@ -2,13 +2,14 @@
 
 import json
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from hashlib import sha256
 from threading import Event
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
-from observation_fixtures import BEGIN, END, changed, fact_for
+from observation_fixtures import BEGIN, END, changed, fact_for, spec_check
 
 from auvexo_alpha.infrastructure.observation_feed import ObservationFeed
 from auvexo_alpha.infrastructure.public_http import PublicHTTP, Response
@@ -26,8 +27,8 @@ class MemorySource:
     def check_quota(self, extra):
         assert extra >= 0
 
-    def cooldown(self, now):
-        return False
+    def cooldown_state(self, now, host):
+        return "CLEAR", None
 
     def event(self, value):
         self.events.append(value)
@@ -329,3 +330,126 @@ def test_invalid_provider_clock_payload_is_still_rejected_and_quarantined():
     assert source.store.events[-1].reason == "INPUT_REJECTED"
     assert source.store.quarantined == [b'{"serverTime":"1792685410000"}']
     assert source.store.published == []
+
+
+# Campaign v2 (ADR-032): provider exchangeInfo terms, provider time and the clock bound.
+EXCHANGE_INFO = {
+    "timezone": "UTC",
+    "serverTime": 1792685412345,
+    "symbols": [
+        {
+            "symbol": "BTCUSDT",
+            "status": "TRADING",
+            "baseAsset": "BTC",
+            "quoteAsset": "USDT",
+            "filters": [
+                {"filterType": "PRICE_FILTER", "tickSize": "0.01000000"},
+                {
+                    "filterType": "LOT_SIZE",
+                    "stepSize": "0.00001000",
+                    "minQty": "0.00001000",
+                    "maxQty": "9000.00000000",
+                },
+                {"filterType": "NOTIONAL", "minNotional": "5.00000000"},
+            ],
+        }
+    ],
+}
+
+
+class SpecSource(MemorySource):
+    def __init__(self):
+        super().__init__()
+        self.specs = []
+
+    def spec(self, snapshot, raw):
+        self.specs.append((snapshot, raw))
+
+
+def spec_feed(body, *, bound=None, now=BEGIN + timedelta(seconds=4)):
+    store, urls = SpecSource(), []
+
+    def transport(url, limit):
+        urls.append(url)
+        if urlsplit(url).path == "/api/v3/time":
+            epoch = datetime(1970, 1, 1, tzinfo=UTC)
+            return Response(
+                200,
+                json.dumps(
+                    {"serverTime": (now - epoch) // timedelta(milliseconds=1) + 2500}
+                ).encode(),
+            )
+        return Response(200, body)
+
+    http = PublicHTTP(Event(), transport=transport, wait=lambda _: False)
+    feed = ObservationFeed(
+        store, http, "1" * 40, "synthetic.noncounting", clock=lambda: now, clock_bound_ms=bound
+    )
+    return feed, store, urls
+
+
+def test_spec_observation_reads_all_pinned_terms_and_provider_time():
+    raw = json.dumps(EXCHANGE_INFO).encode()
+    feed, store, urls = spec_feed(raw)
+    check = feed.spec("BTCUSDT")
+    assert check == spec_check(
+        "BTCUSDT",
+        at=datetime(1970, 1, 1, tzinfo=UTC) + timedelta(milliseconds=1792685412345),
+        raw_hash=sha256(raw).hexdigest(),
+        sent_at=BEGIN + timedelta(seconds=4),
+        received_at=BEGIN + timedelta(seconds=4),
+    )
+    assert urls == ["https://data-api.binance.vision/api/v3/exchangeInfo?symbol=BTCUSDT"]
+    # The accepted DS-02 parser retained the exact provider bytes.
+    assert [stored for _, stored in store.specs] == [raw]
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    (
+        lambda info: info["symbols"][0]["filters"].pop(2),
+        lambda info: info["symbols"][0].update(symbol="ETHUSDT", baseAsset="ETH"),
+        lambda info: info.update(serverTime="1792685412345"),
+        lambda info: info["symbols"].append(dict(info["symbols"][0])),
+        lambda info: info["symbols"][0]["filters"][2].update(minNotional="5e0"),
+    ),
+)
+def test_an_incomplete_or_foreign_spec_response_is_rejected_and_quarantined(mutate):
+    info = json.loads(json.dumps(EXCHANGE_INFO))
+    mutate(info)
+    raw = json.dumps(info).encode()
+    feed, store, _ = spec_feed(raw)
+    with pytest.raises(ValueError, match="OBSERVATION_SPEC_INPUT_REJECTED"):
+        feed.spec("BTCUSDT")
+    assert store.quarantined == [raw]
+
+
+def test_legacy_min_notional_filter_name_is_read():
+    info = json.loads(json.dumps(EXCHANGE_INFO))
+    info["symbols"][0]["filters"][2] = {"filterType": "MIN_NOTIONAL", "minNotional": "10.0"}
+    feed, _, _ = spec_feed(json.dumps(info).encode())
+    assert feed.spec("BTCUSDT").min_notional == Decimal("10")
+
+
+def test_provider_time_proof_outside_a_bar_poll():
+    feed, store, urls = spec_feed(b"")
+    proof = feed.provider_time()
+    assert proof.server_at - proof.received_at == timedelta(milliseconds=2500)
+    assert urls == ["https://data-api.binance.vision/api/v3/time"]
+    assert store.published == [] and store.quarantined == []
+
+
+def test_v2_clock_bound_makes_a_bar_missed_without_requesting_klines():
+    now = BEGIN + timedelta(minutes=10, seconds=3)
+    feed, store, urls = spec_feed(b"", bound=2000, now=now)
+    assert feed.poll("BTCUSDT", window_start=BEGIN, window_end=END) is None
+    assert [urlsplit(url).path for url in urls] == ["/api/v3/time"]
+    assert [(e.state, e.reason) for e in store.events] == [
+        ("STALE", "OBSERVATION_BAR_MISSED_CLOCK_BOUND")
+    ]
+    assert store.quarantined == [] and store.published == []
+    # The same 2.5 s offset is within a 3000 ms bound: klines are requested.
+    feed, _, urls = spec_feed(b"[]", bound=3000, now=now)
+    with pytest.raises(ValueError):
+        feed.poll("BTCUSDT", window_start=BEGIN, window_end=END)
+    assert [urlsplit(url).path for url in urls] == ["/api/v3/time", "/api/v3/klines"]

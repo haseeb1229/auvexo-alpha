@@ -44,7 +44,7 @@ def test_explicit_initialize_fixed_path_all_arguments_and_no_password_retained()
 )
 def test_missing_or_invalid_password_refuses_before_sdk(value):
     f = fixture(initialize=False)
-    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE$"):
+    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE:CREDENTIAL_UNAVAILABLE$"):
         f.port._initialize(value)
     assert f.sdk.calls == []
 
@@ -70,43 +70,43 @@ def test_exactly_one_initialize_attempt_even_after_disconnect_or_failure():
 
 
 @pytest.mark.parametrize(
-    "field,value",
+    "field,value,reason",
     [
-        ("trade_mode", 1),
-        ("trade_mode", 2),
-        ("trade_mode", 99),
-        ("trade_mode", False),
-        ("login", 111),
-        ("server", "synthetic-wrong.invalid"),
-        ("currency", "EUR"),
-        ("leverage", 200),
-        ("trade_allowed", True),
-        ("trade_allowed", 0),
+        ("trade_mode", 1, "ACCOUNT_NOT_DEMO"),
+        ("trade_mode", 2, "ACCOUNT_NOT_DEMO"),
+        ("trade_mode", 99, "ACCOUNT_NOT_DEMO"),
+        ("trade_mode", False, "PROVIDER_DATA_INVALID"),
+        ("login", 111, "ACCOUNT_IDENTITY"),
+        ("server", "synthetic-wrong.invalid", "ACCOUNT_IDENTITY"),
+        ("currency", "EUR", "ACCOUNT_IDENTITY"),
+        ("leverage", 200, "ACCOUNT_IDENTITY"),
+        ("trade_allowed", True, "TRADE_FLAG_TRUE"),
+        ("trade_allowed", 0, "PROVIDER_DATA_INVALID"),
     ],
 )
-def test_account_mode_identity_and_readonly_mismatches_close(field, value):
+def test_account_mode_identity_and_readonly_mismatches_close(field, value, reason):
     f = fixture()
     f.sdk.account[field] = value
-    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE$"):
+    with pytest.raises(Ds03Error, match=f"^DS03_UNAVAILABLE:{reason}$"):
         f.port.attest()
     assert f.sdk.shutdown_count == 1
 
 
 @pytest.mark.parametrize(
-    "field,value",
+    "field,value,reason",
     [
-        ("connected", False),
-        ("connected", 1),
-        ("trade_allowed", True),
-        ("build", 4754),
-        ("path", "synthetic-arbitrary-profile"),
-        ("data_path", "synthetic-arbitrary-profile"),
+        ("connected", False, "TERMINAL_DISCONNECTED"),
+        ("connected", 1, "PROVIDER_DATA_INVALID"),
+        ("trade_allowed", True, "TRADE_FLAG_TRUE"),
+        ("build", 4754, "TERMINAL_VERSION"),
+        ("path", "synthetic-arbitrary-profile", "TERMINAL_PROFILE"),
+        ("data_path", "synthetic-arbitrary-profile", "TERMINAL_PROFILE"),
     ],
 )
-def test_terminal_state_or_profile_mismatch_closes(field, value):
+def test_terminal_state_or_profile_mismatch_closes(field, value, reason):
     f = fixture()
     f.sdk.terminal[field] = value
-    with pytest.raises(Ds03Error):
+    with pytest.raises(Ds03Error, match=f"^DS03_UNAVAILABLE:{reason}$"):
         f.port.attest()
     assert f.sdk.shutdown_count == 1
 
@@ -117,7 +117,7 @@ def test_terminal_state_or_profile_mismatch_closes(field, value):
 def test_absent_observed_account_field_fails_closed(field):
     f = fixture()
     del f.sdk.account[field]
-    with pytest.raises(Ds03Error):
+    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE:PROVIDER_DATA_INVALID$"):
         f.port.attest()
     assert f.sdk.shutdown_count == 1
 
@@ -127,7 +127,7 @@ def test_native_process_swap_refuses_and_errors_never_leak_personal_fields(capsy
     f.observer.bad = True
     with pytest.raises(Ds03Error) as error:
         f.port.attest()
-    assert str(error.value) == "DS03_UNAVAILABLE"
+    assert str(error.value) == "DS03_UNAVAILABLE:TERMINAL_IDENTITY"
     output = capsys.readouterr()
     assert output.out == output.err == ""
     assert "SYNTHETIC_PERSON_NEVER_LOG" not in str(error.value)

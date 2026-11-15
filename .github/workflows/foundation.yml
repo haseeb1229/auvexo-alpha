@@ -16,18 +16,29 @@ jobs:
   checks:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      # Synthetic, per-run disposable credentials. The container is never the operational
+      # endpoint: it listens on another port and carries the disposable-cluster marker.
+      TEST_PG_PORT: '45432'
+      TEST_PG_DATABASE: auvexo_test
+      TEST_PG_ADMIN_PASSWORD: ci-synthetic-ephemeral-only
+      TEST_PG_APP_PASSWORD: ci-synthetic-app-only-not-a-secret-123
+      TEST_PG_DATA_WRITER_PASSWORD: ci-synthetic-data-only-not-a-secret-123
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 0
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: '0.13.1'
+          checksum: 'eadd9d27c134ab5ac1ffd4473b97a741407f3ea238288f03121fc4deddf90220'
+          download-from-astral-mirror: false
           enable-cache: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24.20.0'
+          package-manager-cache: false
       - name: Scan the full reachable history for secrets with pinned Gitleaks
         run: |
           curl --fail --silent --show-error --location --max-time 120 \
@@ -37,17 +48,21 @@ jobs:
           mkdir "$RUNNER_TEMP/gitleaks"
           tar --extract --gzip --file "$RUNNER_TEMP/gitleaks.tar.gz" --directory "$RUNNER_TEMP/gitleaks" gitleaks
           "$RUNNER_TEMP/gitleaks/gitleaks" git . --config .gitleaks.toml --no-banner --redact --exit-code 1
-      - name: Start pinned isolated PostgreSQL on actual loopback endpoint
+      - name: Start pinned disposable PostgreSQL on a non-operational loopback endpoint
         run: |
+          cluster_id="$(cat /proc/sys/kernel/random/uuid | tr -d '-')"
+          echo "TEST_PG_CLUSTER_ID=$cluster_id" >> "$GITHUB_ENV"
           docker run --detach --name auvexo-ci-postgres --network host \
             --env POSTGRES_USER=auvexo_admin \
-            --env POSTGRES_PASSWORD=ci-synthetic-ephemeral-only \
+            --env POSTGRES_PASSWORD="$TEST_PG_ADMIN_PASSWORD" \
             --env POSTGRES_DB=auvexo_test \
             --env POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256 \
             postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3 \
-            postgres -c listen_addresses=127.0.0.1 -c port=55432
+            postgres -c listen_addresses=127.0.0.1 -c port="$TEST_PG_PORT" \
+            -c auvexo.disposable_cluster="$cluster_id" \
+            -c cluster_name="auvexo-disposable-$cluster_id"
           for attempt in $(seq 1 30); do
-            if docker exec auvexo-ci-postgres pg_isready -h 127.0.0.1 -p 55432 -U auvexo_admin -d auvexo_test; then
+            if docker exec auvexo-ci-postgres pg_isready -h 127.0.0.1 -p "$TEST_PG_PORT" -U auvexo_admin -d auvexo_test; then
               exit 0
             fi
             sleep 1
@@ -60,10 +75,6 @@ jobs:
       - run: uv run --frozen ruff check src tests tools migrations
       - run: uv run --frozen mypy
       - run: uv run --frozen python tools/run_tests.py
-        env:
-          TEST_PG_DATA_WRITER_PASSWORD: ci-synthetic-data-only-not-a-secret-123
-          TEST_PG_ADMIN_PASSWORD: ci-synthetic-ephemeral-only
-          TEST_PG_APP_PASSWORD: ci-synthetic-app-only-not-a-secret-123
       - run: node tools/check-docs.mjs
       - run: uv run --frozen python tools/secret_scan.py
       - run: uv export --frozen --all-groups --no-emit-project --output-file requirements-audit.txt
@@ -96,14 +107,17 @@ jobs:
       # environment must be installed by copy, as the provider runtime itself must be.
       UV_LINK_MODE: copy
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           version: '0.13.1'
+          checksum: '3b2661a463a5baea7f5076ea2b25ab71d77f36a6c0d809e5350651792f80a672'
+          download-from-astral-mirror: false
           enable-cache: false
-      - run: uv sync --locked
+      # The Windows-only provider SDK group is needed by the native exact-package proofs.
+      - run: uv sync --locked --group provider
       - run: uv run --frozen mypy
       - run: uv run --frozen python tools/run_tests.py -m "not integration"
       - run: uv run --frozen pip-audit --disable-pip --require-hashes -r requirements-audit.txt

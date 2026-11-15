@@ -19,7 +19,7 @@ from typing import Annotated, Literal, Self
 from pydantic import Field, model_validator
 
 from auvexo_alpha.domain.contracts import Contract, UTCTime, utc_time
-from auvexo_alpha.domain.open_interest import OI_ENDPOINT, OISymbol
+from auvexo_alpha.domain.open_interest import OI_ENDPOINT, OISymbol, OITransportKind
 from auvexo_alpha.infrastructure.public_http import NoRedirect, SourceError
 
 MAX_BODY = 4096
@@ -294,6 +294,11 @@ class OIHTTP:
         self.now = now
         self.wait = wait or cancel.wait
         self._lock = Lock()
+
+    @property
+    def transport_kind(self) -> OITransportKind:
+        """Production only with the built-in isolated worker; any injected transport is not."""
+        return "PRODUCTION_HTTPS" if self.transport is None else "ENGINEERING_FIXTURE"
 
     def _record_attempt(self, at: datetime) -> None:
         state = self.state

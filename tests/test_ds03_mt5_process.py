@@ -105,17 +105,17 @@ def test_actual_fake_session_discovery_spec_tick_and_clean_disconnect():
 
 
 @pytest.mark.parametrize(
-    "attack",
+    "attack,reason",
     [
-        "bad-mac",
-        "wrong-session",
-        "reflection",
-        "wrong-correlation",
-        "duplicate-id",
-        "duplicate-sequence",
+        ("bad-mac", "IPC_PROTOCOL"),
+        ("wrong-session", "IPC_PROTOCOL"),
+        ("reflection", "IPC_PROTOCOL"),
+        ("wrong-correlation", "REQUEST_INVALID"),
+        ("duplicate-id", "REQUEST_INVALID"),
+        ("duplicate-sequence", "IPC_PROTOCOL"),
     ],
 )
-def test_actual_session_authentication_and_replay_fail_closed(attack):
+def test_actual_session_authentication_and_replay_fail_closed(attack, reason):
     f = fixture()
     key, session = new_pipe_key(), uuid4()
     message = request(f, "SYMBOLS")
@@ -159,7 +159,8 @@ def test_actual_session_authentication_and_replay_fail_closed(attack):
     failure = decode_frame(
         frames[-1], key=key, session=session, sequence=sequence, kind="ERROR", family=FAMILY
     )
-    assert failure.payload == {"code": "DS03_UNAVAILABLE"}
+    # R12-7: the ERROR frame carries exactly the fixed code and one closed reason.
+    assert failure.payload == {"code": "DS03_UNAVAILABLE", "reason": reason}
 
 
 @pytest.mark.parametrize(
@@ -197,7 +198,7 @@ def test_arbitrary_and_state_mutation_operations_never_reach_sdk(operation):
     assert f.sdk.shutdown_count == 1
     assert decode_frame(
         frames[-1], key=key, session=session, sequence=1, kind="ERROR", family=FAMILY
-    ).payload == {"code": "DS03_UNAVAILABLE"}
+    ).payload == {"code": "DS03_UNAVAILABLE", "reason": "REQUEST_INVALID"}
 
 
 def test_synthetic_frame_cannot_be_reflected_into_actual_session():
@@ -231,7 +232,7 @@ def test_actual_parent_static_gate_precedes_process_or_provider_effects(monkeypa
 
     monkeypatch.setattr(module, "_measurement", unavailable)
     monkeypatch.setattr(module.subprocess, "Popen", forbidden)
-    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE$"):
+    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE:BINDING_MISMATCH$"):
         ActualDs03Process(f.static).start()
     assert f.sdk.calls == []
 
@@ -340,6 +341,6 @@ def test_parent_cancellation_during_hello_pin_does_not_return_started_session(mo
 def test_constructor_rejects_untyped_admission_before_any_native_effect(bad, monkeypatch):
     calls = []
     monkeypatch.setattr(module.subprocess, "Popen", lambda *a, **k: calls.append("launch"))
-    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE$"):
+    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE:AUTHORITY_INVALID$"):
         ActualDs03Process(bad)
     assert calls == []

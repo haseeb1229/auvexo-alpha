@@ -1,9 +1,20 @@
-"""Snapshot real metadata and connected artifacts; restore into a fresh isolated database."""
+"""Snapshot real metadata and connected artifacts; restore into a fresh isolated database.
+
+The backup lease requires the collector stopped (20801403) and holds the data writer
+(20801402), study registration and trial recording (20801405), holdout opening (20801406)
+and owner cooldown release (20801407) locks. It does not take the per-study research locks
+(hashtextextended(study, 20801404)): trial recording takes a study lock and then 20801405,
+so taking study locks while holding 20801405 could deadlock. Run it with no research worker
+running. A read receipt, read digest or holdout completion written meanwhile carries no
+artifact file; pg_dump takes one consistent snapshot, and a row landing between the
+comparison snapshot and the dump fails the restore comparison instead of passing silently.
+"""
 
 import json
 import os
 import shutil
 import time
+from typing import Any
 from uuid import uuid4
 
 import psycopg
@@ -15,15 +26,43 @@ from auvexo_alpha.infrastructure.data_replay import replay
 from auvexo_alpha.infrastructure.data_store import DataStore, file_hash
 from auvexo_alpha.infrastructure.research_ledger import ResearchLedger
 
+# Every table whose trigger refuses DELETE, including all of migration 0006's tables, is
+# compared after restore and probed for its restored trigger.
+IMMUTABLE = (
+    "data_manifest",
+    "data_event",
+    "data_checkpoint",
+    "data_source_review",
+    "data_spec",
+    "data_source_comparison",
+    "data_source_conflict",
+    "data_gap_review",
+    "data_gap_evidence",
+    "data_cooldown_release",
+    "data_cooldown_probe",
+    "data_cooldown_probe_result",
+    "research_study",
+    "research_trial",
+    "research_event",
+    "research_study_config",
+    "research_selection",
+    "research_holdout_completion",
+    "research_read_receipt",
+    "research_read_digest",
+)
+TABLES = ("alembic_version", "foundation_policy", "developer_event", *IMMUTABLE)
 
-def main():
+
+def main() -> None:
     started = time.monotonic()
     suffix = uuid4().hex[:12]
     target = "auvexo_restore_" + suffix
     directory = LOCAL / ("data-recovery-" + suffix)
     directory.mkdir()
     creds = credentials()
-    args = dict(host="127.0.0.1", port=PORT, user="auvexo_admin", password=creds["admin"])
+    args: dict[str, Any] = dict(
+        host="127.0.0.1", port=PORT, user="auvexo_admin", password=creds["admin"]
+    )
     url = URL.create(
         "postgresql+psycopg",
         username="auvexo_admin",
@@ -34,27 +73,17 @@ def main():
     )
     engine = create_engine(url, hide_parameters=True)
     source = DataStore(engine, LOCAL / "market", LOCAL)
-    tables = (
-        "alembic_version",
-        "foundation_policy",
-        "developer_event",
-        "data_manifest",
-        "data_event",
-        "data_checkpoint",
-        "data_source_review",
-        "data_spec",
-        "research_study",
-        "research_event",
-        "research_trial",
-    )
 
-    def snapshot(database):
+    def snapshot(database: str) -> list[list[tuple[Any, ...]]]:
+        # Whole-row order: several tables have composite keys, so the first column ties.
         with psycopg.connect(dbname=database, **args) as conn:
             return [
                 conn.execute(
-                    sql.SQL("SELECT * FROM {} ORDER BY 1").format(sql.Identifier(table))
+                    sql.SQL("SELECT t.* FROM {} AS t ORDER BY t::text").format(
+                        sql.Identifier(table)
+                    )
                 ).fetchall()
-                for table in tables
+                for table in TABLES
             ]
 
     with psycopg.connect(dbname="postgres", autocommit=True, **args) as admin:
@@ -68,6 +97,7 @@ def main():
             lease.execute(text("SELECT pg_advisory_lock(20801402)"))
             lease.execute(text("SELECT pg_advisory_lock(20801405)"))
             lease.execute(text("SELECT pg_advisory_lock(20801406)"))
+            lease.execute(text("SELECT pg_advisory_lock(20801407)"))
             try:
                 source.reconcile()
                 expected = snapshot("auvexo_dev")
@@ -99,6 +129,7 @@ def main():
                 dump = directory / "metadata.dump"
                 run_pg("pg_dump", "-Fc", "-f", str(dump), "auvexo_dev", env=pg_env)
             finally:
+                lease.execute(text("SELECT pg_advisory_unlock(20801407)"))
                 lease.execute(text("SELECT pg_advisory_unlock(20801406)"))
                 lease.execute(text("SELECT pg_advisory_unlock(20801405)"))
                 lease.execute(text("SELECT pg_advisory_unlock(20801402)"))
@@ -125,16 +156,7 @@ def main():
             )
             for digest in rejected:
                 assert file_hash(restored.root / "quarantine" / (digest + ".raw")) == digest
-            for table in (
-                "data_manifest",
-                "data_event",
-                "data_checkpoint",
-                "data_source_review",
-                "data_spec",
-                "research_study",
-                "research_trial",
-                "research_event",
-            ):
+            for table in IMMUTABLE:
                 with psycopg.connect(dbname=target, **args) as conn:
                     try:
                         conn.execute(sql.SQL("DELETE FROM {}").format(sql.Identifier(table)))
@@ -148,8 +170,8 @@ def main():
     engine.dispose()
     report = dict(
         status="PASS",
-        schema=expected[tables.index("alembic_version")][0][0],
-        tables_compared=len(tables),
+        schema=expected[TABLES.index("alembic_version")][0][0],
+        tables_compared=len(TABLES),
         manifests=len(manifests),
         parquet_bytes=sum(m.parquet_bytes for m in manifests),
         raw_bytes=sum(m.raw_bytes for m in manifests),

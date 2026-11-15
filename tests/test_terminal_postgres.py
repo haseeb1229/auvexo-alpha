@@ -14,9 +14,21 @@ from sqlalchemy.exc import SQLAlchemyError
 from auvexo_alpha.domain.paper_lifecycle import KillLevel
 from auvexo_alpha.infrastructure.paper_store import PaperStore
 from auvexo_alpha.infrastructure.terminal_paper import PostgresTerminalReads
-from tools.paper_local import admin_args, engine_for, isolated_database, require_migration
+from tools.local_db import login_role_sql
+from tools.paper_local import (
+    admin_args,
+    engine_for,
+    isolated_cluster,
+    isolated_database,
+    require_migration,
+)
 
 pytestmark = pytest.mark.integration
+
+
+def reads(engine, account_ref):
+    """The read model bound to the disposable test cluster it must prove on every read."""
+    return PostgresTerminalReads(engine, account_ref, disposable=isolated_cluster())
 
 
 @pytest.fixture(scope="module")
@@ -27,10 +39,12 @@ def read_projection():
         require_migration(database)
         with psycopg.connect(dbname="postgres", autocommit=True, **admin_args()) as conn:
             conn.execute(
-                sql.SQL(
-                    "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB "
-                    "NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS"
-                ).format(sql.Identifier(role), sql.Literal(password))
+                login_role_sql(
+                    conn,
+                    role,
+                    password,
+                    "NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOREPLICATION NOBYPASSRLS",
+                )
             )
             conn.execute(
                 sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
@@ -78,7 +92,7 @@ def read_projection():
 
 def test_terminal_pg_read_only_projection_preserves_ledger(read_projection):
     database, role, engine, store, b = read_projection
-    projection = PostgresTerminalReads(engine, b.account.account_ref)
+    projection = reads(engine, b.account.account_ref)
     with psycopg.connect(dbname=database, **admin_args()) as c:
         before = c.execute(
             "SELECT payload,writer_epoch,version,truth_cursor FROM paper_account"
@@ -123,12 +137,12 @@ def test_terminal_pg_read_only_projection_preserves_ledger(read_projection):
 def test_terminal_pg_stale_and_missing_not_empty_success(read_projection):
     _, _, engine, _, b = read_projection
     assert (
-        PostgresTerminalReads(engine, b.account.account_ref)
+        reads(engine, b.account.account_ref)
         .paper(now=b.now + timedelta(minutes=10))
         .freshness.state
         == "STALE"
     )
-    missing = PostgresTerminalReads(engine, "paper.missing").paper(now=b.now)
+    missing = reads(engine, "paper.missing").paper(now=b.now)
     assert (
         missing.freshness.state == "UNAVAILABLE"
         and missing.balance is None
@@ -141,7 +155,7 @@ def test_terminal_pg_kill_surfaces_as_kill_event_and_quiet_journal_is_current(re
     b = fixture_bundle(account_ref="paper.read.kill")
     store.initialize(b.account, b.policy, b.release, now=b.now)
     store.set_kill(b.account.account_ref, KillLevel.K4, actor="owner.synthetic.readtest", now=b.now)
-    projection = PostgresTerminalReads(engine, b.account.account_ref)
+    projection = reads(engine, b.account.account_ref)
     assert projection.paper(now=b.now).kill == "K4"
     # Read long after the last event: a quiet journal is current as of the read, not stale.
     later = b.now + timedelta(hours=6)
@@ -157,7 +171,7 @@ def test_terminal_pg_kill_surfaces_as_kill_event_and_quiet_journal_is_current(re
 
 def test_terminal_pg_empty_journal_is_connected_no_events(read_projection):
     _, _, engine, _, b = read_projection
-    journal = PostgresTerminalReads(engine, "paper.read.absent").journal(now=b.now)
+    journal = reads(engine, "paper.read.absent").journal(now=b.now)
     assert journal.events == ()
     assert journal.freshness.state == "AVAILABLE" and journal.freshness.reason == "NO_EVENTS"
     assert journal.freshness.observed_at == b.now
@@ -170,8 +184,7 @@ def test_terminal_pg_write_privilege_denies_projection(read_projection):
         c.execute(sql.SQL("GRANT UPDATE ON paper_account TO {}").format(sql.Identifier(role)))
     try:
         assert (
-            PostgresTerminalReads(engine, b.account.account_ref).paper(now=b.now).freshness.state
-            == "UNAVAILABLE"
+            reads(engine, b.account.account_ref).paper(now=b.now).freshness.state == "UNAVAILABLE"
         )
     finally:
         with psycopg.connect(dbname=database, autocommit=True, **admin_args()) as c:
@@ -188,7 +201,7 @@ def test_terminal_pg_dependency_failure_redacted(read_projection):
 
     event.listen(engine, "before_cursor_execute", fail)
     try:
-        paper = PostgresTerminalReads(engine, b.account.account_ref).paper(now=b.now)
+        paper = reads(engine, b.account.account_ref).paper(now=b.now)
         assert paper.freshness.state == "UNAVAILABLE" and "sensitive" not in paper.model_dump_json()
     finally:
         event.remove(engine, "before_cursor_execute", fail)
@@ -206,7 +219,7 @@ def test_terminal_pg_identity_refuses_runtime_admin(database, user):
     engine = create_engine(URL.create("postgresql+psycopg", username=user, database=database))
     try:
         with pytest.raises(ValueError):
-            PostgresTerminalReads(engine, "paper.synthetic")
+            reads(engine, "paper.synthetic")
     finally:
         engine.dispose()
 
@@ -222,7 +235,7 @@ def test_terminal_pg_reservation_projection_uses_existing_accepted_facts(read_pr
     intent = b.rebind()
     approved = store.authorize(intent, b.policy, b.market, b.spec, b.release, now=b.now)
     assert approved.decision.status == "APPROVED"
-    view = PostgresTerminalReads(engine, b.account.account_ref).paper(now=b.now)
+    view = reads(engine, b.account.account_ref).paper(now=b.now)
     assert view.freshness.state == "AVAILABLE" and view.active_reservations == 1
     assert len(view.reservations) == 1
     assert view.reservations[0].intent_hash == intent.content_hash()
@@ -232,7 +245,7 @@ def test_terminal_pg_reservation_projection_uses_existing_accepted_facts(read_pr
 
 
 def _assert_attestation_refused(engine, bundle):
-    projection = PostgresTerminalReads(engine, bundle.account.account_ref)
+    projection = reads(engine, bundle.account.account_ref)
     queries = []
 
     def record(conn, cursor, statement, parameters, context, executemany):
@@ -255,7 +268,7 @@ def test_terminal_pg_attestation_exact_login_and_four_selects(read_projection):
         assert c.exec_driver_sql(
             "SELECT session_user,current_user,current_database(),host(inet_server_addr()),"
             "inet_server_port(),current_setting('TimeZone')"
-        ).one() == (role, role, database, "127.0.0.1", 55432, "UTC")
+        ).one() == (role, role, database, "127.0.0.1", isolated_cluster().port, "UTC")
         tables = (
             c.exec_driver_sql(
                 "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace "
@@ -266,10 +279,7 @@ def test_terminal_pg_attestation_exact_login_and_four_selects(read_projection):
             .all()
         )
     assert tables == ["paper_account", "paper_journal", "paper_outbox", "paper_reservation"]
-    assert (
-        PostgresTerminalReads(engine, b.account.account_ref).paper(now=b.now).freshness.state
-        == "AVAILABLE"
-    )
+    assert reads(engine, b.account.account_ref).paper(now=b.now).freshness.state == "AVAILABLE"
 
 
 @pytest.mark.parametrize(
@@ -528,7 +538,7 @@ def test_terminal_pg_attestation_constructor_configuration(read_projection, key,
     engine.url = engine.url.set(**{key: value})
     try:
         with pytest.raises(ValueError):
-            PostgresTerminalReads(engine, "paper.synthetic")
+            reads(engine, "paper.synthetic")
     finally:
         engine.dispose()
 
@@ -536,18 +546,18 @@ def test_terminal_pg_attestation_constructor_configuration(read_projection, key,
 def test_terminal_pg_attestation_engine_override_and_account(read_projection):
     _, _, good, _, _ = read_projection
     with pytest.raises(ValueError):
-        PostgresTerminalReads(good, "../not-an-account")
+        reads(good, "../not-an-account")
     engine = create_engine(good.url, execution_options={"isolation_level": "AUTOCOMMIT"})
     try:
         with pytest.raises(ValueError):
-            PostgresTerminalReads(engine, "paper.synthetic")
+            reads(engine, "paper.synthetic")
     finally:
         engine.dispose()
 
 
 def test_terminal_pg_attestation_reuse_failure_rollback_and_reconnect(read_projection):
     database, role, engine, _, b = read_projection
-    projection = PostgresTerminalReads(engine, b.account.account_ref)
+    projection = reads(engine, b.account.account_ref)
     assert projection.paper(now=b.now).freshness.state == "AVAILABLE"
     with engine.connect() as c:
         original_pid = c.exec_driver_sql("SELECT pg_backend_pid()").scalar_one()
@@ -598,7 +608,7 @@ def test_terminal_pg_attestation_actual_database_with_correct_direct_login(read_
         def creator():
             return psycopg.connect(
                 host="127.0.0.1",
-                port=55432,
+                port=isolated_cluster().port,
                 user=role,
                 password=engine.url.password,
                 dbname=other,

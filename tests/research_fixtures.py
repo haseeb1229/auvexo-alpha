@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from hashlib import sha256
 from uuid import uuid4
 
 from test_data_gates import observation_fixtures
@@ -23,6 +24,7 @@ from auvexo_alpha.domain.research import (
     classify_manifest,
 )
 from auvexo_alpha.domain.research_gaps import ProviderEvidence, VenueUnavailable
+from auvexo_alpha.infrastructure.research_ledger import dependency_lock_hash, research_code_hash
 
 START = datetime(2024, 1, 1, tzinfo=UTC)
 
@@ -149,7 +151,17 @@ def synthetic_study(study_id=None, oos_start=None, configs=None, instrument="bin
     now = datetime.now(UTC) - timedelta(seconds=1)
     _, _, manifests = observation_fixtures()
     source = next(m for m in manifests if m.coverage.instrument_id == instrument)
-    m = source.model_copy(update={"created_at": now, "processed_at": now})
+    # Each synthetic study gets its own stored input identity, so integration tests can
+    # place it in the store without colliding with another study's fixture.
+    label = uuid4().hex
+    m = source.model_copy(
+        update={
+            "created_at": now,
+            "processed_at": now,
+            "dataset_version": sha256(label.encode()).hexdigest(),
+            "logical_key": f"{source.logical_key}.{label}",
+        }
+    )
     coverage = m.coverage.model_copy(
         update={
             "requested_start": datetime(2024, 1, 1, tzinfo=UTC),
@@ -186,8 +198,9 @@ def synthetic_study(study_id=None, oos_start=None, configs=None, instrument="bin
         ),
         seed=1229,
         code_revision="synthetic-control-only",
-        code_hash="0" * 64,
-        dependency_hash="0" * 64,
+        # The ledger verifies these against the running code and lock at every phase.
+        code_hash=research_code_hash(),
+        dependency_hash=dependency_lock_hash(),
         data_plan_v1_hash="0" * 64,
         data_plan_v2_hash="0" * 64,
         baseline_families=("NO_TRADE", "PASSIVE", "FIXED_RULE"),

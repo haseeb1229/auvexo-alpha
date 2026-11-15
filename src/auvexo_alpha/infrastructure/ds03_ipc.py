@@ -12,6 +12,12 @@ from typing import Literal, cast
 from uuid import UUID
 
 from auvexo_alpha.domain.ds03 import MAX_FRAME_BYTES, MAX_REQUESTS
+from auvexo_alpha.domain.ds03_actual import (
+    REASON_CODES,
+    Ds03ReasonCode,
+    Ds03Reasoned,
+    closed_reason,
+)
 
 REQUEST_TIMEOUT_SECONDS = 10
 
@@ -31,8 +37,10 @@ _KEYS = {"protocol", "kind", "session", "sequence", "request_id", "payload", "ma
 FrameKind = Literal["HELLO", "REQUEST", "REPLY", "ERROR"]
 
 
-class Ds03ProtocolError(ValueError):
+class Ds03ProtocolError(ValueError, Ds03Reasoned):
     """Fixed redaction boundary: no frame or authentication material in errors."""
+
+    reason: Ds03ReasonCode = "IPC_PROTOCOL"
 
     def __init__(self) -> None:
         super().__init__("DS03_UNAVAILABLE")
@@ -196,6 +204,52 @@ def decode_frame(
     kind: FrameKind,
     family: ProtocolFamily = ProtocolFamily.SYNTHETIC,
 ) -> Ds03Frame:
+    return _decode(raw, key=key, session=session, sequence=sequence, kinds=(kind,), family=family)
+
+
+def decode_outcome(
+    raw: bytes,
+    *,
+    key: bytes,
+    session: UUID,
+    sequence: int,
+    kind: Literal["HELLO", "REPLY"],
+    family: ProtocolFamily,
+) -> Ds03Frame:
+    """The expected authenticated frame, or an authenticated ERROR frame in its place."""
+    return _decode(
+        raw, key=key, session=session, sequence=sequence, kinds=(kind, "ERROR"), family=family
+    )
+
+
+def error_payload(reason: Ds03ReasonCode) -> dict[str, object]:
+    """The only ERROR body: the fixed code plus one closed, non-secret reason."""
+    return {"code": "DS03_UNAVAILABLE", "reason": closed_reason(reason)}
+
+
+def error_reason(frame: Ds03Frame) -> Ds03ReasonCode:
+    """A received ERROR body that is not exactly the closed shape is itself a protocol fault."""
+    payload = frame.payload
+    if (
+        frame.kind != "ERROR"
+        or set(payload) != {"code", "reason"}
+        or payload["code"] != "DS03_UNAVAILABLE"
+        or type(payload["reason"]) is not str
+        or payload["reason"] not in REASON_CODES
+    ):
+        raise Ds03ProtocolError()
+    return closed_reason(payload["reason"])
+
+
+def _decode(
+    raw: bytes,
+    *,
+    key: bytes,
+    session: UUID,
+    sequence: int,
+    kinds: tuple[FrameKind, ...],
+    family: ProtocolFamily,
+) -> Ds03Frame:
     _key(key)
     frame = _load(raw)
     if set(frame) != _KEYS:
@@ -205,9 +259,10 @@ def decode_frame(
         supplied, hmac.new(key, canonical(frame), hashlib.sha256).hexdigest()
     ):
         raise Ds03ProtocolError()
+    matched = [kind for kind in kinds if kind == frame["kind"]]
     if (
         frame["protocol"] != _protocol(family)
-        or frame["kind"] != kind
+        or len(matched) != 1
         or type(frame["sequence"]) is not int
         or frame["sequence"] != sequence
         or type(sequence) is not int
@@ -219,4 +274,4 @@ def decode_frame(
     payload = frame["payload"]
     if not isinstance(payload, dict):
         raise Ds03ProtocolError()
-    return Ds03Frame(kind, request_id, cast(dict[str, object], payload))
+    return Ds03Frame(matched[0], request_id, cast(dict[str, object], payload))

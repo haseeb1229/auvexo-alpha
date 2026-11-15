@@ -22,7 +22,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, Final, Protocol, cast
 from uuid import UUID, uuid4
 
 import psycopg
@@ -31,17 +31,21 @@ from sqlalchemy import URL, create_engine, text
 from sqlalchemy.pool import NullPool
 
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority
+from auvexo_alpha.infrastructure.database import SCHEMA_REVISION
 from auvexo_alpha.infrastructure.oi_migrations import (
     OI_ADMIN,
     OI_DATABASE,
     OI_PORT,
     migrate_oi_database,
 )
+from auvexo_alpha.infrastructure.pg_login import login_role_sql
 
 _ERROR = "OI_DATABASE_RECOVERY_REQUIRED"
 _ROLES = ("auvexo_app", "auvexo_data_writer")
+_LOGIN_ATTRIBUTES: Final = "NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS INHERIT"
 _VERSION = "17.11"
-_REVISION = "0005_paper_core"
+# Provisioning migrates the main chain to head; the proven revision is that same head.
+_REVISION = SCHEMA_REVISION
 _CONFIGURATION = ("postgresql.conf", "postgresql.auto.conf", "pg_hba.conf", "pg_ident.conf")
 
 
@@ -619,6 +623,15 @@ class OIRuntimeDatabase:
                     "data_checkpoint",
                     "data_source_review",
                     "data_spec",
+                    # Migration 0006 grants these to the ingest group and app reads. The OI
+                    # collector never writes them; in a dedicated OI database they stay empty.
+                    "data_source_comparison",
+                    "data_source_conflict",
+                    "data_gap_review",
+                    "data_gap_evidence",
+                    "data_cooldown_release",
+                    "data_cooldown_probe",
+                    "data_cooldown_probe_result",
                 }
                 readable = data_tables | {"foundation_policy", "alembic_version"}
                 if role == "auvexo_app":
@@ -733,11 +746,9 @@ class OIRuntimeDatabase:
                 # Attest the actual server BEFORE the first credential-bearing DDL.
                 self._verify_identity(connection, "postgres")
                 for role, password in zip(_ROLES, (passwords.app, passwords.writer), strict=True):
+                    # Only the client-side SCRAM verifier reaches the server.
                     connection.execute(
-                        sql.SQL(
-                            "CREATE ROLE {} LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB "
-                            "NOCREATEROLE NOREPLICATION NOBYPASSRLS INHERIT"
-                        ).format(sql.Identifier(role), sql.Literal(password))
+                        login_role_sql(connection, role, password, _LOGIN_ATTRIBUTES)
                     )
                 connection.execute("REVOKE ALL ON DATABASE postgres,template1 FROM PUBLIC")
                 connection.execute(

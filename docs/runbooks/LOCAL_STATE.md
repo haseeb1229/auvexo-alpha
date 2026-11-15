@@ -12,7 +12,7 @@ check. Some of it is evidence, some is secret, most is disposable.
 | `scheduled-data/` | Public-data wrapper summaries and logs. Logs older than 14 days are pruned by the wrapper; summaries are kept. |
 | `phase4/checkpoint-b/acceptance-prestart/runtime/` | The PAPER campaign envelope used by the task. |
 | `dev-secrets.json`, `data-secrets.json`, `paper-identities/` | Local database credentials. Secret. |
-| `python/`, `toolchains/`, `.venv` at the checkout root | Interpreter and tools the tasks run with. The Development environment also uses this interpreter. |
+| `python/`, `toolchains/`, `.venv` at the checkout root | Interpreter and tools the tasks run with. Nothing outside this checkout may depend on them. |
 | `PHASE_*_HANDOFF.md` and dated evidence directories | Historical delivery records. |
 
 Do not delete, move or edit anything in the Operational checkout.
@@ -26,6 +26,13 @@ Do not delete, move or edit anything in the Operational checkout.
 | `phase2/`, `phase5/`, `phase6/`, `phase7/`, `source-review/` | Local receipts from earlier work: CI logs, scan reports, handoffs. Keep while they are cited; they are not in Git. |
 | `phase6/engineering/pg-55433/` | A disposable test cluster. Not production. |
 | `toolchains/postgres/` | PostgreSQL binaries for local drills. |
+| `python/cpython-3.13.16-windows-x86_64-none/` | The Development interpreter, installed by the pinned uv. `cpython-3.13-windows-x86_64-none` beside it is a junction uv creates; the virtual environment resolves through it. Keep both. |
+| `toolchains/uv-wheel/` | The pinned uv 0.13.1, unpacked from its wheel after the wheel hash was verified. |
+| `.venv` at the checkout root | Rebuilt from `uv.lock` with the interpreter above. Disposable: rebuild with the commands in [local verification](LOCAL_VERIFICATION.md). |
+
+Since 2026-11-13 the Development environment uses only its own interpreter and tools. It
+no longer borrows the Operational interpreter, so re-pinning or repairing the Operational
+checkout cannot break Development, and the reverse.
 
 ## User profile
 

@@ -3,7 +3,7 @@
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from auvexo_alpha.application.data_schedule import (
     FIRST_SCHEDULED_DAY,
@@ -13,7 +13,12 @@ from auvexo_alpha.application.data_schedule import (
     qualification_window,
 )
 from auvexo_alpha.domain.contracts import utc_time
-from auvexo_alpha.domain.market_data import DatasetManifest, IngestionEvent
+from auvexo_alpha.domain.market_data import (
+    CooldownSpan,
+    DatasetManifest,
+    GapReview,
+    IngestionEvent,
+)
 
 STABLE_CODE = re.compile(r"[A-Z][A-Z0-9_]{2,63}")
 
@@ -25,16 +30,22 @@ def stable_code(value: object) -> str | None:
 
 @dataclass(frozen=True)
 class ScheduledSummary:
-    """Wrapper receipt fields parsed by the outer layer. Not proof Task Scheduler ran it."""
+    """Wrapper receipt fields parsed by the outer layer.
+
+    `provenance` is the wrapper's own read-only Task Scheduler check (ADR-032 OBV2-06,
+    applied to the public-data wrapper); a summary written before it existed is UNRECORDED.
+    """
 
     started_at: datetime
     schedule_id: str
     mode: str
     status: str
+    provenance: str = "UNRECORDED"
 
 
 def scheduled_binding(day: date, summaries: Sequence[ScheduledSummary]) -> str:
-    """Require the day's single scheduled wrapper receipt: on time and COMMAND_COMPLETE."""
+    """Require the day's single scheduled wrapper receipt: on time, COMMAND_COMPLETE and
+    launched by a Task Scheduler time trigger (provenance VERIFIED)."""
     found = [
         s
         for s in summaries
@@ -51,6 +62,8 @@ def scheduled_binding(day: date, summaries: Sequence[ScheduledSummary]) -> str:
         return "NOT_COMPLETE"
     if not earliest <= utc_time(found[0].started_at) < target:
         return "OUTSIDE_PREWINDOW"
+    if found[0].provenance != "VERIFIED":
+        return "PROVENANCE_" + (stable_code(found[0].provenance) or "INVALID")
     return "MATCHED"
 
 
@@ -107,17 +120,49 @@ def coverage_matrix(manifests: list[DatasetManifest]) -> list[dict[str, object]]
     return rows
 
 
+def gap_rows(gaps: Sequence[GapReview]) -> list[dict[str, object]]:
+    """Reviewed provider gaps stay in coverage for good: absent bars, never filled."""
+    return [
+        dict(
+            instrument=g.instrument_id,
+            venue="BINANCE",
+            product="SPOT",
+            symbol=g.instrument_id.rsplit(".", 1)[-1],
+            timeframe=g.interval,
+            source=g.source_id,
+            quality="REVIEWED_PROVIDER_GAP",
+            gap_start=g.gap_start.isoformat(),
+            gap_end=g.gap_end.isoformat(),
+            reason=g.reason,
+            reviewer=g.reviewer,
+            evidence=[e.model_dump(mode="json") for e in g.evidence],
+            limitation="No bar exists for this range; it is never filled or repaired",
+        )
+        for g in gaps
+    ]
+
+
+def day_bounds(day: date) -> tuple[datetime, datetime]:
+    start = datetime.combine(day, time(), UTC)
+    return start, start + timedelta(days=1)
+
+
 def qualification(
     events: list[IngestionEvent],
     start: date,
     now: datetime,
     verified_manifests: list[DatasetManifest],
     summaries: Sequence[ScheduledSummary],
+    *,
+    cooldowns: Sequence[CooldownSpan],
+    gaps: Sequence[GapReview],
 ) -> dict[str, object]:
     """Qualify observations only against caller-verified stored artifacts, never IDs alone.
 
     Stored events cannot tell a manual in-window run from the scheduled one, so each day
-    also needs its single on-time completed wrapper receipt from the caller.
+    also needs its single on-time completed wrapper receipt from the caller. A UTC day
+    touched by any provider cooldown, or containing a reviewed provider gap, never
+    qualifies: a failed day stays failed.
     """
     by_version = {m.dataset_version: m for m in verified_manifests}
 
@@ -177,7 +222,12 @@ def qualification(
                 )
         closed = now >= window_end
         binding = scheduled_binding(day, summaries)
-        good = good and binding == "MATCHED"
+        first, last = day_bounds(day)
+        cooled = sorted({c.event_id for c in cooldowns if c.start < last and first < c.end})
+        gapped = sorted(
+            f"{g.feed_key}:{g.gap_start.isoformat()}" for g in gaps if g.overlaps(first, last)
+        )
+        good = good and binding == "MATCHED" and not cooled and not gapped
         days.append(
             dict(
                 day=day.isoformat(),
@@ -185,6 +235,8 @@ def qualification(
                 verified_events=sum(verified(e) for e in selected),
                 invalid_event_ids=[e.event_id for e in selected if not verified(e)],
                 scheduled_summary=binding,
+                provider_cooldowns=cooled,
+                reviewed_gaps=gapped,
                 status="PASS" if good and closed else "OPEN" if not closed else "INCOMPLETE",
                 first=selected[0].observed_at.isoformat() if selected else None,
                 last=selected[-1].observed_at.isoformat() if selected else None,
@@ -198,6 +250,7 @@ def qualification(
         days=days,
         scope="Public scheduled 12-minute UTC windows only; "
         "not continuous uptime or Exness qualification",
-        scheduled_provenance="One on-time COMMAND_COMPLETE wrapper summary per day; "
-        "a local receipt, not proof that Task Scheduler launched the run",
+        scheduled_provenance="One on-time COMMAND_COMPLETE wrapper summary per day whose "
+        "wrapper-recorded read-only Task Scheduler check is VERIFIED (time trigger, "
+        "scheduler parent); the summary itself remains a local receipt",
     )

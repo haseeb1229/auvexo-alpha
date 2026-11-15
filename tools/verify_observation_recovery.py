@@ -7,7 +7,9 @@ import json
 import os
 import shutil
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from threading import Event
+from typing import Literal
 from urllib.parse import parse_qs, urlsplit
 from uuid import uuid4
 
@@ -17,6 +19,7 @@ from auvexo_alpha.domain.observation import (
     ObservationConfig,
     ObservationResources,
     ObservationRunEvidence,
+    ObservationSpecCheck,
     observation_spec,
     observation_window,
 )
@@ -25,9 +28,16 @@ from auvexo_alpha.infrastructure.observation_feed import ObservationFeed
 from auvexo_alpha.infrastructure.observation_store import ObservationStore
 from auvexo_alpha.infrastructure.public_http import PublicHTTP, Response
 from auvexo_alpha.infrastructure.source_registry import identity, rights
-from tools.local_db import run_pg, write_private
-from tools.paper_local import admin_args, snapshot
-from tools.paper_observation_local import LOCAL, engine_for, isolated_observation_database
+
+# Same dual form as the sibling tools: package import under -m, bare sibling as a script.
+if __package__:
+    from tools.local_db import run_pg, write_private
+    from tools.paper_local import admin_args, snapshot
+    from tools.paper_observation_local import LOCAL, engine_for, isolated_observation_database
+else:
+    from local_db import run_pg, write_private
+    from paper_local import admin_args, snapshot
+    from paper_observation_local import LOCAL, engine_for, isolated_observation_database
 
 
 def clone_verified_archives(source: DataStore, target: DataStore) -> int:
@@ -49,6 +59,22 @@ def clone_verified_archives(source: DataStore, target: DataStore) -> int:
     return len(manifests)
 
 
+def synthetic_terms(symbol: Literal["BTCUSDT", "ETHUSDT"], at: datetime) -> ObservationSpecCheck:
+    return ObservationSpecCheck(
+        symbol=symbol,
+        raw_hash=hashlib.sha256(b"synthetic-recovery-terms").hexdigest(),
+        sent_at=at,
+        received_at=at,
+        server_at=at,
+        trade_status="TRADING",
+        price_tick=Decimal("0.01"),
+        quantity_step=Decimal("0.00001"),
+        min_quantity=Decimal("0.00001"),
+        max_quantity=Decimal("9000"),
+        min_notional=Decimal("5"),
+    )
+
+
 def main() -> None:
     directory = LOCAL / ("observation-recovery-" + uuid4().hex[:12])
     directory.mkdir(parents=True)
@@ -61,15 +87,21 @@ def main() -> None:
         target_engines = []
         try:
             source_archive = DataStore(source_engines[2], directory / "source-market", directory)
-            store = ObservationStore(*source_engines, source_store=source_archive)
+            store = ObservationStore(
+                source_engines[0], source_engines[1], source_engines[2], source_store=source_archive
+            )
             now = datetime.now(UTC)
+            # Campaign v2 is the only version that can prepare or begin; its pins here are
+            # synthetic terms, never fetched from or claimed for the provider.
             config = ObservationConfig(
-                campaign_id="synthetic.recovery.noncounting.v1",
+                campaign_id="synthetic.recovery.noncounting.v2",
                 git_revision="a" * 40,
                 rights=rights("DS-02"),
                 source=identity("DS-02"),
+                version="paper.observation.v2",
                 specs=tuple(
-                    observation_spec(symbol, observed_at=now) for symbol in ("BTCUSDT", "ETHUSDT")
+                    observation_spec(symbol, observed_at=now, terms=synthetic_terms(symbol, now))
+                    for symbol in ("BTCUSDT", "ETHUSDT")
                 ),
             )
             config_hash = store.prepare(config, now=now)
@@ -141,7 +173,7 @@ def main() -> None:
                     ObservationResources(
                         observed_at=ended,
                         available_ram_bytes=4_000_000_000,
-                        cpu_percent="0",
+                        cpu_percent=Decimal("0"),
                         cpu_high_for_seconds=0,
                     ),
                 ),
@@ -181,7 +213,9 @@ def main() -> None:
             target_archive = DataStore(target_engines[2], directory / "target-market", directory)
             archives = clone_verified_archives(source_archive, target_archive)
             assert archives == 1
-            restored = ObservationStore(*target_engines, source_store=target_archive)
+            restored = ObservationStore(
+                target_engines[0], target_engines[1], target_engines[2], source_store=target_archive
+            )
             assert restored.verify(run_id, evidence, now=datetime.now(UTC)) == witness
             assert restored.config(config_hash) == config
             assert restored.run(run_id)["database_name"] == source

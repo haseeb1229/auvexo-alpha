@@ -18,6 +18,7 @@ from psycopg import sql
 from sqlalchemy import create_engine, text
 
 from auvexo_alpha.infrastructure import oi_database as module
+from auvexo_alpha.infrastructure.database import SCHEMA_REVISION
 from auvexo_alpha.infrastructure.oi_database import (
     OIDatabaseUnavailable,
     OIRuntimeDatabase,
@@ -152,7 +153,16 @@ def test_native_pg1711_pwprompt_migrate_restart_privileges_and_cleanup(monkeypat
         )
         return result
 
+    role_statements = []
+    shared_login_role_sql = module.login_role_sql
+
+    def observe_login_role(connection, role, password, attributes):
+        statement = shared_login_role_sql(connection, role, password, attributes)
+        role_statements.append((role, statement.as_string(connection)))
+        return statement
+
     monkeypatch.setattr(module, "_supervised_run", observe_run)
+    monkeypatch.setattr(module, "login_role_sql", observe_login_role)
     monkeypatch.delenv("AUVEXO_MIGRATION_DSN", raising=False)
     sys.settrace(trace)
     try:
@@ -162,6 +172,16 @@ def test_native_pg1711_pwprompt_migrate_restart_privileges_and_cleanup(monkeypat
         passwords = slots.load()
         known_passwords[:] = [passwords.admin, passwords.app, passwords.writer]
         assert len(set(known_passwords)) == 3
+        # The LOGIN DDL that reached the server carried the stored verifier, never a password.
+        assert [role for role, _ in role_statements] == ["auvexo_app", "auvexo_data_writer"]
+        with instance._connect(passwords.admin) as connection:
+            for role, sent in role_statements:
+                assert not any(password in sent for password in known_passwords)
+                stored = connection.execute(
+                    "SELECT rolpassword FROM pg_authid WHERE rolname=%s", (role,)
+                ).fetchone()[0]
+                assert stored.startswith("SCRAM-SHA-256$4096:") and stored in sent
+        receipt["login_roles_sent_scram_verifier_only"] = True
         prompt_calls = [call for call in invocations if call["stdin_password"]]
         assert len(prompt_calls) == 1
         assert "--pwprompt" in prompt_calls[0]["arguments"]
@@ -224,7 +244,7 @@ def test_native_pg1711_pwprompt_migrate_restart_privileges_and_cleanup(monkeypat
                         assert transaction.is_active
                         assert (
                             connection.scalar(text("SELECT version_num FROM alembic_version"))
-                            == "0005_paper_core"
+                            == SCHEMA_REVISION
                         )
                         transaction.rollback()
                     else:

@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+from typing import Any
 from uuid import uuid4
 
 import psycopg
@@ -21,7 +22,9 @@ def main() -> None:
     creds = credentials()
     suffix = uuid4().hex[:12]
     source, target = f"auvexo_test_{suffix}", f"auvexo_restore_{suffix}"
-    args = dict(host="127.0.0.1", port=PORT, user="auvexo_admin", password=creds["admin"])
+    args: dict[str, Any] = dict(
+        host="127.0.0.1", port=PORT, user="auvexo_admin", password=creds["admin"]
+    )
     dump = LOCAL / f"recovery-{suffix}.dump"
     start = time.monotonic()
     with psycopg.connect(dbname="postgres", autocommit=True, **args) as admin:

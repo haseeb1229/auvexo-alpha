@@ -18,6 +18,17 @@ release/config bindings are validated; duplicate IDs/sequence and prior-process 
 are refused. Bootstrap assumes the trusted parent exclusively owns inherited pipe handles;
 this does not certify a future cross-user credential service or OS ACL implementation.
 
+Amended 2026-11-13 (audit finding G-5, protocol `synthetic-inspection.v2`): the bootstrap
+also carries a per-launch random channel and, on Windows, the name of the Job Object the
+parent created. Every frame's MAC covers the direction (parent-to-child or
+child-to-parent), the channel, the session and a per-direction sequence, so a frame
+reflected to its sender, replayed in the other direction or taken from another launch is
+refused. On Windows the child serves only inside a kill-on-close Job without breakaway
+and dies when the parent's job handle closes. The child ends with an authenticated
+IDLE_TIMEOUT after at most 30 seconds without a valid frame. On Linux containment is the
+inherited-pipe end-of-file plus that idle bound; writes to a parent that stops reading
+are not bounded there.
+
 The child is inspection-only: hello, health, synthetic attestation/spec and reconciliation
 snapshots. It never becomes an execution listener. Dispatch is explicitly UNSUPPORTED.
 Its health remains RECONCILE_ONLY. Use tools from tests as synthetic harnesses, not daemon
@@ -66,7 +77,7 @@ No live permit, withdrawal/transfer capability, DEMO/REAL execution or execution
 Protect Phase4 20:45-22:15 and Phase2 22:45-23:20 Pakistan from heavy development work.
 Phase4 ACTIVE/full OPEN, Phase2 full operational OPEN/DS03 BLOCKED, Phase3 four INCONCLUSIVE
 results and no candidate/champion. PUBLIC independent governance review due2026-10-24 is
-unwaived; DS02 rights next review2026-11-16. Before broker SDK/session/credentials/DS03 or
+unwaived; DS02 rights next review2026-11-16 (renewed on 2026-11-14 to 2027-02-16). Before broker SDK/session/credentials/DS03 or
 proprietary alpha require PRIVATE return or accepted owner-approved permanent-public ADR.
 No visibility/settings mutation is authorized. Same-disk synthetic recovery does not prove
 encrypted off-device disaster recovery or broker realism.

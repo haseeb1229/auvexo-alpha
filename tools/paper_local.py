@@ -1,4 +1,9 @@
-"""Isolated, one-shot synthetic PAPER verification databases; never touches DEV."""
+"""Isolated, one-shot synthetic PAPER verification databases on a disposable test cluster.
+
+Every endpoint here is the disposable cluster named by the test environment (see
+tools/disposable_pg.py); the operational ports are refused and the server marker is
+proven on every connection. Nothing here can reach DEV or the operational cluster.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +18,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 import psycopg
@@ -20,12 +26,17 @@ from psycopg import sql
 from sqlalchemy import URL, create_engine
 from sqlalchemy.engine import Engine
 
-from auvexo_alpha.infrastructure.paper_identity import enforce_paper_engine
+from auvexo_alpha.infrastructure.paper_identity import DisposableCluster, enforce_paper_engine
 
+# safe_window is re-exported for the hash-frozen tools/benchmark_paper.py.
 if __package__:
-    from tools.local_db import write_private
+    from tools.disposable_pg import harness_args, harness_cluster
+    from tools.local_db import login_role_sql, write_private
+    from tools.local_db import safe_window as safe_window
 else:
-    from local_db import write_private
+    from disposable_pg import harness_args, harness_cluster
+    from local_db import login_role_sql, write_private
+    from local_db import safe_window as safe_window
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL = ROOT / ".local"
@@ -40,8 +51,8 @@ class PaperCredential:
     password: str = field(repr=False)
     database: str
     role: str
-    host: str = "127.0.0.1"
-    port: int = 55432
+    host: str
+    port: int
 
 
 def _validate_database(name: str) -> None:
@@ -49,17 +60,9 @@ def _validate_database(name: str) -> None:
         raise ValueError("ISOLATED_PAPER_DATABASE_REQUIRED")
 
 
-def _port() -> int:
-    value = os.environ.get("TEST_PG_PORT", "55432")
-    if not value.isascii() or not value.isdecimal() or not 1 <= int(value) <= 65535:
-        raise ValueError("INVALID_LOCAL_POSTGRES_PORT")
-    return int(value)
-
-
-def _service_port() -> int:
-    if _port() != 55432:
-        raise ValueError("PAPER_VERIFIED_LOCAL_PORT_REQUIRED")
-    return 55432
+def isolated_cluster() -> DisposableCluster:
+    """The disposable cluster every PAPER verification endpoint must be."""
+    return harness_cluster()
 
 
 def credential_path(name: str) -> Path:
@@ -84,7 +87,7 @@ def load_credentials(name: str, role: str) -> PaperCredential:
             or payload["database"] != name
             or payload["host"] != "127.0.0.1"
             or type(payload["port"]) is not int
-            or payload["port"] != _service_port()
+            or payload["port"] != isolated_cluster().port
             or set(payload["roles"]) != set(PAPER_GROUPS)
         ):
             raise ValueError("INVALID_PAPER_CREDENTIAL_MANIFEST")
@@ -98,36 +101,16 @@ def load_credentials(name: str, role: str) -> PaperCredential:
             )
         ):
             raise ValueError("INVALID_PAPER_CREDENTIAL_MANIFEST")
-        return PaperCredential(expected, record["password"], name, role, port=_service_port())
+        return PaperCredential(
+            expected, record["password"], name, role, "127.0.0.1", isolated_cluster().port
+        )
     except (OSError, KeyError, TypeError, ValueError):
         raise RuntimeError("PAPER_CREDENTIAL_UNAVAILABLE_OR_INVALID") from None
 
 
-def admin_args() -> dict[str, object]:
-    """Read credentials only into process memory; never include them in output."""
-    password = os.environ.get("TEST_PG_ADMIN_PASSWORD")
-    if not password:
-        source = LOCAL / "dev-secrets.json"
-        if source.exists():
-            password = json.loads(source.read_text())["admin"]
-    if not password:
-        raise RuntimeError("Real isolated PostgreSQL setup required; no test was skipped")
-    return dict(
-        host="127.0.0.1",
-        port=_port(),
-        user="auvexo_admin",
-        password=password,
-        connect_timeout=3,
-    )
-
-
-def safe_window() -> None:
-    """Reserve the daily collector qualification window in Pakistan (UTC+05)."""
-    from datetime import UTC, datetime, timedelta
-
-    local = datetime.now(UTC) + timedelta(hours=5)
-    if (22, 45) <= (local.hour, local.minute) < (23, 20):
-        raise RuntimeError("PHASE2_PRIORITY_WINDOW: no PAPER database/benchmark work")
+def admin_args() -> dict[str, Any]:
+    """Disposable-cluster migrator, proven by its server marker; never printed or logged."""
+    return harness_args("admin")
 
 
 def admin_database_url(name: str) -> URL:
@@ -154,12 +137,13 @@ def engine_for(
     if role not in PAPER_GROUPS:
         raise ValueError("EXPLICIT_PAPER_GROUP_REQUIRED")
     identity = credential or load_credentials(name, role)
+    cluster = isolated_cluster()
     if (
         identity.username != _username(name, role)
         or identity.role != role
         or identity.database != name
         or identity.host != "127.0.0.1"
-        or identity.port != _service_port()
+        or identity.port != cluster.port
         or not identity.password
     ):
         raise ValueError("PAPER_CREDENTIAL_BINDING_DENIED")
@@ -183,7 +167,13 @@ def engine_for(
         pool_pre_ping=True,
     )
     try:
-        enforce_paper_engine(engine, role, expected_login=identity.username, expected_database=name)
+        enforce_paper_engine(
+            engine,
+            role,
+            expected_login=identity.username,
+            expected_database=name,
+            disposable=cluster,
+        )
     except (ValueError, RuntimeError):
         engine.dispose()
         raise
@@ -260,13 +250,14 @@ def _verify_role(conn: psycopg.Connection, username: str, group: str | None) -> 
     expected = [] if group is None else [(group, False, True, False)]
     if memberships != expected:
         raise RuntimeError("PAPER_ROLE_MEMBERSHIPS_INVALID")
-    if conn.execute(
+    owns = conn.execute(
         "SELECT EXISTS(SELECT 1 FROM pg_class WHERE relowner=%s) OR "
         "EXISTS(SELECT 1 FROM pg_namespace WHERE nspowner=%s) OR "
         "EXISTS(SELECT 1 FROM pg_proc WHERE proowner=%s) OR "
         "EXISTS(SELECT 1 FROM pg_database WHERE datdba=%s)",
         (record[0], record[0], record[0], record[0]),
-    ).fetchone()[0]:
+    ).fetchone()
+    if owns != (False,):
         raise RuntimeError("PAPER_ROLE_OBJECT_OWNERSHIP_FORBIDDEN")
     forbidden = conn.execute(
         "SELECT EXISTS(SELECT 1 FROM pg_tables WHERE schemaname='public' "
@@ -284,7 +275,7 @@ def _verify_role(conn: psycopg.Connection, username: str, group: str | None) -> 
 def provision_services(name: str) -> None:
     """Provision only this isolated DB's owned identities; existing drift stops."""
     _validate_database(name)
-    _service_port()
+    cluster = isolated_cluster()
     safe_window()
     path = credential_path(name)
     created: set[str] = set()
@@ -299,7 +290,12 @@ def provision_services(name: str) -> None:
                 load_credentials(name, group)
                 if exists
                 else PaperCredential(
-                    _username(name, group), secrets.token_hex(32), name, group, port=_service_port()
+                    _username(name, group),
+                    secrets.token_hex(32),
+                    name,
+                    group,
+                    "127.0.0.1",
+                    cluster.port,
                 )
             )
             present = conn.execute(
@@ -309,10 +305,12 @@ def provision_services(name: str) -> None:
                 if present:
                     raise RuntimeError("UNOWNED_PAPER_LOGIN_COLLISION")
                 conn.execute(
-                    sql.SQL(
-                        "CREATE ROLE {} LOGIN PASSWORD {} INHERIT NOSUPERUSER "
-                        "NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS"
-                    ).format(sql.Identifier(identity.username), sql.Literal(identity.password))
+                    login_role_sql(
+                        conn,
+                        identity.username,
+                        identity.password,
+                        "INHERIT NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS",
+                    )
                 )
                 conn.execute(
                     sql.SQL("GRANT {} TO {} WITH INHERIT TRUE, SET FALSE").format(
@@ -345,7 +343,7 @@ def provision_services(name: str) -> None:
                         "version": 1,
                         "database": name,
                         "host": "127.0.0.1",
-                        "port": _service_port(),
+                        "port": cluster.port,
                         "roles": {
                             identity.role: {
                                 "username": identity.username,

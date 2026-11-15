@@ -21,20 +21,24 @@ from auvexo_alpha.application.oi_research import (
 from auvexo_alpha.domain.contracts import utc_time
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority
 from auvexo_alpha.domain.oi_schedule import (
+    OIAcceptedStart,
     OIClockProof,
     OICollectionConfig,
-    OIStartEnvelope,
+    OISlotGap,
+    closed_gap_reason,
+    current_slot,
     require_scheduled_start,
     slot_allowed,
     symbol_due,
 )
-from auvexo_alpha.domain.open_interest import OIManifest, OISymbol
+from auvexo_alpha.domain.open_interest import OIManifest, OISymbol, OITransportKind
 from auvexo_alpha.domain.research import DataUseClass
 from auvexo_alpha.infrastructure.oi_http import OIHTTP
 from auvexo_alpha.infrastructure.oi_parser import parse_oi
 from auvexo_alpha.infrastructure.oi_store import OIStore
 from auvexo_alpha.infrastructure.public_http import SourceError
 
+_SYMBOLS: tuple[OISymbol, ...] = ("BTCUSDT", "ETHUSDT")
 OIJobCode = Literal[
     "COMPLETE",
     "BLOCKED",
@@ -103,17 +107,16 @@ class OICollectionJob:
     def run(
         self,
         *,
-        envelope: OIStartEnvelope | None,
-        accepted_start_digest: str | None,
+        start: OIAcceptedStart | None,
         clock: OIClockProof | None,
     ) -> OIJobStatus:
         config = self.config
+        at = utc_time(self.now())
         try:
-            at = utc_time(self.now())
             slot = require_scheduled_start(config, at, self.review_authority)
-            if envelope is None or accepted_start_digest is None:
+            if start is None:
                 raise ValueError("OI_OWNER_START_REQUIRED")
-            envelope.require_start(config, accepted_start_digest, at, self.review_authority)
+            start.require_start(config, at, self.review_authority)
             if clock is None:
                 raise ValueError("OI_CLOCK_UNTRUSTED")
             clock.require_trusted(config, at)
@@ -123,123 +126,209 @@ class OICollectionJob:
             reason = str(error)
             if not reason.startswith("OI_") or len(reason) > 80:
                 reason = "OI_CONFIG_INVALID"
+            self._record_refused_slot(start, at, current_slot(at), reason)
             return OIJobStatus("BLOCKED", reason)
         if self.cancel.is_set():
+            self._record_refused_slot(start, at, slot, "OI_STOPPED")
             return OIJobStatus("STOPPED", "OI_STOPPED")
         deadline = self.monotonic() + min(60, (slot + timedelta(seconds=60) - at).total_seconds())
-        study = OIStudyWindow(
-            study_id=config.study_id,
-            owner_start_at=envelope.owner_start_at,
-            preregistration_hash=config.preregistration_hash,
-            code_hash=config.code_hash,
-            rights_snapshot_hash=config.rights.content_hash(),
-        )
+        study = self._study(start)
         if at < study.t0:
             return OIJobStatus("BLOCKED", "OI_STUDY_NOT_DUE")
         if at >= study.evaluation_end:
+            with self.store.collection_lease() as acquired:
+                if not acquired:
+                    return OIJobStatus("BUSY", "OI_SINGLE_INSTANCE")
+                self.store.append_study(study)
+                # Trailing scheduled slots that no run reached before the window closed
+                # still get their gap; repeated runs add nothing, and nothing is fetched.
+                self.store.record_missed_slots(study, study.evaluation_end, utc_time(self.now()))
             return OIJobStatus("BLOCKED", "OI_STUDY_WINDOW_COMPLETE")
-        results: list[str] = []
-        failures: list[str] = []
-
-        def status(code: OIJobCode, reason: str) -> OIJobStatus:
-            return OIJobStatus(code, reason, tuple(results), research_failures=tuple(failures))
-
         with self.store.collection_lease() as acquired:
             if not acquired:
                 return OIJobStatus("BUSY", "OI_SINGLE_INSTANCE")
             # A lease/config document is not a START record. No qualification issuer exists.
             self.store.append_study(study)
-            for symbol in ("BTCUSDT", "ETHUSDT"):
-                if self.cancel.is_set():
-                    return status("STOPPED", "OI_STOPPED")
-                if not self.resources_ready():
-                    return status("BLOCKED", "OI_RESOURCE_YIELD")
-                at = utc_time(self.now())
-                try:
-                    envelope.require_start(config, accepted_start_digest, at, self.review_authority)
-                    clock.require_trusted(config, at)
-                except ValueError:
-                    return status("BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID")
-                delay = max(0.0, (symbol_due(slot, symbol) - at).total_seconds())
-                if self.monotonic() + delay >= deadline:
-                    return status("STOPPED", "OI_SLOT_DEADLINE")
-                if self.wait(delay):
-                    return status("STOPPED", "OI_STOPPED")
-                # Revalidate after staggering: the wait can cross an authority/clock
-                # boundary, receive cancellation or consume the shared slot deadline.
-                at = utc_time(self.now())
-                if self.cancel.is_set():
-                    return status("STOPPED", "OI_STOPPED")
-                if self.monotonic() >= deadline or at >= slot + timedelta(seconds=60):
-                    return status("STOPPED", "OI_SLOT_DEADLINE")
-                try:
-                    envelope.require_start(config, accepted_start_digest, at, self.review_authority)
-                    clock.require_trusted(config, at)
-                except ValueError:
-                    return status("BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID")
-                if not self.resources_ready():
-                    return status("BLOCKED", "OI_RESOURCE_YIELD")
-                previous = self.store.checkpoint(symbol)
-                if previous is not None and previous.observation.slot_at > slot:
-                    return status("BLOCKED", "OI_CLOCK_REGRESSION")
-                if previous is not None and previous.observation.slot_at == slot:
-                    results.append(previous.content_hash())
-                    continue
-                try:
-                    receipt = self.http.fetch(symbol, slot_deadline=deadline)
-                except SourceError as error:
-                    return status("SOURCE_UNAVAILABLE", error.code)
-                processed_at = utc_time(self.now())
-                try:
-                    envelope.require_start(
-                        config, accepted_start_digest, processed_at, self.review_authority
-                    )
-                    clock.require_trusted(config, processed_at)
-                except ValueError:
-                    self.store.quarantine(receipt.body, processed_at, "RIGHTS_REJECTED")
-                    return status("BLOCKED", "OI_RECEIPT_ADMISSION_EXPIRED")
-                try:
-                    observation = parse_oi(
-                        receipt.body,
-                        symbol=symbol,
-                        slot_at=slot,
-                        request_sent_at=receipt.request_sent_at,
-                        first_seen_at=receipt.first_seen_at,
-                        received_at=receipt.received_at,
-                        processed_at=processed_at,
-                        code_revision=config.git_revision,
-                        code_hash=config.code_hash,
-                        review_receipt_hash=(
-                            self.review_authority.receipt_hash_at(receipt.received_at)
-                            if self.review_authority is not None
-                            else None
-                        ),
-                    )
-                except ValueError:
-                    self.store.quarantine(receipt.body, processed_at, "PARSER_REJECTED")
-                    return status("SOURCE_UNAVAILABLE", "OI_SCHEMA_OR_QUALITY")
+            # Slots no run reached stay explicit gaps; nothing is fetched for them.
+            self.store.record_missed_slots(study, slot, utc_time(self.now()))
+            collected: list[OISymbol] = []
+            result = self._collect(start, clock, study, slot, deadline, collected)
+            self._record_gaps(slot, tuple(s for s in _SYMBOLS if s not in collected), result.reason)
+            return result
+
+    def _study(self, start: OIAcceptedStart) -> OIStudyWindow:
+        return OIStudyWindow(
+            study_id=self.config.study_id,
+            owner_start_at=start.envelope.owner_start_at,
+            preregistration_hash=self.config.preregistration_hash,
+            code_hash=self.config.code_hash,
+            rights_snapshot_hash=self.config.rights.content_hash(),
+            start_digest=start.digest,
+        )
+
+    def _record_gaps(self, slot: datetime, symbols: tuple[OISymbol, ...], reason: str) -> None:
+        if not symbols:
+            return
+        code = closed_gap_reason(reason)
+        recorded_at = max(utc_time(self.now()), slot)
+        self.store.record_gaps(
+            tuple(
+                OISlotGap(symbol=symbol, slot_at=slot, reason=code, recorded_at=recorded_at)
+                for symbol in symbols
+            )
+        )
+
+    def _record_refused_slot(
+        self, start: OIAcceptedStart | None, at: datetime, slot: datetime, reason: str
+    ) -> None:
+        """A refused launch of a scheduled slot inside the study window leaves a gap.
+
+        Only a currently valid START defines that window. A launch without one (manual,
+        unaccepted, expired or disabled) writes nothing; its slot surfaces as
+        OI_NO_RUN_RECORDED when the next authorized run records missed slots. Protected
+        hours are not scheduled slots, and an already collected symbol is never a gap.
+        """
+        if start is None or not slot_allowed(slot):
+            return
+        try:
+            start.require_start(self.config, at, self.review_authority)
+        except ValueError:
+            # Deliberate: an unauthorized launch has no study window to record into.
+            return
+        study = self._study(start)
+        if not study.t0 <= slot < study.evaluation_end:
+            return
+        missing = []
+        for symbol in _SYMBOLS:
+            previous = self.store.checkpoint(symbol)
+            if previous is None or previous.observation.slot_at != slot:
+                missing.append(symbol)
+        self._record_gaps(slot, tuple(missing), reason)
+
+    def _collect(
+        self,
+        start: OIAcceptedStart,
+        clock: OIClockProof,
+        study: OIStudyWindow,
+        slot: datetime,
+        deadline: float,
+        collected: list[OISymbol],
+    ) -> OIJobStatus:
+        """One slot's two staggered symbols; ``collected`` names each admitted symbol."""
+        config = self.config
+        results: list[str] = []
+        failures: list[str] = []
+        # Only the real isolated worker transport can mark a manifest as production.
+        transport: OITransportKind = (
+            self.http.transport_kind if isinstance(self.http, OIHTTP) else "ENGINEERING_FIXTURE"
+        )
+
+        def status(code: OIJobCode, reason: str) -> OIJobStatus:
+            return OIJobStatus(code, reason, tuple(results), research_failures=tuple(failures))
+
+        for symbol in _SYMBOLS:
+            if self.cancel.is_set():
+                return status("STOPPED", "OI_STOPPED")
+            if not self.resources_ready():
+                return status("BLOCKED", "OI_RESOURCE_YIELD")
+            at = utc_time(self.now())
+            try:
+                start.require_start(config, at, self.review_authority)
+                clock.require_trusted(config, at)
+            except ValueError:
+                return status("BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID")
+            delay = max(0.0, (symbol_due(slot, symbol) - at).total_seconds())
+            if self.monotonic() + delay >= deadline:
+                return status("STOPPED", "OI_SLOT_DEADLINE")
+            if self.wait(delay):
+                return status("STOPPED", "OI_STOPPED")
+            # Revalidate after staggering: the wait can cross an authority/clock
+            # boundary, receive cancellation or consume the shared slot deadline.
+            at = utc_time(self.now())
+            if self.cancel.is_set():
+                return status("STOPPED", "OI_STOPPED")
+            if self.monotonic() >= deadline or at >= slot + timedelta(seconds=60):
+                return status("STOPPED", "OI_SLOT_DEADLINE")
+            try:
+                start.require_start(config, at, self.review_authority)
+                clock.require_trusted(config, at)
+            except ValueError:
+                return status("BLOCKED", "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID")
+            if not self.resources_ready():
+                return status("BLOCKED", "OI_RESOURCE_YIELD")
+            previous = self.store.checkpoint(symbol)
+            if previous is not None and previous.observation.slot_at > slot:
+                return status("BLOCKED", "OI_CLOCK_REGRESSION")
+            if previous is not None and previous.observation.slot_at == slot:
+                results.append(previous.content_hash())
+                collected.append(symbol)
+                continue
+            if self.store.slot_gap_recorded(symbol, slot):
+                # A refused or racing launch already closed this symbol slot for good.
+                return status("BLOCKED", "OI_SLOT_GAP_RECORDED")
+            try:
+                receipt = self.http.fetch(symbol, slot_deadline=deadline)
+            except SourceError as error:
+                return status("SOURCE_UNAVAILABLE", error.code)
+            processed_at = utc_time(self.now())
+            try:
+                start.require_start(config, processed_at, self.review_authority)
+                clock.require_trusted(config, processed_at)
+            except ValueError:
+                self.store.quarantine(receipt.body, processed_at, "RIGHTS_REJECTED")
+                return status("BLOCKED", "OI_RECEIPT_ADMISSION_EXPIRED")
+            try:
+                observation = parse_oi(
+                    receipt.body,
+                    symbol=symbol,
+                    slot_at=slot,
+                    request_sent_at=receipt.request_sent_at,
+                    first_seen_at=receipt.first_seen_at,
+                    received_at=receipt.received_at,
+                    processed_at=processed_at,
+                    code_revision=config.git_revision,
+                    code_hash=config.code_hash,
+                    review_receipt_hash=(
+                        self.review_authority.receipt_hash_at(receipt.received_at)
+                        if self.review_authority is not None
+                        else None
+                    ),
+                )
+            except ValueError:
+                self.store.quarantine(receipt.body, processed_at, "PARSER_REJECTED")
+                return status("SOURCE_UNAVAILABLE", "OI_SCHEMA_OR_QUALITY")
+            try:
                 manifest = self.store.publish(
                     observation,
                     receipt.body,
                     rights=config.rights,
                     classification=DataUseClass.PERSONAL_RESEARCH,
                     now=processed_at,
+                    start_digest=start.digest,
+                    transport=transport,
                 )
-                if manifest.observation.quality != "VALID":
-                    return status("BLOCKED", "OI_CONFLICT_REVIEW_REQUIRED")
-                results.append(manifest.content_hash())
-                try:
-                    self._research(study, manifest, previous, symbol)
-                except (ValueError, OSError, SQLAlchemyError) as error:
-                    # The snapshot is already published. One symbol's ledger problem must
-                    # never cost the other symbol's acquisition, and is never dropped:
-                    # it is recorded durably (an unrecordable failure propagates) and
-                    # every later status of this run reports it with a nonzero exit.
-                    code = _failure_code(error)
-                    self.store.record_research_failure(
-                        symbol, slot, manifest.content_hash(), code, utc_time(self.now())
-                    )
-                    failures.append(f"{symbol}:{code}")
+            except ValueError as error:
+                if str(error) != "OI_SLOT_GAP_RECORDED":
+                    raise
+                # A racing refused launch closed this symbol slot during the fetch. Its gap
+                # record is the durable evidence; the late body is not stored anywhere.
+                return status("BLOCKED", "OI_SLOT_GAP_RECORDED")
+            if manifest.observation.quality != "VALID":
+                return status("BLOCKED", "OI_CONFLICT_REVIEW_REQUIRED")
+            results.append(manifest.content_hash())
+            collected.append(symbol)
+            try:
+                self._research(study, manifest, previous, symbol)
+            except (ValueError, OSError, SQLAlchemyError) as error:
+                # The snapshot is already published. One symbol's ledger problem must
+                # never cost the other symbol's acquisition, and is never dropped:
+                # it is recorded durably (an unrecordable failure propagates) and
+                # every later status of this run reports it with a nonzero exit.
+                code = _failure_code(error)
+                self.store.record_research_failure(
+                    symbol, slot, manifest.content_hash(), code, utc_time(self.now())
+                )
+                failures.append(f"{symbol}:{code}")
         if failures:
             return status("LEDGER_REVIEW_REQUIRED", "OI_RESEARCH_LEDGER_FAILED")
         return status("COMPLETE", "OI_RECORDED_NO_QUALIFICATION_CREDIT")

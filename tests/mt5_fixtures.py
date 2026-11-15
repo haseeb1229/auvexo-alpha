@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from uuid import uuid4
 
-from test_ds03_authority import authority_fixture
+from test_ds03_authority import REFERENCE_KEY, authority_fixture
 
 from auvexo_alpha.domain.ds03_actual import actual_request_adapter
 from auvexo_alpha.domain.ds03_authority import admit_authority
@@ -226,9 +226,20 @@ class Fixture:
     port: _Mt5ReadPort
 
 
-def fixture(*, initialize=True):
+_BOUND = object()
+
+
+def fixture(*, initialize=True, basis=_BOUND):
+    """Default: the synthetic accepted UTC basis. ``basis=None`` is an unbound onboarding
+    authority; any ServerTimeBasis replaces it."""
     authority, metadata, bound, _ = authority_fixture()
+    if basis is not _BOUND:
+        authority = authority.model_copy(update={"server_time_basis": basis})
     now = datetime.now(UTC)
+    authorized = now - timedelta(seconds=30)
+    if authority.server_time_basis is not None:
+        # A freshly measured basis is accepted only after its measurement.
+        authorized = max(authorized, authority.server_time_basis.measured_at)
     version = terminal_version_reference((500, bound.terminal_build, "synthetic-date"))
     bound = type(bound).model_validate_json(
         bound.model_copy(update={"terminal_version": version}).canonical_bytes()
@@ -238,7 +249,7 @@ def fixture(*, initialize=True):
             update={
                 "runtime": bound,
                 "private_attested_at": now - timedelta(minutes=1),
-                "authorized_at": now - timedelta(seconds=30),
+                "authorized_at": authorized,
                 "expires_at": now + timedelta(hours=1),
                 "rights_valid_until": now + timedelta(hours=2),
             }
@@ -249,7 +260,7 @@ def fixture(*, initialize=True):
     )
     admission = static.bind_metadata(metadata, now=now)
     sdk, observer = FakeSdk(metadata, bound.terminal_build), Observer(bound)
-    port = _Mt5ReadPort(sdk, admission, observer)
+    port = _Mt5ReadPort(sdk, admission, observer, REFERENCE_KEY)
     if initialize:
         port._initialize(SYNTHETIC_PASSWORD)
     return Fixture(static, admission, sdk, observer, port)

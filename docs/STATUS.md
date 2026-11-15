@@ -1,9 +1,11 @@
 # Status
 
-As of 2026-11-12 (Asia/Karachi). This is the only document that states current status.
+As of 2026-11-15 (Asia/Karachi). This is the only document that states current status.
 Every other document holds standing content or is a dated record. When a fact here
-changes, change this file in the same commit. Each fact below was verified directly on
-2026-11-12 during the [independent rebaseline](reviews/AUVEXO_FULL_A_TO_Z_REBASELINE_2026-11-12.md);
+changes, change this file in the same commit. Facts were verified directly on 2026-11-12
+during the [independent rebaseline](reviews/AUVEXO_FULL_A_TO_Z_REBASELINE_2026-11-12.md)
+and re-verified on 2026-11-15 for the
+[OD-23 engineering closure](reviews/AUVEXO_OD23_ENGINEERING_CLOSURE_2026-11-15.md);
 earlier status text is kept unchanged in the [history log](history/README.md).
 
 UNKNOWN means not measured. It is never zero and never PASS.
@@ -12,8 +14,8 @@ UNKNOWN means not measured. It is never zero and never PASS.
 
 | Question | Answer |
 | --- | --- |
-| Engineering system ready | PARTIAL. The research, data, PAPER, offline gateway, read-only terminal, open-interest and DS-03 read-only code exists, is tested and was independently re-audited. Open engineering findings remain; see below. |
-| Operational qualification in progress | NO. Both evidence campaigns are registered but are not accruing evidence. |
+| Engineering system ready | YES for the current scope (research, data, PAPER, offline gateway, read-only terminal, open-interest and DS-03 read-only code). Every audit finding has a final disposition; none is left open. What remains needs the owner; see below. |
+| Operational qualification in progress | NO. Both evidence campaigns on the pinned release are registered but are not accruing evidence. Their corrected v2 versions exist in code and have not started. |
 | Live certified | NO. No validated edge, no eligible champion, no live gate passed. No edge means no live launch. |
 
 There is no account connection, no broker session, no credential, no order path that can
@@ -50,10 +52,12 @@ be enabled, no withdrawal or transfer capability, and no model-to-order path.
 | #11 | DS-03 synthetic read-only foundation | `fa0915130c9572c9c2a4a260b20abeaefc2c62f5` |
 | #12 | DS-03 actual MT5 read-only adapter, with ADR-030 corrections | `003a3808a022af5307ac2c00413441dc3b19fde5` |
 | #13 | Independent A-to-Z rebaseline: repairs, CI, runbooks and this file | `296a3307b9803d2283121485d12a39368c83a70a` |
+| #14 | STATUS record of the #12 and #13 merges | `0617c78b2dd7fd17f8a55fe188ccc42b03d34510` |
 
 All are normal merge commits. For #12 and #13 it was checked on 2026-11-12 that the first
 parent is the previous `main`, the second is the verified head, and the merge tree equals
-that head's tree. Later merges appear in `git log --first-parent --merges main`.
+that head's tree. Later merges appear in `git log --first-parent --merges main`; the
+OD-23 closure merge is recorded by a follow-up change, as #14 did for #13.
 
 ## Phases
 
@@ -61,11 +65,11 @@ that head's tree. Later merges appear in `git log --first-parent --merges main`.
 | --- | --- | --- |
 | 0 Constitution and architecture | Accepted | Complete |
 | 1 Engineering foundation | Accepted | Complete |
-| 2 Trustworthy data | Public spot collection and DS-03 read-only adapter code accepted. Collector clock, provenance and failure-evidence defects found on 2026-11-12. | OPEN. Zero genuine qualifying dates. DS-03 has no account, rights or qualification. |
-| 3 Backtest and simple alpha | Accepted. Simulator arithmetic re-audited without error; ledger gate and evidence-binding weaknesses found. | Complete as research: four outcomes INCONCLUSIVE, both out-of-sample holdouts consumed permanently, no candidate, no champion. |
-| 4 Strategy lifecycle and hard risk | Accepted. Kernel and observation findings recorded on 2026-11-12. | OPEN. At most one qualifying PAPER date; exact count UNKNOWN. The campaign as pinned cannot complete. |
-| 5 Exness demo and shadow | Offline synthetic foundation accepted. | NOT STARTED. Requires full Phase 4, accepted actual DS-03 and owner authority. |
-| 6 Intelligence | Open-interest collector and study code accepted; two collector defects found on 2026-11-12. | NOT STARTED. No collection, forward clock zero, value gate open, clock untrusted. |
+| 2 Trustworthy data | Accepted, including the [v2 campaign semantics](phase2/PUBLIC_DATA_CAMPAIGN_V2.md): cross-source conflicts, reviewed gaps, per-host cooldowns and scheduler provenance (ADR-033). | OPEN. Zero genuine qualifying dates. The v2 campaign needs a re-pin and START. DS-03 has no account, rights or qualification. |
+| 3 Backtest and simple alpha | Accepted. Holdouts now database-enforced and trial identity verified for future studies (ADR-033). | Complete as research: four outcomes INCONCLUSIVE, both out-of-sample holdouts consumed permanently, no candidate, no champion. |
+| 4 Strategy lifecycle and hard risk | Accepted. Kernel corrections and PAPER campaign v2 (ADR-032, migrations `0007` and `obs0002`). | OPEN. At most one qualifying v1 PAPER date, exact count UNKNOWN, and it does not transfer. Campaign v2 dates: zero; not started. |
+| 5 Exness demo and shadow | Offline synthetic foundation accepted; gateway frames bind direction (G-5). | NOT STARTED. Requires full Phase 4, accepted actual DS-03 and owner authority. |
+| 6 Intelligence | Open-interest collector and study code accepted, with committed START and gap records (ADR-034). | NOT STARTED. No collection, forward clock zero, value gate open, clock untrusted. |
 | 7 Owner surfaces | Read-only web terminal accepted. | OPEN. No desktop, Android or voice client; no owner authentication beyond a local bearer; not connected to operational data. |
 | 8 Live certification | NOT STARTED | NOT STARTED |
 | 9 Controlled scaling | NOT STARTED | NOT STARTED |
@@ -78,7 +82,7 @@ that head's tree. Later merges appear in `git log --first-parent --merges main`.
 | Checkout | Role | Pin | Rule |
 | --- | --- | --- | --- |
 | `Desktop/Auvexo Alpha` | Operational. Both scheduled tasks run from it. | `9b9038b` | Never edit, fetch, switch, install, test or migrate here. Read-only inspection only. |
-| `Desktop/Auvexo Alpha Development` | All engineering. | moves | Separate `.git`, no shared worktree. Its virtual environment uses the Python interpreter stored under the Operational checkout's `.local/python`, read-only. |
+| `Desktop/Auvexo Alpha Development` | All engineering. | moves | Separate `.git`, no shared worktree. Its own Python 3.13.16 and uv 0.13.1 under its `.local`; see [local state](runbooks/LOCAL_STATE.md). PostgreSQL tests run only on disposable clusters. |
 | `Desktop/Auvexo Alpha OI Runtime` | Prepared open-interest runtime. | `f47770d` | No database, secret, task or START exists. Do not update without a reviewed re-pin. |
 | `Desktop/Auvexo Alpha MT5 Readonly Runtime` | Future DS-03 runtime. | does not exist | Created only by a later PRIVATE onboarding ADR. |
 
@@ -107,15 +111,21 @@ Task Scheduler on 2026-11-12:
   running. Its last log line is 2026-10-23 11:58 PKT. Nothing starts it after a reboot,
   and no failure was reported to anyone.
 - **Availability:** the laptop was off, asleep or on battery at trigger time on most nights.
-- **Clock:** Windows Time has never synchronised (source is the local CMOS clock). The
-  clock was measured about 33 seconds slow against two independent providers. A
-  non-elevated resync is refused.
+- **Clock:** on 2026-11-12 Windows Time had never synchronised and the clock was about
+  33 seconds slow. It synchronised once on 2026-11-13 01:18:59 PKT, which removed that
+  skew. On 2026-11-14 the owner configured Windows Time as in
+  [clock trust](runbooks/CLOCK_TRUST.md) (automatic start, 900 s poll,
+  `time.windows.com`). On 2026-11-15 01:51 PKT it still reported leap indicator 3,
+  source Local CMOS Clock and no successful sync. NTP replies are mostly lost on this
+  network (time.windows.com 0 of 4, time.google.com 2 of 3, pool 0 of 3), and the clock
+  measured about 4 seconds fast. The remaining action is a network path for UDP port 123.
 - **Design limits found in the pinned release.** The PAPER campaign denies every proposal
   by construction, so it exercises no authorization, reservation or fill. The 33-second
   skew makes observation polls fail finality for part of each minute. The public-data
-  rights review hard-coded in the release expires on 2026-11-16, after which both tasks
-  refuse and the PAPER count becomes unreadable. Renewal needs a new release, which
-  restarts the campaign.
+  rights review hard-coded in the pinned release expires on 2026-11-16 00:00 UTC, after
+  which both tasks refuse and the PAPER count becomes unreadable. The owner's renewal
+  exists only in code after the pinned release, so it takes effect operationally only
+  with a re-pin, which restarts the campaigns as v2.
 
 Nothing was started, repaired, retimed or backfilled. No missed night can be recovered.
 
@@ -123,41 +133,48 @@ Nothing was started, repaired, retimed or backfilled. No missed night can be rec
 
 | Date | Obligation | State |
 | --- | --- | --- |
-| 2026-11-16 | DS-01 and DS-02 public-data rights review. Enforced in code. | Due. Binance general terms could not be retrieved by automation, so the owner must read and confirm before renewal. |
-| 2026-11-16 | Dependency lock maturity exception review. | Due. |
-| 2026-11-16 | Secret-scan allowlist re-review. | Due. |
+| 2026-11-16 | DS-01 and DS-02 rights expire in the pinned release. | Renewed by the owner on 2026-11-14 for personal, non-commercial, non-production research ([record](reviews/BINANCE_DS01_DS02_RIGHTS_RENEWAL_2026-11-14.md)); effective operationally only after a re-pin. |
 | 2026-11-27 | DS-04-A1 open-interest rights review. Enforced in code. | Matters only if collection is started. |
+| 2026-12-12 | Secret-scan allowlist re-review (`.gitleaks.toml`). | Last reviewed 2026-11-12, confirmed 2026-11-13 in the lock maturity record. |
+| 2026-12-16 | Dependency lock maturity exception review. | Renewed on 2026-11-13 ([record](reviews/DEPENDENCY_LOCK_MATURITY_REVIEW_2026-11-13.md)). |
+| 2027-02-14 | Typing exceptions: `tests` outside strict typing, one `benchmark_paper` override. | Recorded in `pyproject.toml` and the closure record. |
+| 2027-02-16 | DS-01 and DS-02 rights review, earlier if the relevant Binance terms change. Enforced in code. | Next. |
 | passed | PUBLIC governance review due 2026-10-24. | Superseded by ADR-027 on 2026-11-02. |
 
 ## Gates that need the owner
 
-1. **Restart the evidence campaigns.** Start the Operational database and keep it
-   running, keep the laptop on AC power, awake and signed in from 20:45 to 23:20 PKT, and
-   decide whether to restart both campaigns on a corrected release instead of the pinned
-   one. Recorded credit is zero for Phase 2 and at most one date for Phase 4, so a
-   restart costs almost nothing.
-2. **Clock.** An elevated Windows Time resync, or a network path for NTP. Required for
-   Phase 4 qualification and for any open-interest START.
-3. **Public-data rights renewal** before 2026-11-16.
-4. **DS-03 source rights.** The Exness client agreement restricts collecting or storing
+1. **Restart the evidence campaigns as v2**, following the
+   [restart candidate](reviews/OPERATIONAL_CAMPAIGN_RESTART_CANDIDATE_2026-11-13.md):
+   read the v1 count once, back up, re-pin, migrate, install the database autostart,
+   enable the Task Scheduler operational log, prepare v2, independent review, then START.
+   Keep the laptop on AC power, awake and signed in from 20:45 to 23:20 PKT. Recorded
+   credit is zero for Phase 2 and at most one date for Phase 4, so a restart costs almost
+   nothing.
+2. **Clock.** A network path for NTP (UDP port 123), then `w32tm /resync`. Required for
+   both v2 campaigns and any open-interest START.
+3. **DS-03 source rights.** The Exness client agreement restricts collecting or storing
    quotes and automated access to platform information. This is a legal decision for the
    owner, possibly with written consent from the broker. See
-   [ADR-030](adr/030-ds03-adapter-independent-review-corrections.md).
-5. **Return to PRIVATE** before any actual account, session, credential or confidential
+   [ADR-030](adr/030-ds03-adapter-independent-review-corrections.md) and the
+   [decision packet](reviews/DS03_RIGHTS_OWNER_DECISION_PACKET_2026-11-13.md).
+4. **Return to PRIVATE** before any actual account, session, credential or confidential
    alpha work. Not needed earlier.
-6. Live capital limits, legal and jurisdiction eligibility, off-device encrypted backup,
+5. Live capital limits, legal and jurisdiction eligibility, off-device encrypted backup,
    and release integrity controls, all before Phase 8.
 
 ## Open engineering findings
 
-The rebaseline audit lists every finding with severity and disposition. Findings that
-were not fixed in that change are tracked there as required work before the phase they
-block, most of them before any Phase 5 demo order.
+None. The rebaseline audit left 32 findings RECORDED; the
+[OD-23 closure](reviews/AUVEXO_OD23_ENGINEERING_CLOSURE_2026-11-15.md) gives each a final
+disposition: 26 FIXED, 1 ACCEPTED_RESIDUAL (P-15, one Windows user holds every database
+secret; revisit before any broker credential) and 5 EXTERNAL_PRECONDITION (R12-5, P-2,
+P-4, P-7, OI-9), whose remaining steps are owner gates above.
 
 ## Safe to run, and never run
 
 Safe in the Development checkout: format, lint, typing, documentation and secret checks,
-and the non-integration test suite. See [local verification](runbooks/LOCAL_VERIFICATION.md).
+the non-integration test suite, and the full suite on a disposable PostgreSQL cluster
+(`tools/disposable_pg.py`). See [local verification](runbooks/LOCAL_VERIFICATION.md).
 
 Never:
 

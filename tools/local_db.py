@@ -7,12 +7,17 @@ import json
 import os
 import secrets
 import subprocess
+import sys
 import tempfile
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import psutil
 import psycopg
 from psycopg import sql
+
+# Explicit re-export for the workspace tools that create LOGIN roles beside local_db.
+from auvexo_alpha.infrastructure.pg_login import login_role_sql as login_role_sql
 
 ROOT = Path(__file__).resolve().parents[1]
 LOCAL = ROOT / ".local"
@@ -20,12 +25,17 @@ PG = LOCAL / "toolchains/postgres/pgsql/bin"
 DATA = LOCAL / "postgres-data"
 SECRET = LOCAL / "dev-secrets.json"
 PORT = 55432
+# Native children get no console window on Windows and no creation flags elsewhere.
+NO_WINDOW = 0
+if sys.platform == "win32":
+    NO_WINDOW = subprocess.CREATE_NO_WINDOW
 
 
 def credentials() -> dict[str, str]:
     if not SECRET.exists():
         raise RuntimeError("Run local_db.py start first")
-    return json.loads(SECRET.read_text())
+    values: dict[str, str] = json.loads(SECRET.read_text())
+    return values
 
 
 def write_private(path: Path, content: str) -> None:
@@ -42,6 +52,13 @@ def write_private(path: Path, content: str) -> None:
     path.write_text(content)
 
 
+def safe_window() -> None:
+    """Reserve the daily collector qualification window in Pakistan (UTC+05)."""
+    local = datetime.now(UTC) + timedelta(hours=5)
+    if (22, 45) <= (local.hour, local.minute) < (23, 20):
+        raise RuntimeError("PHASE2_PRIORITY_WINDOW: no PAPER database/benchmark work")
+
+
 def run_pg(name: str, *args: str, env: dict[str, str] | None = None) -> None:
     # A file avoids Windows descendants retaining a PIPE after pg_ctl exits.
     with tempfile.TemporaryFile() as output:
@@ -50,7 +67,7 @@ def run_pg(name: str, *args: str, env: dict[str, str] | None = None) -> None:
             env=env,
             stdout=output,
             stderr=output,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            creationflags=NO_WINDOW,
             timeout=120,
         )
         if result.returncode:
@@ -58,14 +75,25 @@ def run_pg(name: str, *args: str, env: dict[str, str] | None = None) -> None:
             raise RuntimeError(output.read().decode(errors="replace"))
 
 
-def port_listener() -> bool:
-    """Process-table fact only; no connection is opened to whatever owns the port."""
+def port_bound(port: int) -> bool:
+    """Process-table fact only; no connection is opened to whatever owns the port.
+
+    A TCP socket on the port with no remote endpoint is a listener, whatever state the
+    table reports: Windows reports some listeners with status NONE (another session or
+    integrity level), and on 2026-11-15 this host reported a running cluster's listener
+    as FIN_WAIT1, CLOSE, NONE or LISTEN from one snapshot to the next. A connected socket
+    counts only in a listening state. Over-counting only makes a port look occupied.
+    """
     return any(
-        connection.status == psutil.CONN_LISTEN
-        and connection.laddr
-        and connection.laddr.port == PORT
+        connection.laddr
+        and connection.laddr.port == port
+        and (not connection.raddr or connection.status in (psutil.CONN_LISTEN, psutil.CONN_NONE))
         for connection in psutil.net_connections(kind="tcp")
     )
+
+
+def port_listener() -> bool:
+    return port_bound(PORT)
 
 
 def require_port_is_ours(create: bool) -> None:
@@ -135,9 +163,9 @@ def start(create: bool = False) -> None:
     ) as conn:
         if not conn.execute("SELECT 1 FROM pg_roles WHERE rolname='auvexo_app'").fetchone():
             conn.execute(
-                sql.SQL(
-                    "CREATE ROLE auvexo_app LOGIN PASSWORD {} NOSUPERUSER NOCREATEDB NOCREATEROLE"
-                ).format(sql.Literal(creds["app"]))
+                login_role_sql(
+                    conn, "auvexo_app", creds["app"], "NOSUPERUSER NOCREATEDB NOCREATEROLE"
+                )
             )
         for name in ("auvexo_dev", "auvexo_test"):
             if not conn.execute("SELECT 1 FROM pg_database WHERE datname=%s", (name,)).fetchone():

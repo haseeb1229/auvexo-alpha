@@ -9,6 +9,15 @@ Restore drills exist; a backup routine does not.
   database, restore it into a freshly generated database, compare, re-test the
   append-only triggers and drop only what they created. They prove that a dump can be
   restored on the same cluster.
+- `tools/verify_data_recovery.py` compares and trigger-probes every data and research
+  table, including all tables of migration 0006. It needs the collector stopped and holds
+  the data-writer, research-recording, holdout-opening and cooldown-release locks. It
+  does not take the per-study research locks, because trial recording takes those before
+  the recording lock and the two orders could deadlock. Run it with no research worker
+  running. Read receipts, read digests and holdout completions are the only research rows
+  that could still be written. They have no artifact file, `pg_dump` copies one
+  consistent snapshot, and a row written between the comparison and the dump fails the
+  drill. It can never pass silently.
 - Nothing is scheduled. Dumps are unencrypted, stay on the same disk and do not include
   roles or passwords. No restore into a fresh cluster has been proven.
 - Off-device encrypted backup is an open owner gate (OD-06) and is required before

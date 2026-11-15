@@ -17,12 +17,14 @@ from auvexo_alpha.domain.market_data import (
     SourceRecord,
 )
 from auvexo_alpha.domain.observation import (
+    ObservationClockGate,
     ObservationClockProof,
     ObservationConfig,
     ObservationFact,
     ObservationProposalTrace,
     ObservationResources,
     ObservationRunEvidence,
+    ObservationSpecCheck,
     ObservationVerification,
     observation_market,
     observation_policy,
@@ -91,8 +93,8 @@ def fact_for(symbol, minute, *, day=BEGIN, delay=3, close="50000"):
     manifest = DatasetManifest(
         dataset_version=version,
         logical_key="observation." + symbol + "." + version[:12],
-        source=identity("DS-02"),
-        rights=rights("DS-02"),
+        source=identity("DS-02", BEGIN),
+        rights=rights("DS-02", BEGIN),
         source_url=url,
         source_hash=HASH,
         checksum_verified=False,
@@ -139,15 +141,89 @@ def make_config():
     return ObservationConfig(
         campaign_id="synthetic.noncounting.v1",
         git_revision="a" * 40,
-        rights=rights("DS-02"),
-        source=identity("DS-02"),
+        rights=rights("DS-02", BEGIN),
+        source=identity("DS-02", BEGIN),
         specs=tuple(
             observation_spec(symbol, observed_at=BEGIN) for symbol in ("BTCUSDT", "ETHUSDT")
         ),
     )
 
 
-def account_at(now):
+# Synthetic provider terms in Binance's exchangeInfo shape; never fetched or claimed real.
+SPEC_TERMS = {
+    "BTCUSDT": ("0.01", "0.00001", "0.00001", "9000", "5"),
+    "ETHUSDT": ("0.01", "0.0001", "0.0001", "9000", "5"),
+}
+
+
+def spec_check(symbol, *, at=BEGIN, **changes):
+    tick, step, minimum, maximum, notional = SPEC_TERMS[symbol]
+    raw = ("synthetic-exchange-info-" + symbol).encode()
+    check = ObservationSpecCheck(
+        symbol=symbol,
+        raw_hash=sha256(raw).hexdigest(),
+        sent_at=at - timedelta(milliseconds=10),
+        received_at=at + timedelta(milliseconds=10),
+        server_at=at,
+        trade_status="TRADING",
+        price_tick=Decimal(tick),
+        quantity_step=Decimal(step),
+        min_quantity=Decimal(minimum),
+        max_quantity=Decimal(maximum),
+        min_notional=Decimal(notional),
+    )
+    return changed(check, **changes) if changes else check
+
+
+def make_config_v2(*, campaign_id="synthetic.noncounting.v2", at=BEGIN, revision="a" * 40):
+    return ObservationConfig(
+        campaign_id=campaign_id,
+        git_revision=revision,
+        rights=rights("DS-02", at),
+        source=identity("DS-02", at),
+        version="paper.observation.v2",
+        specs=tuple(
+            observation_spec(symbol, observed_at=at, terms=spec_check(symbol, at=at))
+            for symbol in ("BTCUSDT", "ETHUSDT")
+        ),
+    )
+
+
+def clock_proof(at, *, offset_ms=0, spread_ms=10):
+    """A provider-time proof measured locally at `at`; the provider reads `at + offset`."""
+    epoch = datetime(1970, 1, 1, tzinfo=UTC)
+    server = at + timedelta(milliseconds=offset_ms)
+    raw = '{"serverTime":' + str((server - epoch) // timedelta(milliseconds=1)) + "}"
+    return ObservationClockProof(
+        source_url="https://data-api.binance.vision/api/v3/time",
+        raw_json=raw,
+        raw_hash=sha256(raw.encode()).hexdigest(),
+        sent_at=at - timedelta(milliseconds=spread_ms),
+        received_at=at + timedelta(milliseconds=spread_ms),
+        server_at=epoch + timedelta(milliseconds=(server - epoch) // timedelta(milliseconds=1)),
+    )
+
+
+TRUSTED_WINDOWS = (
+    ("leap_indicator", "PASS"),
+    ("stratum", "PASS"),
+    ("source_not_local", "PASS"),
+    ("time_since_last_good_sync", "PASS"),
+    ("root_dispersion", "PASS"),
+    ("root_delay", "PASS"),
+    ("phase_offset", "PASS"),
+    ("offset_bound", "FAIL"),
+    ("source_equals_configured", "NOT_CHECKED"),
+)
+
+
+def clock_gate(at, *, windows=TRUSTED_WINDOWS, **proof):
+    return ObservationClockGate(
+        windows_time_hash=HASH, windows_checks=windows, provider=clock_proof(at, **proof)
+    )
+
+
+def account_at(now, *, kill=KillLevel.K1):
     return PaperAccountSnapshot(
         account_ref="paper.observation",
         epoch=1,
@@ -161,7 +237,7 @@ def account_at(now):
         high_water_equity=Decimal("10000"),
         day_start_equity=Decimal("10000"),
         reconciled=True,
-        kill=KillLevel.K1,
+        kill=kill,
     )
 
 
@@ -196,7 +272,7 @@ def make_run(*, points=60, minutes=None):
         intent = plan_observation_intent(config, fact, account, release, now=now)
         if intent is None:
             continue
-        market = observation_market(fact)
+        market = observation_market(fact, config)
         spec = next(s for s in config.specs if s.instrument_id == fact.candle.instrument_id)
         decision = assess_paper(
             intent, observation_policy(config), market, spec, account, release, now=now

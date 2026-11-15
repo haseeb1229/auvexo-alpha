@@ -1,34 +1,23 @@
-"""Reviewed source restrictions; this registry cannot confer trading eligibility."""
+"""Reviewed source restrictions; this registry cannot confer trading eligibility.
 
-from datetime import UTC, datetime
-from typing import Literal
+The owner-confirmed reviews live in `domain.source_reviews`. Collection and observation
+ask for the review made at or before their own instant, so data is always labelled with
+the review it was received under, and an expired review refuses by design.
+"""
 
+from datetime import datetime
+
+from auvexo_alpha.domain.contracts import utc_time
 from auvexo_alpha.domain.market_data import SourceIdentity, SourceRights
-
-TERMS = (
-    "https://raw.githubusercontent.com/binance/binance-public-data/master/TERMS_AND_CONDITIONS.md"
-)
-REST = "https://raw.githubusercontent.com/binance/binance-spot-api-docs/master/faqs/market_data_only.md"
+from auvexo_alpha.domain.source_reviews import REVIEWS, PublicSource, review_at
 
 
-def rights(source_id: Literal["DS-01", "DS-02"]) -> SourceRights:
-    return SourceRights(
-        source_id=source_id,
-        version="review.2026-10-17.v2" if source_id == "DS-01" else "review.2026-10-16.v1",
-        reviewed_at=datetime(2026, 10, 17 if source_id == "DS-01" else 16, tzinfo=UTC),
-        review_due=datetime(2026, 11, 16, tzinfo=UTC),
-        evidence_urls=(TERMS, "https://www.binance.com/en/about-legal/terms", REST),
-        terms_hash="99c4921dbe023cd68c1a447775707d621453cc78aec6ac0bfe2e6c06a5114ee0"
-        if source_id == "DS-01"
-        else "bf4879710c904b991848972ec4818ba2cf9e4ce314c09adae84fa2750d3477f7",
-        permitted_use="PERSONAL_NONPRODUCTION_RESEARCH",
-        redistribution="CC-BY-NC-SA-4.0" if source_id == "DS-01" else "NOT_AUTHORIZED",
-        retention="Private nonproduction research only; review before removal; "
-        "no commercial/live-use entitlement",
-    )
+def rights(source_id: PublicSource, at: datetime | None = None) -> SourceRights:
+    """The review in force at `at`, or the latest review when no instant is given."""
+    return REVIEWS[source_id][-1] if at is None else review_at(source_id, utc_time(at))
 
 
-def identity(source_id: Literal["DS-01", "DS-02"]) -> SourceIdentity:
+def identity(source_id: PublicSource, at: datetime | None = None) -> SourceIdentity:
     return SourceIdentity(
         source_id=source_id,
         provider="BINANCE",
@@ -36,5 +25,5 @@ def identity(source_id: Literal["DS-01", "DS-02"]) -> SourceIdentity:
         endpoint="https://data.binance.vision/data/spot"
         if source_id == "DS-01"
         else "https://data-api.binance.vision",
-        rights_version=rights(source_id).version,
+        rights_version=rights(source_id, at).version,
     )

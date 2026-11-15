@@ -1,11 +1,17 @@
 """Pure observation planning/qualification; database proof alone grants calendar credit."""
 
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from decimal import ROUND_DOWN, Decimal, localcontext
 from hashlib import sha256
 from urllib.parse import parse_qs, urlsplit
 from uuid import NAMESPACE_URL, uuid5
 
+from auvexo_alpha.application.observation_gates import (
+    clock_refusals,
+    closing_clock_refusals,
+    spec_refusals,
+)
 from auvexo_alpha.domain.contracts import Mode, MoneyAction, utc_time
 from auvexo_alpha.domain.observation import (
     OBSERVATION_INSTRUMENTS,
@@ -22,8 +28,14 @@ from auvexo_alpha.domain.observation import (
     observation_market,
     observation_policy,
     observation_window,
+    pinned_spec,
 )
-from auvexo_alpha.domain.paper import PaperAccountSnapshot, PaperIntent, PaperReservation
+from auvexo_alpha.domain.paper import (
+    PaperAccountSnapshot,
+    PaperInstrumentSpec,
+    PaperIntent,
+    PaperReservation,
+)
 from auvexo_alpha.domain.paper_lifecycle import Release
 from auvexo_alpha.domain.paper_risk import assess_paper, verify_authorization
 
@@ -98,8 +110,12 @@ def plan_observation_intent(
     *,
     now: datetime,
     reservations: tuple[PaperReservation, ...] = (),
+    specs: tuple[PaperInstrumentSpec, ...] | None = None,
 ) -> PaperIntent | None:
-    """Price-independent ten-minute long/flat cycle, never pyramiding or clearing kills."""
+    """Price-independent ten-minute long/flat cycle, never pyramiding or clearing kills.
+
+    `specs` are the run's observed specifications (campaign v2); v1 uses its fixtures.
+    """
     now = utc_time(now)
     begin, end = observation_window(now.date())
     if not begin <= now < end:
@@ -112,9 +128,21 @@ def plan_observation_intent(
     if len(positions) > 1:
         raise ValueError("OBSERVATION_POSITION_IDENTITY_INVALID")
     minute = int((fact.candle.end_at - begin).total_seconds()) // 60
-    spec = next(s for s in config.specs if s.instrument_id == instrument)
-    market = observation_market(fact)
+    candidates = config.specs if specs is None else specs
+    spec = next(s for s in candidates if s.instrument_id == instrument)
+    if not pinned_spec(config, spec):
+        raise ValueError("OBSERVATION_SPEC_NOT_PINNED")
+    market = observation_market(fact, config)
     policy = observation_policy(config)
+
+    def one_percent_below(price: Decimal) -> Decimal:
+        with localcontext() as context:
+            context.prec = 100
+            return (price * Decimal("0.99") / spec.price_tick).to_integral_value(
+                rounding=ROUND_DOWN
+            ) * spec.price_tick
+
+    entry = fact.candle.close
     if positions:
         if minute % 10 != 5 and now < end - timedelta(minutes=5):
             return None
@@ -125,6 +153,11 @@ def plan_observation_intent(
             position.stop_price,
             position.position_ref,
         )
+        if config.is_v2:
+            # OBV2-02: a v2 close is marketable, limited at the stop distance below the
+            # decision close, so the run can end flat. The simulated fill price is
+            # unchanged (the later close less adverse slippage); only acceptance widens.
+            entry = one_percent_below(fact.candle.close)
     else:
         if (
             minute % 10 != 0
@@ -133,11 +166,9 @@ def plan_observation_intent(
         ):
             return None
         action, reference = MoneyAction.OPEN, None
+        stop = one_percent_below(fact.candle.close)
         with localcontext() as context:
             context.prec = 100
-            stop = (fact.candle.close * Decimal("0.99") / spec.price_tick).to_integral_value(
-                rounding=ROUND_DOWN
-            ) * spec.price_tick
             per_unit = spec.contract_multiplier * (
                 fact.candle.close
                 - stop
@@ -161,7 +192,7 @@ def plan_observation_intent(
         action=action,
         side="SELL" if action == MoneyAction.CLOSE else "BUY",
         quantity=quantity,
-        entry=fact.candle.close,
+        entry=entry,
         stop=stop,
         release_hash=release.content_hash(),
         spec_hash=spec.content_hash(),
@@ -202,7 +233,7 @@ def _trace_valid(config: ObservationConfig, trace: ObservationProposalTrace) -> 
         or intent.snapshot_hash != hashes[3]
         or intent.spec_hash != hashes[4]
         or intent.release_hash != hashes[5]
-        or trace.spec not in config.specs
+        or not pinned_spec(config, trace.spec)
         or trace.release.fixture_namespace != "PAPER_QUALIFICATION_FIXTURE"
         or trace.release.release_id != config.fixture_version
         or trace.release.config_hash != config.content_hash()
@@ -354,7 +385,7 @@ def evaluate_observation_day(
             (f for f in evidence.facts if f.content_hash() == trace.source_observation_hash), None
         )
         if source is not None and (
-            trace.market != observation_market(source)
+            trace.market != observation_market(source, config)
             or trace.intent.created_at < source.candle.availability.available_at
             or trace.decision.decision_at < trace.intent.created_at
             or trace.decision.decision_at > evidence.ended_at
@@ -441,7 +472,8 @@ def evaluate_observation_day(
             deny("RESOURCE_TIME_INVALID")
         if resource.available_ram_bytes < 1_500_000_000:
             deny("RESOURCE_ENTRY_PAUSE")
-    return ObservationDayReceipt(
+    v2 = _qualify_v2(config, evidence, approvals, begin, end, deny) if config.is_v2 else {}
+    receipt = ObservationDayReceipt(
         run_id=evidence.run_id,
         campaign_id=evidence.campaign_id,
         local_day=evidence.local_day,
@@ -483,6 +515,70 @@ def evaluate_observation_day(
         resource_hashes=tuple(r.content_hash() for r in evidence.resource_snapshots),
         resources=evidence.resource_snapshots,
     )
+    return ObservationDayReceipt.model_validate(receipt.model_dump() | v2) if v2 else receipt
+
+
+def _qualify_v2(
+    config: ObservationConfig,
+    evidence: ObservationRunEvidence,
+    approvals: int,
+    begin: datetime,
+    end: datetime,
+    deny: Callable[[str], None],
+) -> dict[str, object]:
+    """OBV2-12: what else a campaign v2 date needs; returns the receipt's v2 fields."""
+    provenance = evidence.provenance.status if evidence.provenance is not None else None
+    scheduled = evidence.kind == "SCHEDULED"
+    if scheduled and provenance != "VERIFIED":
+        deny(
+            "PROVENANCE_NOT_SCHEDULED"
+            if provenance == "NOT_SCHEDULED"
+            else "PROVENANCE_UNVERIFIABLE"
+        )
+    clock_trusted = (
+        evidence.clock_gate is not None
+        and not clock_refusals(
+            evidence.clock_gate,
+            config,
+            started_at=evidence.started_at,
+            window_start=begin,
+            scheduled=scheduled,
+        )
+        and not closing_clock_refusals(
+            evidence.closing_clock, config, ended_at=evidence.ended_at, window_end=end
+        )
+    )
+    if not clock_trusted:
+        deny("CLOCK_UNTRUSTED")
+    failed = spec_refusals(config, evidence.spec_checks)
+    unmeasured = any(
+        not evidence.started_at <= check.sent_at <= check.received_at <= evidence.ended_at
+        for check in evidence.spec_checks
+    )
+    if any(not name.endswith((".missing", ".offset")) for name in failed):
+        deny("SPEC_DRIFT")
+    if unmeasured or any(name.endswith((".missing", ".offset")) for name in failed):
+        deny("SPEC_UNVERIFIED")
+    if evidence.day_roll_hash is None:
+        deny("DAY_NOT_ROLLED")
+    if approvals == 0:
+        deny("DENIAL_ONLY")
+    elif not evidence.terminal_authorization_count:
+        deny("AUTHORIZATION_NOT_TERMINAL")
+    if evidence.final_account.positions:
+        deny("NOT_FLAT_AT_END")
+    if evidence.ledger_mismatch_count != 0:
+        deny("LEDGER_REPLAY_MISMATCH")
+    return {
+        "campaign_version": config.version,
+        "provenance_status": provenance,
+        "clock_trusted": clock_trusted,
+        "specs_verified": not failed and not unmeasured,
+        "day_rolled": evidence.day_roll_hash is not None,
+        "terminal_authorization_count": evidence.terminal_authorization_count,
+        "ledger_mismatch_count": evidence.ledger_mismatch_count,
+        "price_basis": "BAR_CLOSE",
+    }
 
 
 def observation_resource_actions(resource: ObservationResources) -> tuple[str, ...]:

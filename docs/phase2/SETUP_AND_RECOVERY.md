@@ -29,12 +29,14 @@ Collection is explicitly opt-in and bounded per invocation:
 .venv/Scripts/python.exe tools/data_local.py history --enable-public-data --symbol BTCUSDT --interval 1h --period 2024-12-31 --period 2025-01-01 --output .local/btc-boundary.json
 .venv/Scripts/python.exe tools/data_local.py specs --enable-public-data --output .local/spot-specs.json
 .venv/Scripts/python.exe tools/data_local.py collect --enable-public-data --cycles 12 --output .local/public-window.json
-.venv/Scripts/python.exe tools/data_local.py coverage --output .local/coverage.json
-.venv/Scripts/python.exe tools/data_local.py evidence --output .local/dataset-evidence.json
+.venv/Scripts/python.exe tools/data_local.py coverage --start-day 2026-10-18 --end-day 2026-11-16 --output .local/coverage.json
+.venv/Scripts/python.exe tools/data_local.py evidence --start-day 2026-10-18 --end-day 2026-11-16 --output .local/dataset-evidence.json
 .venv/Scripts/python.exe tools/data_local.py qualification --start-day 2026-10-18 --output .local/qualification.json
 ```
 
 Choose a new output filename for each invocation: receipts are never overwritten.
+Since 2026-11-13 `coverage` and `evidence` require an explicit day range of at most 31
+days, so a report never loads an unbounded table.
 History supports at most twelve explicit daily/monthly periods per invocation; it does
 not choose an arbitrary age horizon. The live loop stops after its cycle budget or
 Ctrl+C. A network/DB/quota failure returns nonzero and cannot imply healthy collection.

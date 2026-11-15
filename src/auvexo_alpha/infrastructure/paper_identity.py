@@ -2,6 +2,9 @@
 
 import json
 import re
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Final
 from weakref import WeakKeyDictionary
 
 import psycopg
@@ -13,7 +16,72 @@ GROUP_TAGS = {
     "auvexo_paper_truth": "pt",
     "auvexo_paper_owner": "po",
 }
-_ATTESTED: WeakKeyDictionary[Engine, str] = WeakKeyDictionary()
+
+# The fixed loopback endpoints of the owner's operational cluster and OI runtime.
+OPERATIONAL_PORT: Final = 55432
+OI_RUNTIME_PORT: Final = 55433
+# A disposable cluster carries its UUID twice. ``auvexo.disposable_cluster`` is a custom
+# setting, which any client could also set for its own session; ``cluster_name`` can only
+# be set when the server starts, so a client can never forge the pair.
+DISPOSABLE_MARKER_SQL: Final = (
+    "SELECT current_setting('auvexo.disposable_cluster', true),current_setting('cluster_name')"
+)
+DISPOSABLE_CLUSTER_NAME_PREFIX: Final = "auvexo-disposable-"
+_DISPOSABLE_DATABASE: Final = re.compile(r"auvexo_(?:test|restore|paperobs)_[a-f0-9]{20}")
+
+
+class PaperIdentityError(ValueError):
+    """A redacted, fail-closed local PAPER identity/configuration refusal."""
+
+
+@dataclass(frozen=True)
+class DisposableCluster:
+    """A throwaway test cluster, named explicitly by its caller and proven by the server.
+
+    Nothing in this package constructs one or reads the environment for it; only test
+    tooling does. A caller that supplies none is always held to the operational port.
+    """
+
+    port: int
+    cluster_id: str
+
+    def __post_init__(self) -> None:
+        if (
+            type(self.port) is not int
+            or not 1024 <= self.port <= 65535
+            or self.port in (OPERATIONAL_PORT, OI_RUNTIME_PORT)
+            or type(self.cluster_id) is not str
+            or not re.fullmatch(r"[0-9a-f]{32}", self.cluster_id)
+        ):
+            raise PaperIdentityError("DISPOSABLE_CLUSTER_INVALID")
+
+
+def attested_port(database: str, disposable: DisposableCluster | None) -> int:
+    """The single port decision for every local PAPER, observation and terminal endpoint.
+
+    Production callers pass no disposable cluster and always get the operational port.
+    A disposable cluster is accepted only for a generated isolated database name, and
+    every connection must then prove it with ``require_disposable_marker``.
+    """
+    if disposable is None:
+        return OPERATIONAL_PORT
+    if not _DISPOSABLE_DATABASE.fullmatch(database):
+        raise PaperIdentityError("DISPOSABLE_CLUSTER_DATABASE_DENIED")
+    return disposable.port
+
+
+def require_disposable_marker(row: Sequence[object] | None, disposable: DisposableCluster) -> None:
+    """``row`` is the result of DISPOSABLE_MARKER_SQL on the connection being attested."""
+    if (
+        row is None
+        or len(row) != 2
+        or row[0] != disposable.cluster_id
+        or row[1] != DISPOSABLE_CLUSTER_NAME_PREFIX + disposable.cluster_id
+    ):
+        raise PaperIdentityError("DISPOSABLE_CLUSTER_MARKER_DENIED")
+
+
+_ATTESTED: WeakKeyDictionary[Engine, tuple[str, DisposableCluster | None]] = WeakKeyDictionary()
 
 
 def _catalog_rows_sql(query: str, width: int, order: tuple[int, ...] = ()) -> str:
@@ -135,21 +203,20 @@ _CATALOG_SQL = "SELECT " + ",".join(
 )
 
 
-class PaperIdentityError(ValueError):
-    """A redacted, fail-closed local PAPER identity/configuration refusal."""
-
-
 def enforce_paper_engine(
     engine: Engine,
     group: str,
     *,
     expected_login: str | None = None,
     expected_database: str | None = None,
+    disposable: DisposableCluster | None = None,
 ) -> None:
     """Attest each checkout, including already-pooled connections after rollback.
 
     The authenticated LOGIN has only one scoped NOLOGIN group. There is no elevated
-    session identity to recover through RESET ROLE, rollback or reconnect.
+    session identity to recover through RESET ROLE, rollback or reconnect. An engine
+    first attested against a disposable test cluster keeps that binding; a later caller
+    that names none (for example a store constructor) inherits it but cannot change it.
     """
     url = engine.url
     database = url.database or ""
@@ -158,10 +225,16 @@ def enforce_paper_engine(
     if match is None or tag is None:
         raise PaperIdentityError("PAPER_IDENTITY_DATABASE_OR_GROUP_DENIED")
     login = f"auvexo_{tag}_{match[1]}"
+    prior = _ATTESTED.get(engine)
+    if prior is not None:
+        if disposable is not None and disposable != prior[1]:
+            raise PaperIdentityError("PAPER_IDENTITY_ENGINE_SCOPE_DENIED")
+        disposable = prior[1]
+    port = attested_port(database, disposable)
     if (
         url.drivername != "postgresql+psycopg"
         or url.host != "127.0.0.1"
-        or url.port != 55432
+        or url.port != port
         or bool(url.query)
         or url.username != login
         or (expected_login is not None and expected_login != login)
@@ -169,8 +242,7 @@ def enforce_paper_engine(
         or not url.password
     ):
         raise PaperIdentityError("PAPER_IDENTITY_ENDPOINT_OR_LOGIN_DENIED")
-    prior = _ATTESTED.get(engine)
-    if prior is not None and prior != group:
+    if prior is not None and prior[0] != group:
         raise PaperIdentityError("PAPER_IDENTITY_ENGINE_SCOPE_DENIED")
 
     permitted_writes = {
@@ -237,6 +309,8 @@ def enforce_paper_engine(
             "paper_observation_receipt",
             "paper_observation_version",
             "paper_observation_simulation",
+            # obs0002 (ADR-032 OBV2-01): read-only for every service identity.
+            "paper_observation_standing_resume",
         }
         permitted_reads |= observation_tables
         if group == "auvexo_paper_owner":
@@ -249,9 +323,17 @@ def enforce_paper_engine(
                 "data_source_review",
                 "paper_observation_feed",
                 "paper_observation_simulation",
+                # obs0002: exchangeInfo bytes kept by the DS-02 spec parser (OBV2-04).
+                "data_spec",
             ):
                 permitted_writes[table] = {"INSERT"}
                 permitted_reads.add(table)
+            # obs0002: the feed preflight reads host-scoped cooldowns (main 0006).
+            permitted_reads |= {
+                "data_cooldown_release",
+                "data_cooldown_probe",
+                "data_cooldown_probe_result",
+            }
         else:
             for table in (
                 "paper_observation_run",
@@ -291,7 +373,7 @@ def enforce_paper_engine(
         info = connection.info
         if (info.host, info.port, info.dbname, info.user) != (
             "127.0.0.1",
-            55432,
+            port,
             database,
             login,
         ):
@@ -300,6 +382,9 @@ def enforce_paper_engine(
             raise PaperIdentityError("PAPER_IDENTITY_SESSION_TIMEZONE_DENIED")
         try:
             with connection.cursor() as cursor:
+                if disposable is not None:
+                    cursor.execute(DISPOSABLE_MARKER_SQL)
+                    require_disposable_marker(cursor.fetchone(), disposable)
                 cursor.execute(
                     _CATALOG_SQL, (group, encoded_rights, encoded_rights, encoded_rights)
                 )
@@ -388,7 +473,7 @@ def enforce_paper_engine(
 
     if prior is None:
         event.listen(engine, "checkout", verify)
-        _ATTESTED[engine] = group
+        _ATTESTED[engine] = (group, disposable)
     try:
         with engine.connect():
             pass

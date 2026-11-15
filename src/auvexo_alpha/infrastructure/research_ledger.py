@@ -1,26 +1,80 @@
-"""Serialized append-only research metadata and bounded immutable local artifacts."""
+"""Serialized append-only research metadata and bounded immutable local artifacts.
+
+The database enforces the holdout gate: selection freezing, holdout opening, read
+receipts and completion run only through reviewed SECURITY DEFINER functions, and the
+research role cannot write a HOLDOUT_OPEN event itself.
+"""
 
 import hashlib
 import json
 import os
 import re
 import shutil
+from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import cache
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
+from pydantic import ValidationError
 from sqlalchemy import Connection, Engine, text
 
 from auvexo_alpha.application.research_simulator import artifact_bytes
+from auvexo_alpha.domain.market_data import Candle
 from auvexo_alpha.domain.research import (
     DataUseClass,
     StrategyConfig,
     StudyManifest,
+    TrialIdentity,
+    bars_digest,
     classify_manifest,
 )
 from auvexo_alpha.infrastructure.data_store import file_hash, pressure, tree_bytes
 
 SELECTION_TRIAL = "selection.pre_holdout"
+PACKAGE = Path(__file__).resolve().parents[1]
+LOCK_FILE = PACKAGE.parents[1] / "uv.lock"
+# Every project module the research path executes (the worker's import closure).
+# A test proves this list equals that closure, so a study cannot run unhashed code.
+RESEARCH_MODULES = (
+    "__init__.py",
+    "application/__init__.py",
+    "application/data_quality.py",
+    "application/data_schedule.py",
+    "application/research_metrics.py",
+    "application/research_simulator.py",
+    "application/research_study.py",
+    "domain/__init__.py",
+    "domain/contracts.py",
+    "domain/market_data.py",
+    "domain/research.py",
+    "domain/research_gaps.py",
+    "domain/source_reviews.py",
+    "infrastructure/__init__.py",
+    "infrastructure/data_store.py",
+    "infrastructure/research_data.py",
+    "infrastructure/research_ledger.py",
+    "infrastructure/research_worker.py",
+    "infrastructure/spot_parser.py",
+)
+HoldoutState = Literal["SEALED", "OPEN", "COMPLETE"]
+
+
+@cache
+def research_code_hash() -> str:
+    """Hash of the research code actually importable now, path-bound and order-fixed."""
+    digest = hashlib.sha256()
+    for relative in RESEARCH_MODULES:
+        digest.update(relative.encode("ascii") + b":" + (PACKAGE / relative).read_bytes() + b"\n")
+    return digest.hexdigest()
+
+
+def dependency_lock_hash() -> str:
+    """Hash of the exact dependency lock the running checkout was installed from."""
+    if not LOCK_FILE.is_file():
+        raise ValueError("DEPENDENCY_LOCK_UNAVAILABLE")
+    return file_hash(LOCK_FILE)
 
 
 def frozen_selection(configs: tuple[StrategyConfig, ...], artifact: bytes) -> tuple[str, ...]:
@@ -37,6 +91,17 @@ def frozen_selection(configs: tuple[StrategyConfig, ...], artifact: bytes) -> tu
     if sorted(families[item] for item in chosen) != sorted(set(families.values())):
         raise ValueError("SELECTION_NOT_ONE_CONFIG_PER_FAMILY")
     return tuple(chosen)
+
+
+@dataclass(frozen=True)
+class AuthorizedRead:
+    """A read the database authorized and logged before any bar was served."""
+
+    study: StudyManifest
+    receipt_id: str
+    phase: str
+    start: datetime
+    end: datetime
 
 
 class ResearchLedger:
@@ -56,6 +121,27 @@ class ResearchLedger:
             text("SELECT pg_advisory_xact_lock(hashtextextended(:id,20801404))"), {"id": study_id}
         )
 
+    @staticmethod
+    def require_identity(conn: Connection, study: StudyManifest) -> None:
+        """The running code, the lock and every stored input must be what was registered."""
+        if study.code_hash != research_code_hash():
+            raise ValueError("RESEARCH_CODE_HASH_MISMATCH")
+        if study.dependency_hash != dependency_lock_hash():
+            raise ValueError("DEPENDENCY_LOCK_HASH_MISMATCH")
+        stored: dict[str, str] = {
+            row[0]: row[1]
+            for row in conn.execute(
+                text(
+                    "SELECT dataset_version,manifest_hash FROM data_manifest "
+                    "WHERE dataset_version = ANY(:v)"
+                ),
+                {"v": [item.manifest.dataset_version for item in study.inputs]},
+            ).all()
+        }
+        for item in study.inputs:
+            if stored.get(item.manifest.dataset_version) != item.manifest_hash:
+                raise ValueError("STUDY_INPUT_NOT_IN_STORE")
+
     def register(self, study: StudyManifest) -> None:
         study = StudyManifest.model_validate_json(study.canonical_bytes())
         if study.registered_at > datetime.now(UTC):
@@ -63,8 +149,9 @@ class ResearchLedger:
         with self.engine.begin() as conn:
             self.lock(conn, study.study_id)
             conn.execute(text("SELECT pg_advisory_xact_lock(20801405)"))
+            self.require_identity(conn, study)
             split = study.split
-            # WALK_FORWARD may read the whole span, including the train/validation gap.
+            # Development reads span train through validation, including the gap.
             if self.sealed_elsewhere(conn, study, split.train_start, split.validation_end):
                 raise ValueError("DEVELOPMENT_OVERLAPS_SEALED_HOLDOUT_OF_ANOTHER_STUDY")
             # Bars any registered study may read as development can never be a fresh holdout.
@@ -93,6 +180,16 @@ class ResearchLedger:
                     "at": study.registered_at,
                 },
             )
+            for index, config in enumerate(study.configs):
+                conn.execute(
+                    text("INSERT INTO research_study_config VALUES (:id,:i,:h,:f)"),
+                    {
+                        "id": study.study_id,
+                        "i": index,
+                        "h": config.content_hash(),
+                        "f": config.family,
+                    },
+                )
 
     def study(self, study_id: str, conn: Connection | None = None) -> StudyManifest:
         if conn is None:
@@ -136,105 +233,74 @@ class ResearchLedger:
         )
         return tuple(json.loads(payload)["selected"]) if payload is not None else None
 
+    def holdout_state(self, study_id: str) -> HoldoutState:
+        with self.engine.connect() as conn:
+            state = conn.scalar(text("SELECT research_holdout_state(:id)"), {"id": study_id})
+        states: dict[object, HoldoutState] = {
+            "SEALED": "SEALED",
+            "OPEN": "OPEN",
+            "COMPLETE": "COMPLETE",
+        }
+        if state not in states:
+            raise ValueError("UNKNOWN_HOLDOUT_STATE")
+        return states[state]
+
+    @staticmethod
+    def gate(conn: Connection, statement: str, values: dict[str, object], passed: str) -> None:
+        """Run one database gate function; any other outcome is a refusal with its code."""
+        outcome = conn.scalar(text(statement), values)
+        if outcome != passed:
+            raise ValueError(outcome if isinstance(outcome, str) else "RESEARCH_GATE_FAILED")
+
     def open_holdout(self, study_id: str, selected: tuple[str, ...]) -> None:
+        """Consume the holdout atomically in the database, for the frozen selection only."""
+        if not selected:
+            raise ValueError("UNREGISTERED_SELECTION")
         with self.engine.begin() as conn:
             self.lock(conn, study_id)
-            conn.execute(text("SELECT pg_advisory_xact_lock(20801406)"))
-            study = self.study(study_id, conn)
-            permitted = {c.content_hash() for c in study.configs}
-            if not selected or not set(selected) <= permitted:
-                raise ValueError("UNREGISTERED_SELECTION")
-            evaluated = set(
-                conn.scalars(
-                    text(
-                        "SELECT config_hash FROM research_trial WHERE study_id=:id "
-                        "AND phase='VALIDATION' AND trial_id<>:selection"
-                    ),
-                    {"id": study_id, "selection": SELECTION_TRIAL},
+            frozen = conn.scalar(
+                text("SELECT selected FROM research_selection WHERE study_id=:id"),
+                {"id": study_id},
+            )
+            if frozen is not None:
+                # The frozen database row and its retained artifact must still agree.
+                study = self.study(study_id, conn)
+                recorded = frozen_selection(
+                    study.configs, self.read_trial(study_id, SELECTION_TRIAL, conn)
                 )
+                if list(recorded) != frozen:
+                    raise ValueError("CORRUPT_RESEARCH_ARTIFACT")
+            self.gate(
+                conn,
+                "SELECT research_open_holdout(:id,CAST(:selected AS jsonb),:event)",
+                {"id": study_id, "selected": json.dumps(list(selected)), "event": str(uuid4())},
+                "OPENED",
             )
-            if evaluated != permitted:
-                raise ValueError("VALIDATION_GRID_INCOMPLETE_HOLDOUT_SEALED")
-            # Only the selection frozen before opening may ever be evaluated out of sample.
-            recorded = conn.scalar(
-                text(
-                    "SELECT artifact_hash FROM research_trial WHERE study_id=:id "
-                    "AND trial_id=:selection AND phase='VALIDATION'"
-                ),
-                {"id": study_id, "selection": SELECTION_TRIAL},
-            )
-            if recorded is None:
-                raise ValueError("SELECTION_NOT_FROZEN_HOLDOUT_SEALED")
-            frozen = frozen_selection(
-                study.configs, self.read_trial(study_id, SELECTION_TRIAL, conn)
-            )
-            if tuple(selected) != frozen:
-                raise ValueError("HOLDOUT_SELECTION_NOT_FROZEN")
-            # An overlapping consumed calendar cannot become fresh by changing source versions.
-            consumed = conn.scalar(
-                text(
-                    "SELECT count(*) FROM research_event e JOIN research_study s "
-                    "ON e.study_id=s.study_id WHERE s.payload::jsonb->>'instrument'=:instrument "
-                    "AND (s.payload::jsonb #>> '{split,oos_start}')::timestamptz < :end "
-                    "AND :start < (s.payload::jsonb #>> '{split,oos_end}')::timestamptz"
-                ),
-                {
-                    "instrument": study.instrument,
-                    "start": study.split.oos_start,
-                    "end": study.split.oos_end,
-                },
-            )
-            if consumed:
-                raise ValueError("OVERLAPPING_HOLDOUT_ALREADY_CONSUMED")
-            scope = hashlib.sha256(
-                artifact_bytes(
-                    [
-                        study.instrument,
-                        study.split.oos_start,
-                        study.split.oos_end,
-                    ]
-                )
-            ).hexdigest()
-            payload = artifact_bytes(
-                {
-                    "selected": frozen,
-                    "selection_artifact": recorded,
-                    "claim": "CONSUMED_BEFORE_READ",
-                }
-            ).decode()
-            conn.execute(
-                text(
-                    "INSERT INTO research_event VALUES (:event,:study,'HOLDOUT_OPEN',"
-                    ":scope,:payload,:at)"
-                ),
-                {
-                    "event": str(uuid4()),
-                    "study": study_id,
-                    "scope": scope,
-                    "payload": payload,
-                    "at": datetime.now(UTC),
-                },
+
+    def complete_holdout(self, study_id: str, trials: tuple[str, ...]) -> None:
+        with self.engine.begin() as conn:
+            self.gate(
+                conn,
+                "SELECT research_complete_holdout(:id,CAST(:trials AS jsonb))",
+                {"id": study_id, "trials": json.dumps(list(trials))},
+                "COMPLETED",
             )
 
     def authorize_read(
         self, study_id: str, phase: str, start: datetime, end: datetime
-    ) -> StudyManifest:
+    ) -> AuthorizedRead:
+        """The database checks and logs the read (including any post-consumption OOS read)."""
+        receipt = uuid4().hex + uuid4().hex
         with self.engine.begin() as conn:
             self.lock(conn, study_id)
+            self.gate(
+                conn,
+                "SELECT research_authorize_read(:id,:phase,:start,:end,:receipt)",
+                {"id": study_id, "phase": phase, "start": start, "end": end, "receipt": receipt},
+                "AUTHORIZED",
+            )
             study = self.study(study_id, conn)
-            self.check_phase(conn, study, phase)
-            split = study.split
-            lower, upper = {
-                "TRAIN": (split.train_start, split.train_end),
-                "VALIDATION": (split.validation_start, split.validation_end),
-                "OOS": (split.oos_start, split.oos_end),
-                "WALK_FORWARD": (split.train_start, split.validation_end),
-            }[phase]
-            if not lower <= start < end <= upper:
-                raise ValueError("READ_OUTSIDE_REGISTERED_SPLIT")
-            # The seal is per calendar, not per study: no development read of sealed bars.
-            if phase != "OOS" and self.sealed_elsewhere(conn, study, start, end):
-                raise ValueError("READ_OVERLAPS_SEALED_HOLDOUT_OF_ANOTHER_STUDY")
+            self.require_identity(conn, study)
             for item in study.inputs:
                 current = classify_manifest(
                     item.manifest,
@@ -246,7 +312,19 @@ class ResearchLedger:
                 )
                 if current.classification != DataUseClass.PERSONAL_RESEARCH:
                     raise ValueError("CURRENT_RESEARCH_RIGHTS_BLOCKED")
-            return study
+            return AuthorizedRead(study, receipt, phase, start, end)
+
+    def bind_read(self, read: AuthorizedRead, bars: list[Candle]) -> str:
+        """Record the digest of the bars actually served under one read receipt."""
+        if not bars or any(not read.start <= b.open_at and b.end_at <= read.end for b in bars):
+            raise ValueError("READ_DIGEST_OUTSIDE_RECEIPT")
+        digest = bars_digest(bars)
+        with self.engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO research_read_digest VALUES (:r,:d,:n,:t)"),
+                {"r": read.receipt_id, "d": digest, "n": len(bars), "t": datetime.now(UTC)},
+            )
+        return digest
 
     def check_phase(self, conn: Connection, study: StudyManifest, phase: str) -> None:
         if phase not in ("TRAIN", "VALIDATION", "OOS", "WALK_FORWARD"):
@@ -255,21 +333,93 @@ class ResearchLedger:
         if (phase == "OOS") != (selected is not None):
             raise ValueError("HOLDOUT_NOT_OPEN_OR_DEVELOPMENT_ALREADY_CONSUMED")
 
+    @staticmethod
+    def check_trial_identity(
+        conn: Connection,
+        study: StudyManifest,
+        phase: str,
+        config_hash: str,
+        artifact: dict[str, object],
+    ) -> None:
+        """A trial is accepted only if its artifact proves what ran: config, costs, policy,
+        code, lock and the digests of reads the database authorized for this study.
+        """
+        recorded = artifact.get("identity")
+        if not isinstance(recorded, dict):
+            raise ValueError("TRIAL_IDENTITY_MISMATCH")
+        try:
+            identity = TrialIdentity.model_validate_json(json.dumps(recorded))
+        except ValidationError as error:
+            raise ValueError("TRIAL_IDENTITY_MISMATCH") from error
+        result = artifact.get("result")
+        stressed = {
+            study.costs.model_copy(update={"multiplier": m}) for m in study.stress_multipliers
+        }
+        if (
+            identity.config_hash != config_hash
+            or identity.config not in study.configs
+            or identity.study_hash != study.content_hash()
+            or identity.code_hash != study.code_hash
+            or identity.code_hash != research_code_hash()
+            or identity.dependency_hash != study.dependency_hash
+            or identity.availability != study.availability
+            or identity.cost_model not in stressed
+            or (isinstance(result, dict) and result.get("config_hash") != config_hash)
+        ):
+            raise ValueError("TRIAL_IDENTITY_MISMATCH")
+        reads: dict[str, str] = {
+            row[0]: row[1]
+            for row in conn.execute(
+                text(
+                    "SELECT d.bars_digest,r.phase FROM research_read_digest d "
+                    "JOIN research_read_receipt r USING(receipt_id) "
+                    "WHERE r.study_id=:id AND d.bars_digest = ANY(:digests)"
+                ),
+                {"id": study.study_id, "digests": list(identity.reads)},
+            ).all()
+        }
+        if set(reads) != set(identity.reads) or phase not in reads.values():
+            raise ValueError("TRIAL_READ_NOT_AUTHORIZED")
+
     def record(
-        self, study_id: str, trial_id: str, phase: str, config_hash: str, result: bytes
+        self,
+        study_id: str,
+        trial_id: str,
+        phase: str,
+        config_hash: str,
+        result: bytes,
+        resume: bool = False,
     ) -> str:
+        """Append one verified trial. With resume, an identical existing trial is accepted
+        as already done; any difference refuses. Nothing is ever rewritten.
+        """
         if (
             not re.fullmatch(r"[A-Za-z0-9_.:-]{1,96}", trial_id)
             or not 1 <= len(result) <= 64 * 1024 * 1024
         ):
             raise ValueError("TRIAL_OR_ARTIFACT_BUDGET")
         # Content is structured JSON, not arbitrary executable data/pickle.
-        json.loads(result)
+        artifact = json.loads(result)
+        if not isinstance(artifact, dict):
+            raise ValueError("TRIAL_IDENTITY_MISMATCH")
         digest = hashlib.sha256(result).hexdigest()
         with self.engine.begin() as conn:
             self.lock(conn, study_id)
             conn.execute(text("SELECT pg_advisory_xact_lock(20801405)"))
             study = self.study(study_id, conn)
+            if resume:
+                existing = conn.execute(
+                    text(
+                        "SELECT phase,config_hash,artifact_hash FROM research_trial "
+                        "WHERE study_id=:id AND trial_id=:trial"
+                    ),
+                    {"id": study_id, "trial": trial_id},
+                ).first()
+                if existing is not None:
+                    if tuple(existing) != (phase, config_hash, digest):
+                        raise ValueError("HOLDOUT_RESUME_MISMATCH")
+                    self.read_trial(study_id, trial_id, conn)
+                    return digest
             self.check_phase(conn, study, phase)
             permitted = (
                 self.selected(conn, study_id)
@@ -278,6 +428,12 @@ class ResearchLedger:
             )
             if config_hash not in (permitted or ()):
                 raise ValueError("UNREGISTERED_OR_POST_HOLDOUT_CONFIG")
+            self.check_trial_identity(conn, study, phase, config_hash, artifact)
+            selection = (
+                frozen_selection(study.configs, result)
+                if trial_id == SELECTION_TRIAL and phase == "VALIDATION"
+                else None
+            )
             count = conn.scalar(
                 text("SELECT count(*) FROM research_trial WHERE study_id=:id"), {"id": study_id}
             )
@@ -318,6 +474,14 @@ class ResearchLedger:
                     "at": datetime.now(UTC),
                 },
             )
+            if selection is not None:
+                # Freezing is a database fact in the same transaction as the trial.
+                self.gate(
+                    conn,
+                    "SELECT research_freeze_selection(:id,CAST(:selected AS jsonb),:artifact)",
+                    {"id": study_id, "selected": json.dumps(list(selection)), "artifact": digest},
+                    "FROZEN",
+                )
         return digest
 
     def path(self, digest: str) -> Path:
@@ -357,3 +521,10 @@ class ResearchLedger:
             for study_id in conn.scalars(text("SELECT study_id FROM research_study")):
                 self.study(study_id, conn)
         return {"trials": len(rows), "verified_artifacts": len({r[0] for r in rows})}
+
+
+def trial_artifact(identity: TrialIdentity, /, **content: object) -> bytes:
+    """Canonical trial artifact bytes: the verified identity plus the trial's own content."""
+    if "identity" in content:
+        raise ValueError("TRIAL_IDENTITY_MISMATCH")
+    return artifact_bytes({"identity": identity.model_dump(mode="json"), **content})

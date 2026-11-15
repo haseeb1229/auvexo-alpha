@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from typing import Any
 from uuid import UUID, uuid4
@@ -11,9 +11,15 @@ from uuid import UUID, uuid4
 from sqlalchemy import Connection, Engine, text
 from sqlalchemy.exc import DBAPIError
 
-from auvexo_alpha.application.observation_ports import ObservationRunStart, ObservationSnapshot
+from auvexo_alpha.application.observation_ports import (
+    ObservationRunStart,
+    ObservationSnapshot,
+    PriorRun,
+    StandingAuthorityRecord,
+)
 from auvexo_alpha.application.observation_replay import replay_observation_traces
 from auvexo_alpha.application.observation_simulator import PendingSimulation, causal_fill_price
+from auvexo_alpha.application.paper_ledger import replay_ledger
 from auvexo_alpha.domain.contracts import utc_time
 from auvexo_alpha.domain.market_data import Candle, DataAvailabilityWindow
 from auvexo_alpha.domain.observation import (
@@ -25,21 +31,69 @@ from auvexo_alpha.domain.observation import (
     ObservationProposalTrace,
     ObservationRunEvidence,
     ObservationSimulationTrace,
+    ObservationStandingResume,
     ObservationVerification,
     observation_policy,
     observation_release,
 )
-from auvexo_alpha.domain.paper import PaperAccountSnapshot, PaperAuthorization
+from auvexo_alpha.domain.paper import (
+    PaperAccountSnapshot,
+    PaperAuthorization,
+    PaperInstrumentSpec,
+    PaperMarketSnapshot,
+)
 from auvexo_alpha.domain.paper_lifecycle import Release
 from auvexo_alpha.infrastructure.data_store import DataStore, parquet_bytes, read_bars, sha
+from auvexo_alpha.infrastructure.database import SCHEMA_REVISION
 from auvexo_alpha.infrastructure.paper_identity import enforce_paper_engine
-from auvexo_alpha.infrastructure.paper_store import PaperStore
+from auvexo_alpha.infrastructure.paper_store import PROJECTION_EVENTS, PaperStore
 from auvexo_alpha.infrastructure.paper_truth import canonical_payload, digest, truth_rows
 from auvexo_alpha.infrastructure.source_registry import identity, rights
 from auvexo_alpha.infrastructure.spot_parser import parse_rest
 
+# The observation schema head every observation store and tool requires.
+OBSERVATION_SCHEMA_HEAD = "obs0002_campaign_v2"
 # The only refusals `observation_guard_receipt` raises for a PASS disposition alone.
-PASS_REFUSALS = ("OBSERVATION_FINAL_STATE_OR_WINDOW_DENIED", "OBSERVATION_SOURCE_COVERAGE_DENIED")
+PASS_REFUSALS = (
+    "OBSERVATION_FINAL_STATE_OR_WINDOW_DENIED",
+    "OBSERVATION_SOURCE_COVERAGE_DENIED",
+    "OBSERVATION_V2_FINAL_STATE_DENIED",
+)
+TERMINAL_ORDER_STATES = ("FILLED", "CANCELED", "EXPIRED", "REJECTED")
+
+
+def ledger_mismatch_count(
+    account_ref: str,
+    journal: list[dict[str, Any]],
+    truth: list[dict[str, Any]],
+    account: PaperAccountSnapshot,
+    cursor: int,
+) -> int:
+    """OBV2-11 replay of journal and truth against one account state, never raising."""
+    return replay_ledger(
+        account_ref,
+        journal,
+        [event for event in truth if int(event["sequence"]) <= cursor],
+        stored_payload=account.canonical_bytes().decode(),
+        stored_columns={
+            "writer_epoch": account.epoch,
+            "kill_level": account.kill.value,
+            "reconciled": account.reconciled,
+            "truth_cursor": cursor,
+        },
+    ).mismatch_count
+
+
+def day_roll_hash(journal: list[dict[str, Any]], local_date: date) -> str | None:
+    """The flat-boundary roll (OBV2-02) that started this UTC day, if one is journaled."""
+    midnight = datetime.combine(local_date, time(), UTC)
+    rolls = [
+        event["content_hash"]
+        for event in journal
+        if event["kind"] == "FLAT_BOUNDARY_ROLL"
+        and utc_time(event["data"]["account"]["day_start_at"]) == midnight
+    ]
+    return str(rolls[-1]) if rolls else None
 
 
 def receipt_refusal_code(error: DBAPIError) -> str | None:
@@ -86,9 +140,9 @@ class ObservationStore:
                 with engine.connect() as conn:
                     if (
                         conn.scalar(text("SELECT version_num FROM alembic_version"))
-                        != "0005_paper_core"
+                        != SCHEMA_REVISION
                         or conn.scalar(text("SELECT version_num FROM paper_observation_version"))
-                        != "obs0001_qualification"
+                        != OBSERVATION_SCHEMA_HEAD
                     ):
                         raise ValueError("OBSERVATION_SCHEMA_NOT_READY")
         self.engine = runtime_engine
@@ -98,7 +152,8 @@ class ObservationStore:
         self.paper = PaperStore(runtime_engine, owner_engine)
 
     def started_run(self, run_id: UUID) -> ObservationRunStart:
-        return ObservationRunStart(utc_time(self.run(run_id)["started_at"]))
+        run = self.run(run_id)
+        return ObservationRunStart(utc_time(run["started_at"]), run["local_date"].isoformat())
 
     def run_snapshot(self, run_id: UUID) -> ObservationSnapshot:
         return ObservationSnapshot(**self.snapshot(run_id))
@@ -126,6 +181,7 @@ class ObservationStore:
         if self.owner_engine is None:
             raise ValueError("OBSERVATION_OWNER_REQUIRED")
         config = ObservationConfig.model_validate_json(config.canonical_bytes())
+        self._current_version(config)
         self._rights(config, now)
         with self.owner_engine.begin() as conn:
             conn.execute(
@@ -171,14 +227,20 @@ class ObservationStore:
                 raise ValueError("OBSERVATION_PRODUCTION_REGISTRY_NOT_EMPTY")
             if (
                 conn.scalar(text("SELECT version_num FROM paper_observation_version"))
-                != "obs0001_qualification"
+                != OBSERVATION_SCHEMA_HEAD
             ):
                 raise ValueError("OBSERVATION_SCHEMA_NOT_READY")
 
     @staticmethod
+    def _current_version(config: ObservationConfig) -> None:
+        """ADR-032: v1 stays readable and verifiable as recorded; it prepares or begins nothing."""
+        if not config.is_v2:
+            raise ValueError("OBSERVATION_CAMPAIGN_VERSION_RETIRED")
+
+    @staticmethod
     def _rights(config: ObservationConfig, now: datetime) -> None:
         config.rights.require_research(utc_time(now))
-        if config.rights != rights("DS-02") or config.source != identity("DS-02"):
+        if config.rights != rights("DS-02", now) or config.source != identity("DS-02", now):
             raise ValueError("OBSERVATION_CURRENT_SOURCE_RIGHTS_MISMATCH")
 
     @staticmethod
@@ -219,6 +281,7 @@ class ObservationStore:
     def begin(self, config_hash: str, *, kind: str = "PREFLIGHT", now: datetime) -> UUID:
         self.verify_schema()
         config = self.config(config_hash)
+        self._current_version(config)
         self._rights(config, now)
         if kind not in ("PREFLIGHT", "SCHEDULED", "RESTORE"):
             raise ValueError("OBSERVATION_RUN_KIND_INVALID")
@@ -246,6 +309,70 @@ class ObservationStore:
                 },
             )
         return run_id
+
+    def run_activation(self, run_id: UUID) -> str | None:
+        activation = self.run(run_id)["activation_id"]
+        return None if activation is None else str(activation)
+
+    def standing_authority(self, config_hash: str) -> StandingAuthorityRecord | None:
+        """The latest activation's standing resume authority, rebound to that START row."""
+        activation = self.activation(config_hash)
+        if activation is None:
+            return None
+        with self.engine.connect() as conn:
+            row = (
+                conn.execute(
+                    text("SELECT * FROM paper_observation_standing_resume WHERE activation_id=:a"),
+                    {"a": activation["activation_id"]},
+                )
+                .mappings()
+                .one_or_none()
+            )
+        if row is None:
+            return None
+        authority = ObservationStandingResume.model_validate_json(str(row["payload"]))
+        if (
+            authority.canonical_bytes().decode() != row["payload"]
+            or digest(str(row["payload"])) != row["authority_hash"]
+            or row["authority_hash"] != activation["authority_hash"]
+            or row["campaign_hash"] != config_hash
+            or authority.campaign_hash != config_hash
+            or authority.reviewed_sha != activation["reviewed_sha"]
+        ):
+            raise ValueError("OBSERVATION_STANDING_AUTHORITY_CORRUPT")
+        return StandingAuthorityRecord(
+            str(activation["activation_id"]), authority, str(row["authority_hash"])
+        )
+
+    def prior_run(self, run_id: UUID) -> PriorRun | None:
+        """The latest earlier run of this campaign after its activation, with its receipt."""
+        with self.engine.connect() as conn:
+            row = (
+                conn.execute(
+                    text(
+                        "SELECT r.run_id,rc.receipt_hash,rc.payload FROM paper_observation_run cur "
+                        "JOIN paper_observation_activation a ON a.activation_id=cur.activation_id "
+                        "JOIN paper_observation_run r ON r.campaign_hash=cur.campaign_hash "
+                        "AND r.run_id<>cur.run_id AND r.started_at<cur.started_at "
+                        "AND r.started_at>a.activated_at "
+                        "LEFT JOIN paper_observation_receipt rc ON rc.run_id=r.run_id "
+                        "WHERE cur.run_id=:id ORDER BY r.started_at DESC LIMIT 1"
+                    ),
+                    {"id": str(run_id)},
+                )
+                .mappings()
+                .one_or_none()
+            )
+        if row is None:
+            return None
+        if row["payload"] is None:
+            return PriorRun(None, None)
+        receipt = ObservationDayReceipt.model_validate_json(
+            canonical_payload(json.loads(str(row["payload"]))["receipt"])
+        )
+        if receipt.content_hash() != row["receipt_hash"]:
+            raise ValueError("OBSERVATION_RECEIPT_LEDGER_CORRUPT")
+        return PriorRun(receipt, str(row["receipt_hash"]))
 
     def run(self, run_id: UUID | str) -> dict[str, Any]:
         with self.engine.connect() as conn:
@@ -503,6 +630,28 @@ class ObservationStore:
             raise ValueError("OBSERVATION_TRACE_AUTHORIZATION_BINDING_DENIED")
 
     @staticmethod
+    def _verify_trace_inputs(
+        traces: tuple[ObservationProposalTrace, ...], truth: list[dict[str, Any]], cursor: int
+    ) -> None:
+        """OBV2-07 replayed: each decision's market and specification is a consumed fact."""
+        consumed = [event for event in truth if int(event["sequence"]) <= cursor]
+        marks = {
+            PaperMarketSnapshot.model_validate_json(canonical_payload(e["data"])).content_hash()
+            for e in consumed
+            if e["kind"] == "MARKET_MARK"
+        }
+        specs = {
+            PaperInstrumentSpec.model_validate_json(canonical_payload(e["data"])).content_hash()
+            for e in consumed
+            if e["kind"] == "SPEC_OBSERVATION"
+        }
+        if any(
+            trace.market.content_hash() not in marks or trace.spec.content_hash() not in specs
+            for trace in traces
+        ):
+            raise ValueError("OBSERVATION_TRACE_INPUT_UNVERIFIED")
+
+    @staticmethod
     def _outbox_hash(row: dict[str, Any]) -> str:
         value = format(Decimal(str(row["filled_quantity"])), "f")
         row = dict(row) | {
@@ -515,20 +664,8 @@ class ObservationStore:
     def _project_journal(
         cls, journal: list[dict[str, Any]], traces: tuple[ObservationProposalTrace, ...]
     ) -> dict[str, Any]:
-        projection_kinds = {
-            "INITIALIZED",
-            "WRITER_ACQUIRED_PAUSE_NEW",
-            "KILL_STATE",
-            "OWNER_PAPER_RESUME",
-            "UNKNOWN_RECONCILE_ONLY",
-            "RECONCILIATION",
-            "OWNER_RELEASE_PIN",
-            "OWNER_POLICY_PIN",
-            "UTC_DAY_ROLLOVER",
-            "LOSS_BREACH_LATCH",
-        }
         latest = next(
-            e["data"]["account"] for e in reversed(journal) if e["kind"] in projection_kinds
+            e["data"]["account"] for e in reversed(journal) if e["kind"] in PROJECTION_EVENTS
         )
         account = PaperAccountSnapshot.model_validate_json(canonical_payload(latest))
         authorized = sorted(
@@ -579,6 +716,7 @@ class ObservationStore:
                 cursor = int(data["truth_cursor"])
                 for outbox in outboxes.values():
                     outbox["updated_at"] = event["recorded_at"]
+        run_intents = {t.intent.content_hash() for t in traces if t.authorization is not None}
         return {
             "final_account": account,
             "truth_cursor": cursor,
@@ -587,18 +725,39 @@ class ObservationStore:
                 t.reservation.content_hash() for t in traces if t.reservation is not None
             ),
             "outbox_hashes": tuple(
-                cls._outbox_hash(outboxes[k])
-                for k in sorted(outboxes)
-                if k in {t.intent.content_hash() for t in traces if t.authorization is not None}
+                cls._outbox_hash(outboxes[k]) for k in sorted(outboxes) if k in run_intents
             ),
             "unknown_order_refs": tuple(
                 k for k in sorted(outboxes) if outboxes[k]["state"] in ("UNKNOWN", "SENT_PENDING")
             ),
             "mismatch_refs": () if account.reconciled else ("UNRECONCILED",),
+            "terminal_authorization_count": sum(
+                outboxes[k]["state"] in TERMINAL_ORDER_STATES for k in run_intents if k in outboxes
+            ),
+        }
+
+    @staticmethod
+    def _campaign_state(
+        config: ObservationConfig,
+        run: dict[str, Any],
+        state: dict[str, Any],
+        journal: list[dict[str, Any]],
+        truth: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Add the v2 derived fields (day roll, ledger replay); v1 evidence has none."""
+        if not config.is_v2:
+            state.pop("terminal_authorization_count")
+            return state
+        return state | {
+            "day_roll_hash": day_roll_hash(journal, run["local_date"]),
+            "ledger_mismatch_count": ledger_mismatch_count(
+                config.account_ref, journal, truth, state["final_account"], state["truth_cursor"]
+            ),
         }
 
     def snapshot(self, run_id: UUID | str) -> dict[str, Any]:
-        config = self.config(str(self.run(run_id)["campaign_hash"]))
+        run = self.run(run_id)
+        config = self.config(str(run["campaign_hash"]))
         account = self.paper.account(config.account_ref)
         journal = self.paper.journal(config.account_ref)
         traces = self.traces(run_id)
@@ -628,7 +787,8 @@ class ObservationStore:
                     {"id": str(run_id)},
                 )
             )
-        return {
+            truth = truth_rows(conn, config.account_ref)
+        state = {
             "final_account": account,
             "truth_cursor": cursor,
             "journal_tail_hash": journal[-1]["content_hash"],
@@ -645,7 +805,13 @@ class ObservationStore:
                 if row["state"] in ("UNKNOWN", "SENT_PENDING")
             ),
             "mismatch_refs": () if account.reconciled else ("UNRECONCILED",),
+            "terminal_authorization_count": sum(
+                row["state"] in TERMINAL_ORDER_STATES
+                for row in outbox
+                if row["intent_hash"] in run_intents
+            ),
         }
+        return self._campaign_state(config, run, state, journal, truth)
 
     def verify(
         self,
@@ -756,6 +922,9 @@ class ObservationStore:
                 )
             ):
                 raise ValueError("OBSERVATION_SIMULATED_FILL_REPLAY_MISMATCH")
+        if config.is_v2:
+            self._verify_trace_inputs(traces, truth, evidence.truth_cursor)
+        snapshot = self._campaign_state(config, run, snapshot, journal, truth)
         snapshot["fill_hashes"] = tuple(s.content_hash() for s in simulations)
         for key, value in snapshot.items():
             if getattr(evidence, key) != value:

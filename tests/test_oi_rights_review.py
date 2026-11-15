@@ -309,10 +309,10 @@ def test_conditional_start_expiry_cannot_exceed_fixed_90day_evaluation_end():
         owner_start_at=start,
         expires_at=fixed_end,
     )
-    envelope.require_start(config, envelope.content_hash(), start)
+    envelope.require_start(config, start)
     with pytest.raises(ValueError, match="RIGHTS"):
-        envelope.require_start(config, envelope.content_hash(), AFTER)
-    envelope.require_start(config, envelope.content_hash(), AFTER, authority())
+        envelope.require_start(config, AFTER)
+    envelope.require_start(config, AFTER, authority())
     later = OIStartEnvelope.model_validate(
         {
             **envelope.model_dump(mode="python"),
@@ -320,7 +320,7 @@ def test_conditional_start_expiry_cannot_exceed_fixed_90day_evaluation_end():
         }
     )
     with pytest.raises(ValueError, match="START_AUTHORITY_INVALID"):
-        later.require_start(config, later.content_hash(), start)
+        later.require_start(config, start)
 
 
 def review_loader():

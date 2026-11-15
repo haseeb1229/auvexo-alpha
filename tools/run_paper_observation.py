@@ -16,14 +16,17 @@ import psutil
 from sqlalchemy.exc import SQLAlchemyError
 
 if __package__:
-    from tools.paper_observation_local import ROOT, engine_for
+    from tools.local_db import ROOT
+    from tools.paper_observation_local import engine_for
 else:
-    from paper_observation_local import ROOT, engine_for
+    from local_db import ROOT
+    from paper_observation_local import engine_for
 
 from auvexo_alpha.application.observation_runner import ObservationRunner
 from auvexo_alpha.domain.observation import (
     ObservationConfig,
     ObservationResources,
+    observation_policy,
     observation_window,
 )
 from auvexo_alpha.infrastructure.data_store import DataStore
@@ -33,6 +36,7 @@ from auvexo_alpha.infrastructure.observation_paper import (
     ObservationPaperTruth,
 )
 from auvexo_alpha.infrastructure.observation_simulator import CausalPaperSimulator
+from auvexo_alpha.infrastructure.observation_start_gates import ObservationStartGates
 from auvexo_alpha.infrastructure.observation_store import ObservationStore
 from auvexo_alpha.infrastructure.paper_identity import PaperIdentityError
 from auvexo_alpha.infrastructure.paper_store import PaperStore
@@ -111,7 +115,13 @@ def main() -> int:
         verify_scheduled_source(config)
     runtime = engine_for(payload["database"], "auvexo_paper")
     truth_engine = engine_for(payload["database"], "auvexo_paper_truth")
-    owner = engine_for(payload["database"], "auvexo_paper_owner") if args.prepare else None
+    # A scheduled v2 run uses the owner identity for exactly one thing: the journaled
+    # standing resume of the writer-acquisition K1 that START authorized (ADR-032 OBV2-01).
+    owner = (
+        engine_for(payload["database"], "auvexo_paper_owner")
+        if args.prepare or args.scheduled
+        else None
+    )
     cancel = Event()
     signal.signal(signal.SIGINT, lambda signum, frame: cancel.set())
     signal.signal(signal.SIGTERM, lambda signum, frame: cancel.set())
@@ -150,9 +160,18 @@ def main() -> int:
                 return True
             return cancel.wait(seconds) or datetime.now(UTC) >= cutoff
 
-        http = PublicHTTP(cancel, wait=bounded_wait, max_requests=256)
-        feed = ObservationFeed(source, http, config.git_revision, config.campaign_id)
-        paper = PaperStore(runtime)
+        # 240 bar requests (clock proof and klines, two symbols, sixty minutes), plus the
+        # v2 start gates (one clock proof, two exchangeInfo) and the closing clock proof,
+        # with the same sixteen-request margin as before.
+        http = PublicHTTP(cancel, wait=bounded_wait, max_requests=261)
+        feed = ObservationFeed(
+            source,
+            http,
+            config.git_revision,
+            config.campaign_id,
+            clock_bound_ms=observation_policy(config).max_clock_offset_ms,
+        )
+        paper = PaperStore(runtime, owner)
         truth = PaperTruth(truth_engine)
         runner = ObservationRunner(
             config,
@@ -160,7 +179,8 @@ def main() -> int:
             ObservationPaperCommands(paper),
             ObservationPaperTruth(truth),
             feed,
-            simulator=CausalPaperSimulator(paper, truth),
+            simulator=CausalPaperSimulator(paper, truth, config),
+            gates=ObservationStartGates(feed),
             cancel=cancel,
             resources=ResourceSampler(),
             # This process never starts an optional research worker. No arbitrary OS

@@ -12,6 +12,7 @@ import string
 from datetime import datetime
 from uuid import UUID
 
+from auvexo_alpha.domain.ds03_actual import Ds03ReasonCode, Ds03Reasoned
 from auvexo_alpha.domain.ds03_authority import Ds03OnboardingAdmission
 from auvexo_alpha.infrastructure.oi_secrets import _DPAPI, _Crypto, _Files, _WindowsAPI
 from auvexo_alpha.infrastructure.oi_secrets import _WindowsFiles as _OIWindowsFiles
@@ -22,7 +23,9 @@ _LIMIT = 8192
 _FILENAME = "mt5-demo-readonly.v1.dpapi"
 
 
-class Ds03SecretUnavailable(ValueError):
+class Ds03SecretUnavailable(ValueError, Ds03Reasoned):
+    reason: Ds03ReasonCode = "CREDENTIAL_UNAVAILABLE"
+
     def __init__(self) -> None:
         super().__init__("DS03_SECRET_UNAVAILABLE")
 

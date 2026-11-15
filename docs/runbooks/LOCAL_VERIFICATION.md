@@ -3,6 +3,29 @@
 Run everything from the Development checkout. Never from the Operational or OI Runtime
 checkouts. See [checkouts and tasks](CHECKOUTS_AND_TASKS.md).
 
+## Environment
+
+Development owns its interpreter (CPython 3.13.16 under `.local\python`) and the pinned
+uv 0.13.1 (`.local\toolchains\uv-wheel\uv-0.13.1.data\scripts\uv.exe`). To rebuild the
+virtual environment, set these for the session and run uv from the checkout root:
+
+```text
+UV_PYTHON_INSTALL_DIR=.local\python
+UV_CACHE_DIR=.local\uv-cache
+UV_PYTHON_DOWNLOADS=never
+UV_LINK_MODE=copy
+UV_NO_CONFIG=1
+
+uv venv --python .local\python\cpython-3.13.16-windows-x86_64-none\python.exe .venv
+uv sync --locked --group provider
+```
+
+Copy mode matters: the DS-03 provider binding refuses hard-linked package files. The
+`provider` group holds the Windows-only MetaTrader5 and NumPy pins that only the isolated
+read-only provider child imports; without it, a plain `uv sync --locked` removes them and
+the native exact-package tests fail. Never point Development at the Operational
+interpreter or virtual environment.
+
 ## Every change
 
 ```text
@@ -32,11 +55,28 @@ npm audit --audit-level=high
 
 ## PostgreSQL-backed tests
 
-The 500-odd tests marked `integration` need PostgreSQL 17 on loopback port 55432. On this
-laptop that port belongs to the Operational cluster, so do not run them locally. Hosted
-CI runs them on every pull request to `main` in an isolated container. A pull request is
-not verified until that run has passed on its exact head commit, with real steps: check
-the step list and the pytest summary line, not only the green mark.
+Tests marked `integration` need PostgreSQL 17. Run them, and the whole suite, only
+against a throwaway cluster:
+
+```text
+.venv\Scripts\python.exe tools\disposable_pg.py test -q
+.venv\Scripts\python.exe tools\disposable_pg.py test -q tests\test_postgres.py
+.venv\Scripts\python.exe tools\disposable_pg.py run -- .venv\Scripts\python.exe tools\verify_paper_recovery.py
+```
+
+The tool creates a cluster in a new directory under the user's temp folder, on a random
+port that is never 55432 or 55433, with a random superuser password and a server marker
+(`auvexo.disposable_cluster` plus a start-only `cluster_name`). It passes the port and
+marker to the tests through `TEST_PG_PORT` and `TEST_PG_CLUSTER_ID`, and destroys exactly
+that directory afterwards, whether the tests pass or fail. Every test helper refuses the
+two reserved ports and checks the marker before writing. Without the tool, integration
+tests fail with "Disposable PostgreSQL test cluster required". The full suite takes about
+25 minutes; keep it outside the protected windows.
+
+Hosted CI runs the same suite on every pull request to `main`, in a container on port
+45432 with a per-run marker. A pull request is not verified until that run has passed on
+its exact head commit, with real steps: check the step list and the pytest summary line,
+not only the green mark.
 
 ## Before any public push
 
