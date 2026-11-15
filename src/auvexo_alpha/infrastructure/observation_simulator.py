@@ -10,6 +10,7 @@ from auvexo_alpha.application.observation_simulator import (
     causal_fill_price,
 )
 from auvexo_alpha.domain.observation import (
+    ObservationConfig,
     ObservationFact,
     ObservationSimulationTrace,
     observation_market,
@@ -20,8 +21,8 @@ from auvexo_alpha.infrastructure.paper_truth import PaperTruth
 
 
 class CausalPaperSimulator:
-    def __init__(self, paper: PaperStore, truth: PaperTruth) -> None:
-        self.paper, self.truth = paper, truth
+    def __init__(self, paper: PaperStore, truth: PaperTruth, config: ObservationConfig) -> None:
+        self.paper, self.truth, self.config = paper, truth, config
         self.pending: dict[str, PendingSimulation] = {}
 
     def recover_pending(self, account_ref: str, *, epoch: int, now: datetime) -> tuple[str, ...]:
@@ -71,6 +72,9 @@ class CausalPaperSimulator:
     def observe(
         self, fact: ObservationFact, *, now: datetime
     ) -> tuple[ObservationSimulationTrace, ...]:
+        """Record simulated truth for one bar; it never reconciles. The caller reconciles
+        once every symbol is marked for the bar end, so no reconciliation values an open
+        position on another symbol's previous bar (ADR-032 OBV2-03)."""
         fills: list[ObservationSimulationTrace] = []
         for ih, pending in tuple(self.pending.items()):
             if pending.intent.instrument_id != fact.candle.instrument_id:
@@ -82,7 +86,9 @@ class CausalPaperSimulator:
                 self.truth.status(ih, "EXPIRED", account_ref=pending.intent.account_ref, now=now)
                 del self.pending[ih]
             elif price is not None:
-                self.truth.mark(pending.intent.account_ref, observation_market(fact), now=now)
+                self.truth.mark(
+                    pending.intent.account_ref, observation_market(fact, self.config), now=now
+                )
                 event_id = uuid5(NAMESPACE_URL, SIMULATOR_VERSION + ih + fact.content_hash())
                 self.truth.fill(
                     ih,
@@ -106,5 +112,4 @@ class CausalPaperSimulator:
                     )
                 )
                 del self.pending[ih]
-            self.paper.reconcile(pending.intent.account_ref, now=now)
         return tuple(fills)

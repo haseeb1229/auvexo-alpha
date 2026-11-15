@@ -1,0 +1,64 @@
+{
+  "record": "operational-campaign-restart-candidate",
+  "date": "2026-11-13",
+  "updated": "2026-11-15",
+  "authorizes": [],
+  "current": {
+    "operational_pin": "9b9038b6966843805c99f15e1c37cdba7c026679",
+    "operational_tree_clean": true,
+    "operational_postgresql": "DOWN_SINCE_2026-10-23T11:58+05:00",
+    "oi_runtime_pin": "f47770d7886d12240e24390e23f939cb49535a31",
+    "phase2_genuine_dates": 0,
+    "phase4_paper_dates": "AT_MOST_ONE_UNREADABLE",
+    "pinned_rights_due": "2026-11-16T00:00:00Z",
+    "rights_renewal": {
+      "decided": "2026-11-14T18:07:00Z",
+      "valid_until": "2027-02-16T00:00:00Z",
+      "scope": "personal, non-commercial, non-production research",
+      "reference": "docs/reviews/BINANCE_DS01_DS02_RIGHTS_RENEWAL_2026-11-14.md"
+    },
+    "clock": {
+      "windows_time_leap": 3,
+      "source": "Local CMOS Clock",
+      "last_successful_sync": "2026-11-13T01:18:59+05:00",
+      "owner_configuration": "2026-11-14: automatic start, 900 s poll, time.windows.com,0x9",
+      "checked_at": "2026-11-15T01:51+05:00",
+      "measured_local_minus_provider_ms_approx": 4000,
+      "ntp_replies": {"time.windows.com": "0/4", "time.google.com": "2/3", "pool.ntp.org": "0/3"}
+    },
+    "task_scheduler_history_log": "DISABLED"
+  },
+  "target_release": {
+    "commit": null,
+    "commit_recorded_by": "follow-up change after the OD-23 closure pull request merges",
+    "must_contain": [
+      "OD-23 engineering corrections",
+      "ADR-032 PAPER campaign v2 implementation with independent review",
+      "owner-confirmed DS-01/DS-02 rights renewal"
+    ],
+    "main_schema_head": "0007_paper_state_guards",
+    "observation_schema_head": "obs0002_campaign_v2"
+  },
+  "owner_steps": [
+    {"order": 1, "step": "RIGHTS_DECISION", "state": "DONE_2026-11-14", "reference": "docs/reviews/BINANCE_DS01_DS02_RIGHTS_RENEWAL_2026-11-14.md"},
+    {"order": 2, "step": "CLOCK_NTP_PATH_AND_RESYNC", "elevated": true, "state": "CONFIGURED_NOT_SYNCHRONISED", "reference": "docs/runbooks/CLOCK_TRUST.md"},
+    {"order": 3, "step": "ENABLE_TASK_SCHEDULER_LOG", "elevated": true, "command": "wevtutil sl Microsoft-Windows-TaskScheduler/Operational /e:true"},
+    {"order": 4, "step": "START_DATABASE_AND_READ_V1_COUNT", "release": "pinned"},
+    {"order": 5, "step": "ENCRYPTED_OFF_DEVICE_BACKUP", "reference": "docs/runbooks/BACKUP_AND_RESTORE.md"},
+    {"order": 6, "step": "REPIN_OPERATIONAL", "sync": "uv sync --locked --group provider", "link_mode": "copy"},
+    {"order": 7, "step": "MIGRATE_MAIN_CHAIN", "from": "0005_paper_core", "to": "0007_paper_state_guards", "rewrites_rows": false, "validates_existing_rows": ["paper_intent_account_logical_key", "paper_reservation_active_state"], "rehearse_on_restored_backup_first": true, "failure": "STOP_FOR_REVIEW"},
+    {"order": 8, "step": "INSTALL_AND_CHECK_DATABASE_AUTOSTART", "reference": "docs/runbooks/POSTGRES_AUTOSTART.md"},
+    {"order": 9, "step": "PREPARE_CAMPAIGN_V2", "references": ["docs/adr/032-paper-evidence-campaign-v2.md", "docs/phase2/PUBLIC_DATA_CAMPAIGN_V2.md"], "task_version": "paper.observation.task.v2"},
+    {"order": 10, "step": "SCHEDULER_LOG_DRY_RUN", "confirms": ["time trigger event", "process creation event", "task instance identifier"]},
+    {"order": 11, "step": "INDEPENDENT_REVIEW_OF_PIN_AND_PREPARED_HASHES"},
+    {"order": 12, "step": "OWNER_START", "separate_explicit_act": true, "binds": ["audited owner resume to flat, reconciled K0", "ADR-032 OBV2-01 standing resume authority"]}
+  ],
+  "transfers_from_v1": {"phase2_dates": 0, "phase4_dates": 0},
+  "risks": [
+    "clock about 4 s fast with no working NTP path; every night refuses until step 2",
+    "provider round trip measured 0.3 to 4.8 s from this host",
+    "autostart behaviour under Task Scheduler unproven until the owner check",
+    "scheduler event shapes unconfirmed until the step 10 dry run",
+    "single Windows user holds every database role secret (P-15 accepted residual for PAPER)"
+  ]
+}

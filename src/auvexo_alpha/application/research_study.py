@@ -1,10 +1,53 @@
 """Frozen generic Phase 3 grids, selection and conservative nonproduction screens."""
 
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from decimal import Decimal
+from typing import Literal
 
 from auvexo_alpha.application.research_metrics import metrics, pinned
 from auvexo_alpha.application.research_simulator import SimulationResult
-from auvexo_alpha.domain.research import StrategyConfig
+from auvexo_alpha.domain.research import ResearchSplit, StrategyConfig
+
+FOLD_RULE = "expanding.train-span.365-day-segments.v1"
+
+
+@dataclass(frozen=True)
+class WalkForwardFold:
+    """One expanding development fold. Informational: it never drives selection."""
+
+    index: int
+    fit_start: datetime
+    fit_end: datetime
+    evaluate_start: datetime
+    evaluate_end: datetime
+    role: Literal["INFORMATIONAL_ONLY"] = "INFORMATIONAL_ONLY"
+    rule: str = FOLD_RULE
+
+
+def walk_forward_folds(split: ResearchSplit) -> tuple[WalkForwardFold, ...]:
+    """Expanding folds derived from the registered training span alone; no calendar years.
+
+    The span is cut into n = max(2, whole 365-day lengths) equal segments, each boundary
+    floored to the hour. Fold k fits [train_start, b_k) and evaluates [b_k + embargo,
+    b_{k+1}). Folds stay inside the training span, so the validation phase is never
+    repeated as a fold. Selection uses validation only unless a future preregistration
+    states otherwise.
+    """
+    span = split.train_end - split.train_start
+    segments = max(2, span // timedelta(days=365))
+    hour = timedelta(hours=1)
+    bounds = [
+        split.train_start + ((span * k / segments) // hour) * hour for k in range(segments)
+    ] + [split.train_end]
+    embargo = timedelta(seconds=split.purge_embargo_seconds)
+    folds = []
+    for k in range(1, segments):
+        begin = bounds[k] + embargo
+        if begin >= bounds[k + 1]:
+            raise ValueError("WALK_FORWARD_FOLD_EMPTY_AFTER_EMBARGO")
+        folds.append(WalkForwardFold(k - 1, split.train_start, bounds[k], begin, bounds[k + 1]))
+    return tuple(folds)
 
 
 def frozen_configs() -> tuple[StrategyConfig, ...]:

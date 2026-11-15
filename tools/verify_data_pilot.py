@@ -1,21 +1,20 @@
 """Explicit real-source, bounded pilot and native process-tree resource receipt."""
 
 import json
-import os
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import psutil
-from local_db import LOCAL, ROOT
+from local_db import LOCAL, NO_WINDOW, ROOT
 
 
-def main():
+def main() -> None:
     directory = LOCAL / ("data-pilot-" + datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"))
     directory.mkdir()
     # Two boundary days, plus ordinary/stress/calendar diversity at compact hourly resolution.
-    jobs = []
+    jobs: list[list[str]] = []
     for symbol in ("BTCUSDT", "ETHUSDT"):
         jobs.append(
             [
@@ -39,28 +38,37 @@ def main():
                 "2026-09",
             ]
         )
+    # Reports are bounded to at most 31 days; cover the most recent ones.
+    today = datetime.now(UTC).date()
+    recent = [
+        "--start-day",
+        (today - timedelta(days=30)).isoformat(),
+        "--end-day",
+        today.isoformat(),
+    ]
     jobs += [
         ["specs", "--enable-public-data"],
         ["collect", "--enable-public-data", "--cycles", "2"],
-        ["coverage"],
+        ["coverage", *recent],
         ["verify"],
-        ["evidence"],
+        ["evidence", *recent],
         ["qualification", "--start-day", "2026-10-17"],
     ]
-    receipts = []
+    receipts: list[dict[str, object]] = []
     for index, arguments in enumerate(jobs):
         output = directory / f"{index:02d}-{arguments[0]}.json"
         log = directory / f"{index:02d}.log"
         started = time.monotonic()
-        peak = cpu = races = 0
-        tree = []
+        peak = races = 0
+        cpu: float = 0
+        tree: list[psutil.Process] = []
         with log.open("w") as stream:
             process = subprocess.Popen(
                 [sys.executable, "tools/data_local.py", *arguments, "--output", str(output)],
                 cwd=ROOT,
                 stdout=stream,
                 stderr=stream,
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+                creationflags=NO_WINDOW,
             )
             while process.poll() is None:
                 try:

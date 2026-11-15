@@ -17,7 +17,6 @@ def task_definition(
     script: Path,
     config: Path,
     start: datetime,
-    start_envelope: Path | None = None,
     accepted_start_hash: str | None = None,
     review_chain: Path | None = None,
     accepted_review_hashes: tuple[str, ...] = (),
@@ -42,17 +41,9 @@ def task_definition(
         or any("\x00" in str(p) for p in (owner, python, script, config))
     ):
         raise ValueError("OI_TASK_CONFIG")
-    if (
-        (start_envelope is None) != (accepted_start_hash is None)
-        or (
-            start_envelope is not None
-            and (not start_envelope.is_absolute() or "\x00" in str(start_envelope))
-        )
-        or (
-            accepted_start_hash is not None
-            and not re.fullmatch(r"[0-9a-f]{64}", accepted_start_hash)
-        )
-    ):
+    # START content is never a task input: the collector reads the acceptance file from
+    # the pinned checkout's committed tree. The task only selects its digest.
+    if accepted_start_hash is not None and not re.fullmatch(r"[0-9a-f]{64}", accepted_start_hash):
         raise ValueError("OI_TASK_CONFIG")
     if (
         (review_chain is None) != (not accepted_review_hashes)
@@ -104,10 +95,8 @@ def task_definition(
         str(config),
         "--scheduled",
     ]
-    if start_envelope is not None and accepted_start_hash is not None:
-        arguments.extend(
-            ["--start-envelope", str(start_envelope), "--accepted-start-hash", accepted_start_hash]
-        )
+    if accepted_start_hash is not None:
+        arguments.extend(["--accepted-start-hash", accepted_start_hash])
     if review_chain is not None:
         arguments.extend(["--review-chain", str(review_chain)])
         for digest in accepted_review_hashes:
@@ -125,7 +114,6 @@ def main() -> None:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--start", type=datetime.fromisoformat, required=True)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--start-envelope", type=Path)
     parser.add_argument("--accepted-start-hash")
     parser.add_argument("--review-chain", type=Path)
     parser.add_argument("--accepted-review-hash", action="append", default=[])
@@ -140,7 +128,6 @@ def main() -> None:
         script=args.script,
         config=args.config,
         start=args.start,
-        start_envelope=args.start_envelope,
         accepted_start_hash=args.accepted_start_hash,
         review_chain=args.review_chain,
         accepted_review_hashes=tuple(args.accepted_review_hash),

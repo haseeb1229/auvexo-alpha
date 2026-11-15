@@ -30,7 +30,8 @@ from paper_fixtures import fixture_bundle  # noqa: E402
 
 from auvexo_alpha.domain.paper import PaperReason  # noqa: E402
 from auvexo_alpha.domain.paper_lifecycle import KillLevel  # noqa: E402
-from auvexo_alpha.infrastructure.paper_store import PaperStore, PaperTruth  # noqa: E402
+from auvexo_alpha.infrastructure.paper_store import PaperStore  # noqa: E402
+from auvexo_alpha.infrastructure.paper_truth import PaperTruth  # noqa: E402
 
 
 def main() -> None:
@@ -110,6 +111,7 @@ def main() -> None:
                     "sum((payload::jsonb->>'modeled_loss')::numeric),count(*) "
                     "FROM paper_reservation WHERE active"
                 ).fetchone()
+            assert virtual_totals is not None  # An aggregate always returns one row.
             refused = migrate(source, "downgrade", "0004_research_ledger")
             assert refused.returncode and b"destructive downgrade disabled" in refused.stderr
             assert snapshot(source) == expected

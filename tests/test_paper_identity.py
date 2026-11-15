@@ -14,7 +14,7 @@ from psycopg import sql
 from sqlalchemy import URL, create_engine, text
 from sqlalchemy.exc import DBAPIError
 
-from auvexo_alpha.infrastructure.paper_identity import PaperIdentityError
+from auvexo_alpha.infrastructure.paper_identity import PaperIdentityError, enforce_paper_engine
 from auvexo_alpha.infrastructure.paper_store import PaperStore
 from auvexo_alpha.infrastructure.paper_truth import PaperTruth
 from tools import paper_local
@@ -581,8 +581,9 @@ def test_identity_constructor_refuses_url_driver_overrides_before_connect(identi
     )
     engine = create_engine(url, hide_parameters=True)
     try:
+        # Bound to the disposable cluster so only the query override can be refused.
         with pytest.raises(PaperIdentityError, match="^PAPER_IDENTITY_.*(ENDPOINT|QUERY)"):
-            PaperStore(engine)
+            enforce_paper_engine(engine, "auvexo_paper", disposable=paper_local.isolated_cluster())
     finally:
         engine.dispose()
 
@@ -609,8 +610,9 @@ def test_identity_actual_connected_endpoint_cannot_override_advertised_url(
     )
     engine = create_engine(url, hide_parameters=True, connect_args=options)
     try:
+        # Bound to the disposable cluster so the advertised URL passes the static check.
         with pytest.raises(PaperIdentityError, match="^PAPER_IDENTITY_CONNECTED_ENDPOINT_DENIED$"):
-            PaperStore(engine)
+            enforce_paper_engine(engine, "auvexo_paper", disposable=paper_local.isolated_cluster())
     finally:
         engine.dispose()
 

@@ -6,8 +6,8 @@ import pytest
 from auvexo_alpha.application.data_reporting import (
     ScheduledSummary,
     coverage_matrix,
-    qualification,
 )
+from auvexo_alpha.application.data_reporting import qualification as qualify
 from auvexo_alpha.application.demo_data_gate import DemoDataPrerequisites, require_demo_data
 from auvexo_alpha.domain.contracts import Product, Venue
 from auvexo_alpha.domain.market_data import (
@@ -99,8 +99,15 @@ def test_storage_scan_counts_nested_bytes_and_refuses_unreadable(tmp_path, monke
 
 
 def test_rights_expiry_fails_closed():
+    # The latest owner review (renewed 2026-11-14) ends at 2027-02-16T00:00Z.
+    rights("DS-01").require_research(datetime(2027, 2, 15, 23, 59, 59, 999999, tzinfo=UTC))
     with pytest.raises(ValueError):
-        rights("DS-01").require_research(datetime(2027, 1, 1, tzinfo=UTC))
+        rights("DS-01").require_research(datetime(2027, 2, 16, tzinfo=UTC))
+
+
+def qualification(events, start, now, manifests, summaries, cooldowns=(), gaps=()):
+    """These fixtures carry no provider cooldown or reviewed gap unless a test adds one."""
+    return qualify(events, start, now, manifests, summaries, cooldowns=cooldowns, gaps=gaps)
 
 
 def observation_fixtures():
@@ -167,7 +174,10 @@ def observation_fixtures():
 
 def receipts(first, days=7, **changes):
     """Synthetic wrapper receipts: one on-time completed scheduled run per calendar day."""
-    fields = dict(schedule_id="public-data-2300-pkt-v1", mode="scheduled") | changes
+    fields = (
+        dict(schedule_id="public-data-2300-pkt-v1", mode="scheduled", provenance="VERIFIED")
+        | changes
+    )
     return [
         ScheduledSummary(
             started_at=datetime.combine(first + timedelta(days=day), time(17, 57), UTC),
@@ -190,7 +200,10 @@ def test_seven_actual_calendar_days_not_seven_minutes():
     passed = qualification(events, start.date(), start + timedelta(days=7), manifests, scheduled)
     assert passed["status"] == "PASS"
     assert [day["scheduled_summary"] for day in passed["days"]] == ["MATCHED"] * 7
-    assert "not proof that Task Scheduler" in passed["scheduled_provenance"]
+    # ADR-032 OBV2-06 applied to the wrapper: its Task Scheduler check is now required,
+    # while the summary that records it is still stated to be a local receipt.
+    assert "Task Scheduler check is VERIFIED" in passed["scheduled_provenance"]
+    assert "remains a local receipt" in passed["scheduled_provenance"]
     assert (
         qualification(events[:-10], start.date(), start + timedelta(days=7), manifests, scheduled)[
             "status"
@@ -387,7 +400,10 @@ def test_fresh_strings_or_invalid_dataset_cannot_qualify(fault):
 
 def receipt(started_at, **changes):
     fields = dict(
-        schedule_id="public-data-2300-pkt-v1", mode="scheduled", status="COMMAND_COMPLETE"
+        schedule_id="public-data-2300-pkt-v1",
+        mode="scheduled",
+        status="COMMAND_COMPLETE",
+        provenance="VERIFIED",
     )
     return ScheduledSummary(started_at=started_at, **(fields | changes))
 
@@ -419,6 +435,12 @@ ON_TIME = datetime(2026, 10, 18, 17, 57, tzinfo=UTC)
         ([receipt(datetime(2026, 10, 18, 17, 55, 59, 999999, tzinfo=UTC))], "OUTSIDE_PREWINDOW"),
         ([receipt(datetime(2026, 10, 18, 18, 0, tzinfo=UTC))], "OUTSIDE_PREWINDOW"),
         ([receipt(datetime(2026, 10, 18, 18, 5, tzinfo=UTC))], "OUTSIDE_PREWINDOW"),
+        # ADR-032 OBV2-06 for the wrapper: an on-time completed summary started by a person,
+        # with the scheduler log off, or written before the check existed never matches.
+        ([receipt(ON_TIME, provenance="NOT_SCHEDULED")], "PROVENANCE_NOT_SCHEDULED"),
+        ([receipt(ON_TIME, provenance="UNVERIFIABLE")], "PROVENANCE_UNVERIFIABLE"),
+        ([receipt(ON_TIME, provenance="UNRECORDED")], "PROVENANCE_UNRECORDED"),
+        ([receipt(ON_TIME, provenance="verified")], "PROVENANCE_INVALID"),
         ([receipt(datetime(2026, 10, 18, 17, 56, tzinfo=UTC))], "MATCHED"),
         ([receipt(datetime(2026, 10, 18, 17, 59, 59, 999999, tzinfo=UTC))], "MATCHED"),
         (

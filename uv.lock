@@ -98,8 +98,6 @@ source = { editable = "." }
 dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
-    { name = "metatrader5", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'" },
-    { name = "numpy", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'" },
     { name = "polars" },
     { name = "psutil" },
     { name = "psycopg", extra = ["binary"] },
@@ -118,13 +116,15 @@ dev = [
     { name = "pytest" },
     { name = "ruff" },
 ]
+provider = [
+    { name = "metatrader5", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'" },
+    { name = "numpy", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "alembic", specifier = "==1.20.0" },
     { name = "fastapi", specifier = "==0.143.2" },
-    { name = "metatrader5", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'", specifier = "==5.0.6231" },
-    { name = "numpy", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'", specifier = "==2.4.6" },
     { name = "polars", specifier = "==2.0.0" },
     { name = "psutil", specifier = "==7.2.2" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.6" },
@@ -142,6 +142,10 @@ dev = [
     { name = "pip-audit", specifier = "==2.10.1" },
     { name = "pytest", specifier = "==9.1.1" },
     { name = "ruff", specifier = "==0.17.1" },
+]
+provider = [
+    { name = "metatrader5", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'", specifier = "==5.0.6231" },
+    { name = "numpy", marker = "platform_machine == 'AMD64' and sys_platform == 'win32'", specifier = "==2.4.6" },
 ]
 
 [[package]]

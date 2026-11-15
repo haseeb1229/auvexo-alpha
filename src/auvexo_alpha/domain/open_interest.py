@@ -23,6 +23,7 @@ if TYPE_CHECKING:
     from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority
 
 OISymbol = Literal["BTCUSDT", "ETHUSDT"]
+OITransportKind = Literal["ENGINEERING_FIXTURE", "PRODUCTION_HTTPS"]
 OI_ENDPOINT: Final = "https://fapi.binance.com/fapi/v1/openInterest"
 OI_RIGHTS_VERSION: Final = "ds04-a1-rights.20261027.v1"
 OI_SOURCE_DOCUMENT_HASH: Final = "2156363f3b21401285c9b24c2ef09dafa52f743893721396468acd966d62f1fa"
@@ -183,9 +184,15 @@ class OIManifest(Contract):
     retention_profile: Literal["REVIEW_BEFORE_REMOVAL_NO_AGE_CAP"] = (
         "REVIEW_BEFORE_REMOVAL_NO_AGE_CAP"
     )
+    # Lineage, not a genuineness label: evaluation counts a manifest only when this digest
+    # is in the committed START acceptance file and the transport was the production one.
+    start_digest: Digest | None = None
+    transport: OITransportKind = "ENGINEERING_FIXTURE"
 
     @model_validator(mode="after")
     def binding(self) -> Self:
+        if self.transport == "PRODUCTION_HTTPS" and self.start_digest is None:
+            raise ValueError("OI_START_BINDING_REQUIRED")
         o = self.observation
         if (
             self.parser_version != o.parser_version

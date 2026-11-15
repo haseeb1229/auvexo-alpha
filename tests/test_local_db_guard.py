@@ -75,3 +75,13 @@ def test_existing_stopped_cluster_is_refused_while_the_port_is_taken(
     with pytest.raises(RuntimeError, match="^PORT_55432_OWNED_BY_ANOTHER_CLUSTER"):
         local_db.start()
     assert no_effects == []
+
+
+def test_windows_listener_reported_without_listen_state_still_blocks(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Observed on Windows: another session's listening socket has status NONE.
+    hidden = [SimpleNamespace(status=psutil.CONN_NONE, laddr=SimpleNamespace(port=local_db.PORT))]
+    monkeypatch.setattr(psutil, "net_connections", lambda kind: hidden)
+    assert local_db.port_listener() is True
+    assert local_db.port_bound(local_db.PORT + 1) is False

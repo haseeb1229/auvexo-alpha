@@ -24,11 +24,19 @@ from sqlalchemy import Connection, Engine, text
 
 from auvexo_alpha.domain.contracts import Contract, Digest, UTCTime, utc_time
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, require_oi_rights
+from auvexo_alpha.domain.oi_schedule import (
+    OIAcceptedStart,
+    OICollectionConfig,
+    OISlotGap,
+    slot_allowed,
+    slot_gap_identity,
+)
 from auvexo_alpha.domain.open_interest import (
     OIManifest,
     OIObservation,
     OIRights,
     OISymbol,
+    OITransportKind,
     accepted_oi_rights,
     oi_dataset_version,
 )
@@ -42,6 +50,8 @@ if TYPE_CHECKING:
         OIFeatureSnapshot,
         OIForecast,
         OIPairScore,
+        OIStudyLineage,
+        OIStudyResult,
         OIStudyWindow,
     )
 
@@ -49,11 +59,17 @@ _LOCK = 20801406
 _PREFIX = "ds04-a1:"
 _BUDGET_FEED = "DS-04-A1:transport-budget"
 _FAILURE_FEED = "DS-04-A1:research-failure"
+_GAP_FEED = "DS-04-A1:slot-gap"
+_STUDY_FEED = "DS-04-A1:ledger:STUDY"
 _MAX_RECORDS = 10000
 
 
 def _sha(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
+
+
+def _gap_event_id(symbol: str, slot_at: datetime) -> str:
+    return "oi-gap:" + _sha(slot_gap_identity(symbol, slot_at).encode("ascii"))
 
 
 def _encoded(value: object) -> str:
@@ -99,12 +115,22 @@ def attest_oi_database(conn: Connection, review_authority: OIReviewAuthority | N
                 "(SCHEMA|PARSER_REJECTED|SOURCE_REJECTED|RIGHTS_REJECTED)$') OR "
                 "(feed_key='DS-04-A1:research-failure' "
                 "AND event_id ~ '^oi-research-failure:[0-9a-f]{64}$') OR "
+                "(feed_key='DS-04-A1:slot-gap' "
+                "AND event_id ~ '^oi-gap:[0-9a-f]{64}$') OR "
                 "(feed_key IN ('DS-04-A1:ledger:STUDY','DS-04-A1:ledger:FEATURE',"
                 "'DS-04-A1:ledger:FORECAST','DS-04-A1:ledger:SCORE') "
                 "AND event_id ~ '^oi-ledger:(STUDY|FEATURE|FORECAST|SCORE):[0-9a-f]{64}$' "
                 "AND split_part(feed_key,':',3)=split_part(event_id,':',2))))"
             )
         )
+        # One fixed study per dedicated database: a second START cannot share its rows.
+        or (
+            conn.scalar(
+                text("SELECT count(*) FROM data_event WHERE feed_key='DS-04-A1:ledger:STUDY'")
+            )
+            or 0
+        )
+        > 1
     ):
         raise ValueError("OI_DEDICATED_DATABASE_REQUIRED")
     base = accepted_oi_rights()
@@ -323,6 +349,8 @@ class OIStore:
         classification: DataUseClass = DataUseClass.ENGINEERING_ONLY,
         *,
         now: datetime | None = None,
+        start_digest: str | None = None,
+        transport: OITransportKind = "ENGINEERING_FIXTURE",
     ) -> OIManifest:
         observation = OIObservation.model_validate_json(observation.canonical_bytes())
         rights = rights or accepted_oi_rights()
@@ -361,6 +389,10 @@ class OIStore:
                 if manifest.observation.slot_at != observation.slot_at:
                     raise ValueError("OI_RECYCLED_IDENTITY")
                 return manifest
+            # A recorded gap closes its slot for good: no late fill, under the same lock
+            # that record_gaps takes, so a racing launch can never leave both.
+            if self._gap_recorded(conn, observation.symbol, observation.slot_at):
+                raise ValueError("OI_SLOT_GAP_RECORDED")
             previous_row = conn.execute(
                 text(
                     "SELECT payload,manifest_hash FROM data_manifest WHERE logical_key=:k "
@@ -415,6 +447,8 @@ class OIStore:
                 supersedes=previous.dataset_version if previous else None,
                 conflict_raw_hash=previous.observation.raw_hash if previous else None,
                 classification=classification,
+                start_digest=start_digest,
+                transport=transport,
             )
             self.check_quota(
                 2 * (len(raw) + len(normalized)) + 32768,
@@ -761,6 +795,163 @@ class OIStore:
             )
         return record.content_hash()
 
+    def record_gaps(self, gaps: tuple[OISlotGap, ...]) -> int:
+        """Append no-catch-up gap records; a slot keeps its first recorded reason.
+
+        A symbol slot that already holds a VALID snapshot is collected, never a gap: it is
+        skipped under the lock ``publish`` takes, so a racing launch cannot leave both.
+        Returns how many were new. Nothing is collected, replaced or credited here.
+        """
+        checked = tuple(OISlotGap.model_validate_json(gap.canonical_bytes()) for gap in gaps)
+        if not checked:
+            return 0
+        if len(checked) > _MAX_RECORDS:
+            raise ValueError("OI_REPORT_BUDGET_EXCEEDED")
+        added = 0
+        with self.engine.begin() as conn:
+            conn.execute(text("SELECT pg_advisory_xact_lock(:n)"), {"n": _LOCK})
+            self.check_quota(
+                len(checked) * 512 + 16384,
+                int(conn.scalar(text("SELECT pg_database_size(current_database())")) or 0),
+            )
+            collected = self._occupied_slots(conn, valid_only=True)
+            for gap in checked:
+                if (gap.symbol, gap.slot_at) in collected:
+                    continue
+                result = conn.execute(
+                    text(
+                        "INSERT INTO data_event(event_id,feed_key,observed_at,payload) "
+                        "VALUES (:i,:f,:t,:p) ON CONFLICT DO NOTHING"
+                    ),
+                    {
+                        "i": _gap_event_id(gap.symbol, gap.slot_at),
+                        "f": _GAP_FEED,
+                        "t": gap.recorded_at,
+                        "p": gap.canonical_bytes().decode("ascii"),
+                    },
+                )
+                added += result.rowcount
+        return added
+
+    @staticmethod
+    def _gap_recorded(conn: Connection, symbol: str, slot_at: datetime) -> bool:
+        return (
+            conn.scalar(
+                text("SELECT 1 FROM data_event WHERE event_id=:i AND feed_key=:f"),
+                {"i": _gap_event_id(symbol, slot_at), "f": _GAP_FEED},
+            )
+            is not None
+        )
+
+    def slot_gap_recorded(self, symbol: OISymbol, slot_at: datetime) -> bool:
+        """Whether this symbol slot is already a gap, so it must never be fetched."""
+        with self.engine.connect() as conn:
+            return self._gap_recorded(conn, symbol, slot_at)
+
+    def gaps(self) -> tuple[OISlotGap, ...]:
+        with self.engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT event_id,payload FROM data_event WHERE feed_key=:f "
+                    "ORDER BY observed_at,event_id LIMIT 10001"
+                ),
+                {"f": _GAP_FEED},
+            ).all()
+        if len(rows) > _MAX_RECORDS:
+            raise ValueError("OI_REPORT_BUDGET_EXCEEDED")
+        result = []
+        for event_id, payload in rows:
+            gap = OISlotGap.model_validate_json(payload)
+            if event_id != _gap_event_id(gap.symbol, gap.slot_at):
+                raise ValueError("OI_GAP_HASH_MISMATCH")
+            result.append(gap)
+        return tuple(result)
+
+    def _manifest_slots(self) -> set[tuple[str, datetime]]:
+        """Every (symbol, slot) any published manifest occupies, valid or quarantined."""
+        with self.engine.connect() as conn:
+            return self._occupied_slots(conn, valid_only=False)
+
+    @staticmethod
+    def _occupied_slots(conn: Connection, *, valid_only: bool) -> set[tuple[str, datetime]]:
+        """Every (symbol, slot) a published manifest occupies (or only VALID ones)."""
+        rows = conn.execute(
+            text(
+                "SELECT payload::jsonb->'observation'->>'symbol',"
+                "payload::jsonb->'observation'->>'slot_at' FROM data_manifest "
+                "WHERE logical_key LIKE :p AND (NOT :valid_only "
+                "OR payload::jsonb->'observation'->>'quality'='VALID') LIMIT 10001"
+            ),
+            {"p": _PREFIX + "%", "valid_only": valid_only},
+        ).all()
+        if len(rows) > _MAX_RECORDS:
+            raise ValueError("OI_REPORT_BUDGET_EXCEEDED")
+        return {(symbol, utc_time(slot)) for symbol, slot in rows}
+
+    def record_missed_slots(
+        self, study: OIStudyWindow, before: datetime, recorded_at: datetime
+    ) -> int:
+        """Every scheduled slot from T0 up to ``before`` with no snapshot and no gap record.
+
+        This covers slots no run reached at all (host off or asleep, task not fired, or a
+        launch refused before the database credential could be decrypted). The reason is
+        OI_NO_RUN_RECORDED; the slot stays a gap for good.
+        """
+        end = min(utc_time(before), study.evaluation_end)
+        covered = {(gap.symbol, gap.slot_at) for gap in self.gaps()} | self._manifest_slots()
+        missing: list[OISlotGap] = []
+        slot = study.t0
+        while slot < end:
+            if slot_allowed(slot):
+                missing.extend(
+                    OISlotGap(
+                        symbol=symbol,
+                        slot_at=slot,
+                        reason="OI_NO_RUN_RECORDED",
+                        recorded_at=recorded_at,
+                    )
+                    for symbol in ("BTCUSDT", "ETHUSDT")
+                    if (symbol, slot) not in covered
+                )
+            slot += timedelta(hours=1)
+        return self.record_gaps(tuple(missing))
+
+    def study_lineage(self, start: OIAcceptedStart) -> OIStudyLineage:
+        """Genuine-input lineage for the database's one study under a committed START.
+
+        A manifest counts only when it re-verifies against its immutable artifacts, was
+        published under exactly this START by the production transport, is VALID personal
+        research and has no quarantined conflict. Labels on forecasts or scores never count.
+        """
+        from auvexo_alpha.application.oi_research import OIStudyLineage, OIStudyWindow
+
+        studies = [OIStudyWindow.model_validate_json(e.record_json) for e in self.ledger("STUDY")]
+        if len(studies) != 1:
+            raise ValueError("OI_ONE_STUDY_PER_DATABASE")
+        study = studies[0]
+        manifests = self.manifests()
+        conflicted = {m.logical_key for m in manifests if m.observation.quality == "QUARANTINED"}
+        genuine = []
+        for manifest in manifests:
+            self.verify(manifest)
+            if (
+                manifest.start_digest == start.digest
+                and manifest.transport == "PRODUCTION_HTTPS"
+                and manifest.observation.quality == "VALID"
+                and manifest.classification == DataUseClass.PERSONAL_RESEARCH
+                and manifest.logical_key not in conflicted
+            ):
+                genuine.append(manifest.content_hash())
+        lineage = OIStudyLineage(
+            study_hash=study.content_hash(),
+            start=start,
+            genuine_manifest_hashes=tuple(genuine),
+            gaps=self.gaps(),
+        )
+        if not lineage.binds(study):
+            raise ValueError("OI_STUDY_START_BINDING")
+        return lineage
+
     def _append_ledger(
         self,
         kind: Literal["STUDY", "FEATURE", "FORECAST", "SCORE"],
@@ -791,6 +982,12 @@ class OIStore:
                 if stored != envelope:
                     raise ValueError("OI_IMMUTABLE_LEDGER_CONFLICT")
                 return digest
+            if kind == "STUDY" and conn.scalar(
+                text("SELECT EXISTS(SELECT 1 FROM data_event WHERE feed_key=:f)"),
+                {"f": _STUDY_FEED},
+            ):
+                # Same lock as every append: one fixed study per dedicated database.
+                raise ValueError("OI_ONE_STUDY_PER_DATABASE")
             if kind == "FORECAST":
                 from auvexo_alpha.application.oi_research import OIForecast
 
@@ -1014,6 +1211,59 @@ class OIStore:
         return tuple(
             record for record in records if study_hash is None or record.study_hash == study_hash
         )
+
+
+def evaluate_recorded_study(
+    store: OIStore,
+    root: Path,
+    config: OICollectionConfig,
+    *,
+    as_of: datetime,
+    current_rights: OIRights | None,
+    review_authority: OIReviewAuthority | None = None,
+    material_failure: bool = False,
+) -> OIStudyResult:
+    """The only genuine evaluation route: the store's own records, never caller DTOs.
+
+    For a study recorded under a START, the build gate first proves ``root`` is the exact
+    clean reviewed release (or its acceptance-only descendant) for ``config``, the START
+    is read from the acceptance file in that proven commit's tree, it must bind this
+    ``config``, and the lineage is derived here from re-verified manifests. No lineage or
+    START is accepted from the caller. A study without a START is engineering evidence only.
+    """
+    from auvexo_alpha.application.oi_research import (
+        OIStudyWindow,
+        _evaluate_with_store_lineage,
+    )
+    from auvexo_alpha.infrastructure.oi_runtime import load_accepted_start, require_build
+
+    studies = [OIStudyWindow.model_validate_json(e.record_json) for e in store.ledger("STUDY")]
+    if len(studies) != 1:
+        raise ValueError("OI_ONE_STUDY_PER_DATABASE")
+    study = studies[0]
+    lineage = None
+    if study.start_digest is not None:
+        config = OICollectionConfig.model_validate(config.model_dump(mode="python"))
+        start = load_accepted_start(root, require_build(root, config), study.start_digest)
+        envelope = start.envelope
+        if (
+            envelope.config_hash != config.content_hash()
+            or envelope.implementation_revision != config.git_revision
+            or start.acceptance.study_id != config.study_id
+        ):
+            raise ValueError("OI_START_AUTHORITY_INVALID")
+        lineage = store.study_lineage(start)
+    study_hash = study.content_hash()
+    return _evaluate_with_store_lineage(
+        study,
+        store.forecasts(study_hash),
+        store.scores(study_hash),
+        as_of=as_of,
+        current_rights=current_rights,
+        review_authority=review_authority,
+        material_failure=material_failure,
+        lineage=lineage,
+    )
 
 
 class OITransportCheckpoint(Contract):

@@ -1,4 +1,4 @@
-"""Fresh committed-source clone/venv and isolated PostgreSQL migration on this Windows host."""
+"""Fresh committed-source clone/venv verified against a disposable PostgreSQL test cluster."""
 
 import hashlib
 import json
@@ -7,30 +7,18 @@ import subprocess
 import time
 from uuid import uuid4
 
-import psycopg
-from local_db import LOCAL, PORT, ROOT, credentials
-from psycopg import sql
+from disposable_pg import disposable_cluster
+from local_db import LOCAL, ROOT
 
 
 def main() -> None:
     suffix = uuid4().hex[:12]
     target = LOCAL / f"clean-clone-{suffix}"
-    database = f"auvexo_test_{suffix}"
     uv = LOCAL / "toolchains/uv-wheel/uv-0.13.1.data/scripts/uv.exe"
     env = {k: v for k, v in os.environ.items() if not k.startswith("AUVEXO_")}
     env["UV_PYTHON_INSTALL_DIR"] = str(LOCAL / "python")
     env["UV_CACHE_DIR"] = str(LOCAL / "uv-cache")
     env["UV_LINK_MODE"] = "copy"
-    creds = credentials()
-    env.update(
-        TEST_PG_DATA_WRITER_PASSWORD=json.loads((LOCAL / "data-secrets.json").read_text())[
-            "data_writer"
-        ],
-        TEST_PG_ADMIN_PASSWORD=creds["admin"],
-        TEST_PG_APP_PASSWORD=creds["app"],
-        TEST_PG_DATABASE=database,
-        TEST_PG_PORT=str(PORT),
-    )
     git = ["git", "-c", f"safe.directory={ROOT.as_posix()}"]
     commit = subprocess.check_output([*git, "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
     branch = subprocess.check_output(
@@ -73,27 +61,16 @@ def main() -> None:
             env=env,
             check=True,
         )
-    subprocess.run([str(uv), "sync", "--locked"], cwd=target, env=env, check=True)
+    # The provider SDK is a Windows-only dependency group, needed by the native proofs.
+    subprocess.run(
+        [str(uv), "sync", "--locked", "--group", "provider"], cwd=target, env=env, check=True
+    )
     install_seconds = time.monotonic() - started
-    args = dict(host="127.0.0.1", port=PORT, user="auvexo_admin", password=creds["admin"])
-    with psycopg.connect(dbname="postgres", autocommit=True, **args) as admin:
-        admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(database)))
-        admin.execute(
-            sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(sql.Identifier(database))
-        )
-        admin.execute(
-            sql.SQL("GRANT CONNECT ON DATABASE {} TO auvexo_app").format(sql.Identifier(database))
-        )
-        migrate_env = env | {
-            "AUVEXO_MIGRATION_DSN": f"postgresql+psycopg://auvexo_admin:{creds['admin']}@127.0.0.1:{PORT}/{database}"
-        }
+    # A fresh disposable cluster, migrated to head by the source checkout's harness and
+    # always destroyed; the clone's tests can reach nothing else.
+    with disposable_cluster() as cluster:
+        env.update(cluster.environment())
         python = target / ".venv/Scripts/python.exe"
-        subprocess.run(
-            [str(python), "-m", "alembic", "upgrade", "head"],
-            cwd=target,
-            env=migrate_env,
-            check=True,
-        )
         commands = [
             [str(python), "-m", "ruff", "format", "--check", "src", "tests", "tools", "migrations"],
             [str(python), "-m", "ruff", "check", "src", "tests", "tools", "migrations"],
@@ -106,7 +83,6 @@ def main() -> None:
         for command in commands:
             subprocess.run(command, cwd=target, env=env, check=True)
         assert not subprocess.check_output(["git", "status", "--porcelain"], cwd=target)
-        admin.execute(sql.SQL("DROP DATABASE {}").format(sql.Identifier(database)))
     report = dict(
         status="PASS",
         source_commit=commit,
@@ -117,7 +93,7 @@ def main() -> None:
         verified_shared_download_cache=True,
         verified_local_runtime_wheel=wheel.exists(),
         shared_verified_python=True,
-        isolated_migration=True,
+        disposable_cluster_migration=True,
         clean_tree=True,
         clone_and_install_seconds=round(install_seconds, 3),
         total_seconds=round(time.monotonic() - started, 3),

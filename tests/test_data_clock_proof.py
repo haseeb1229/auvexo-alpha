@@ -104,12 +104,31 @@ class MemoryStore:
         self.events, self.published, self.quarantined, self.checkpoints = [], [], [], {}
         self.publish_error = None
         self.checkpoint_error = None
+        self.reviewed_gaps = []
+        self.cooldowns = {}
+        self.probes = []
 
     def check_quota(self, extra):
         assert extra >= 0
 
-    def cooldown(self, now):
-        return False
+    def cooldown_state(self, now, host):
+        return self.cooldowns.get(host, ("CLEAR", None))
+
+    def start_probe(self, release_id, url, now):
+        if any(probe[0] == release_id for probe in self.probes):
+            raise ValueError("duplicate key: one probe per release")
+        self.probes.append((release_id, url))
+        # The release's single probe is consumed before any request is sent.
+        self.cooldowns = {h: ("BLOCKED", None) for h in self.cooldowns}
+
+    def probe_result(self, release_id, passed, reason, now):
+        self.probes.append((release_id, "PASSED" if passed else "FAILED", reason))
+
+    def gaps(self, start, end, feed=None):
+        return sorted(
+            (g for g in self.reviewed_gaps if g.overlaps(start, end) and g.feed_key == feed),
+            key=lambda g: g.gap_start,
+        )
 
     def event(self, value):
         self.events.append(value)
@@ -338,6 +357,8 @@ def test_provider_limit_on_the_clock_request_is_a_source_event_not_input(monkeyp
     event = store.events[0]
     assert (event.state, event.reason) == ("STALE", "RATE_LIMIT")
     assert event.blocked_until == world.local_now() + timedelta(seconds=3600)
+    # The cooldown binds the REST service that answered, not the archive host (D-11).
+    assert event.cooldown_host == "data-api.binance.vision"
     assert world.urls == [CLOCK_URL] and not store.quarantined and not store.published
 
 

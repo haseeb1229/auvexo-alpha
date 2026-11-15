@@ -96,7 +96,7 @@ class ScriptedConnection:
 
     def execute(self, statement, parameters=None):
         value = self.answer(statement, parameters)
-        return SimpleNamespace(one=lambda: value)
+        return SimpleNamespace(one=lambda: value, all=lambda: value)
 
     def scalar(self, statement, parameters=None):
         return self.answer(statement, parameters)
@@ -124,38 +124,20 @@ def scripted_ledger(tmp_path, study, answers):
 
 SEALED_ELSEWHERE = "NOT EXISTS (SELECT 1 FROM research_event"
 EXPOSED_ELSEWHERE = "{split,train_start}"
-OWN_EVENT = "SELECT payload FROM research_event"
+STORED_INPUTS = "FROM data_manifest"
 
 
-def test_development_reads_ask_whether_another_study_still_seals_the_range(tmp_path):
-    study = synthetic_study()
-    split = study.split
-    ranges = {
-        "TRAIN": (split.train_start, split.train_end),
-        "VALIDATION": (split.validation_start, split.validation_end),
-        "WALK_FORWARD": (split.train_start, split.validation_end),
-    }
-    for phase, (start, end) in ranges.items():
-        ledger, conn = scripted_ledger(tmp_path, study, {OWN_EVENT: None, SEALED_ELSEWHERE: 1})
-        with pytest.raises(ValueError, match="READ_OVERLAPS_SEALED_HOLDOUT_OF_ANOTHER_STUDY"):
-            ledger.authorize_read(study.study_id, phase, start, end)
-        assert conn.parameters(SEALED_ELSEWHERE) == [
-            {"id": study.study_id, "instrument": study.instrument, "start": start, "end": end}
-        ]
-        ledger, conn = scripted_ledger(tmp_path, study, {OWN_EVENT: None, SEALED_ELSEWHERE: 0})
-        assert ledger.authorize_read(study.study_id, phase, start, end) == study
-    # The study's own opened holdout is read under its own consumption record instead.
-    opened = artifact_bytes({"selected": ["0" * 64]}).decode()
-    ledger, conn = scripted_ledger(tmp_path, study, {OWN_EVENT: opened})
-    assert ledger.authorize_read(study.study_id, "OOS", split.oos_start, split.oos_end) == study
-    assert conn.parameters(SEALED_ELSEWHERE) == []
+def stored(study):
+    return [(item.manifest.dataset_version, item.manifest_hash) for item in study.inputs]
 
 
 def test_registration_checks_both_calendar_directions_before_inserting(tmp_path):
     study = synthetic_study()
     split = study.split
-    insert = "INSERT INTO research_study"
-    ledger, conn = scripted_ledger(tmp_path, study, {SEALED_ELSEWHERE: 1})
+    insert = "INSERT INTO research_study VALUES"
+    configs = "INSERT INTO research_study_config"
+    present = {STORED_INPUTS: stored(study)}
+    ledger, conn = scripted_ledger(tmp_path, study, present | {SEALED_ELSEWHERE: 1})
     with pytest.raises(ValueError, match="DEVELOPMENT_OVERLAPS_SEALED_HOLDOUT_OF_ANOTHER_STUDY"):
         ledger.register(study)
     assert conn.parameters(insert) == []
@@ -165,7 +147,9 @@ def test_registration_checks_both_calendar_directions_before_inserting(tmp_path)
         "start": split.train_start,
         "end": split.validation_end,
     }
-    ledger, conn = scripted_ledger(tmp_path, study, {SEALED_ELSEWHERE: 0, EXPOSED_ELSEWHERE: 1})
+    ledger, conn = scripted_ledger(
+        tmp_path, study, present | {SEALED_ELSEWHERE: 0, EXPOSED_ELSEWHERE: 1}
+    )
     with pytest.raises(ValueError, match="HOLDOUT_OVERLAPS_DEVELOPMENT_OF_ANOTHER_STUDY"):
         ledger.register(study)
     assert conn.parameters(insert) == []
@@ -178,67 +162,115 @@ def test_registration_checks_both_calendar_directions_before_inserting(tmp_path)
         }
     ]
     ledger, conn = scripted_ledger(
-        tmp_path, study, {SEALED_ELSEWHERE: 0, EXPOSED_ELSEWHERE: 0, insert: None}
+        tmp_path,
+        study,
+        present | {SEALED_ELSEWHERE: 0, EXPOSED_ELSEWHERE: 0, insert: None, configs: None},
     )
     ledger.register(study)
     assert [p["id"] for p in conn.parameters(insert)] == [study.study_id]
+    # Every registered config becomes an index/family row the database gates rely on.
+    assert [(p["i"], p["h"], p["f"]) for p in conn.parameters(configs)] == [
+        (index, c.content_hash(), c.family) for index, c in enumerate(study.configs)
+    ]
 
 
-def holdout_script(tmp_path, study, recorded):
-    """A complete validation grid plus, optionally, one recorded selection artifact."""
-    answers = {
-        "SELECT config_hash FROM research_trial": [c.content_hash() for c in study.configs],
-        "SELECT artifact_hash FROM research_trial": None,
-        "JOIN research_study": 0,
-        "INSERT INTO research_event": None,
-    }
-    if recorded is not None:
-        artifact = recorded_selection(recorded)
-        digest = hashlib.sha256(artifact).hexdigest()
-        (tmp_path / (digest + ".json")).write_bytes(artifact)
-        answers["SELECT artifact_hash FROM research_trial"] = digest
-        answers["SELECT artifact_hash,artifact_bytes"] = (digest, len(artifact))
-    return scripted_ledger(tmp_path, study, answers)
+@pytest.mark.parametrize(
+    "change,code",
+    [
+        ({"code_hash": "1" * 64}, "RESEARCH_CODE_HASH_MISMATCH"),
+        ({"dependency_hash": "1" * 64}, "DEPENDENCY_LOCK_HASH_MISMATCH"),
+    ],
+)
+def test_registration_refuses_a_study_not_bound_to_the_running_code_and_lock(
+    tmp_path, change, code
+):
+    study = synthetic_study().model_copy(update=change)
+    ledger, conn = scripted_ledger(tmp_path, study, {STORED_INPUTS: stored(study)})
+    with pytest.raises(ValueError, match=f"^{code}$"):
+        ledger.register(study)
+    assert conn.parameters("INSERT") == []
 
 
-def test_holdout_opens_only_with_the_recorded_frozen_selection(tmp_path):
+@pytest.mark.parametrize("rows", ["missing", "other_hash"])
+def test_registration_refuses_inputs_absent_from_or_different_in_the_store(tmp_path, rows):
+    study = synthetic_study()
+    answer = [] if rows == "missing" else [(v, "f" * 64) for v, _ in stored(study)]
+    ledger, conn = scripted_ledger(tmp_path, study, {STORED_INPUTS: answer})
+    with pytest.raises(ValueError, match="^STUDY_INPUT_NOT_IN_STORE$"):
+        ledger.register(study)
+    assert conn.parameters("INSERT") == []
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        "HOLDOUT_NOT_OPEN_OR_DEVELOPMENT_ALREADY_CONSUMED",
+        "READ_OUTSIDE_REGISTERED_SPLIT",
+        "READ_OVERLAPS_SEALED_HOLDOUT_OF_ANOTHER_STUDY",
+        None,
+    ],
+)
+def test_reads_are_authorized_and_logged_by_the_database_gate_only(tmp_path, code):
+    study = synthetic_study()
+    split = study.split
+    gate = "research_authorize_read"
+    ledger, conn = scripted_ledger(tmp_path, study, {gate: code, STORED_INPUTS: stored(study)})
+    with pytest.raises(ValueError, match=f"^{code or 'RESEARCH_GATE_FAILED'}$"):
+        ledger.authorize_read(study.study_id, "TRAIN", split.train_start, split.train_end)
+    (asked,) = conn.parameters(gate)
+    assert (asked["phase"], asked["start"], asked["end"]) == (
+        "TRAIN",
+        split.train_start,
+        split.train_end,
+    )
+    ledger, conn = scripted_ledger(
+        tmp_path, study, {gate: "AUTHORIZED", STORED_INPUTS: stored(study)}
+    )
+    read = ledger.authorize_read(study.study_id, "TRAIN", split.train_start, split.train_end)
+    assert read.study == study and read.receipt_id == conn.parameters(gate)[0]["receipt"]
+    assert len(read.receipt_id) == 64
+
+
+def test_holdout_opening_maps_the_database_gate_and_never_writes_the_event_itself(tmp_path):
     study = synthetic_study(configs=frozen_configs())
     hashes = [c.content_hash() for c in study.configs]
-    frozen = (hashes[0], hashes[1], hashes[2], hashes[4], hashes[5])
-    event = "INSERT INTO research_event"
-    ledger, conn = holdout_script(tmp_path, study, None)
-    with pytest.raises(ValueError, match="SELECTION_NOT_FROZEN_HOLDOUT_SEALED"):
-        ledger.open_holdout(study.study_id, frozen)
-    assert conn.parameters(event) == []
-    refused = (
-        tuple(hashes),
-        (hashes[0], hashes[1], hashes[2], hashes[3], hashes[6]),
-        frozen[:-1],
-        tuple(reversed(frozen)),
-    )
-    for attempt in refused:
-        ledger, conn = holdout_script(tmp_path, study, frozen)
-        with pytest.raises(ValueError, match="HOLDOUT_SELECTION_NOT_FROZEN"):
-            ledger.open_holdout(study.study_id, attempt)
-        assert conn.parameters(event) == []
-    # A recorded whole-grid "selection" can never open the holdout, whatever is requested.
-    for attempt in (tuple(hashes), frozen):
-        ledger, conn = holdout_script(tmp_path, study, hashes)
-        with pytest.raises(ValueError, match="SELECTION_NOT_ONE_CONFIG_PER_FAMILY"):
-            ledger.open_holdout(study.study_id, attempt)
-        assert conn.parameters(event) == []
-    ledger, conn = holdout_script(tmp_path, study, frozen)
-    ledger.open_holdout(study.study_id, frozen)
-    (inserted,) = conn.parameters(event)
-    assert json.loads(inserted["payload"]) == {
-        "claim": "CONSUMED_BEFORE_READ",
-        "selected": list(frozen),
-        "selection_artifact": hashlib.sha256(recorded_selection(frozen)).hexdigest(),
-    }
-    # The frozen artifact is hash-verified inside the same transaction.
-    ledger, conn = holdout_script(tmp_path, study, frozen)
-    digest = hashlib.sha256(recorded_selection(frozen)).hexdigest()
+    frozen = [hashes[0], hashes[1], hashes[2], hashes[4], hashes[5]]
+    gate = "research_open_holdout"
+    for code in ("SELECTION_NOT_FROZEN_HOLDOUT_SEALED", "HOLDOUT_SELECTION_NOT_FROZEN"):
+        ledger, conn = scripted_ledger(
+            tmp_path, study, {"FROM research_selection": None, gate: code}
+        )
+        with pytest.raises(ValueError, match=f"^{code}$"):
+            ledger.open_holdout(study.study_id, tuple(frozen))
+        assert json.loads(conn.parameters(gate)[0]["selected"]) == frozen
+    # The retained selection artifact must still agree with the database's frozen row.
+    artifact = recorded_selection(frozen)
+    digest = hashlib.sha256(artifact).hexdigest()
     (tmp_path / (digest + ".json")).write_bytes(recorded_selection(hashes))
+    ledger, conn = scripted_ledger(
+        tmp_path,
+        study,
+        {
+            "FROM research_selection": frozen,
+            "SELECT artifact_hash,artifact_bytes": (digest, len(artifact)),
+        },
+    )
     with pytest.raises(ValueError, match="CORRUPT_RESEARCH_ARTIFACT"):
-        ledger.open_holdout(study.study_id, frozen)
-    assert conn.parameters(event) == []
+        ledger.open_holdout(study.study_id, tuple(frozen))
+    assert conn.parameters(gate) == []
+    with pytest.raises(ValueError, match="UNREGISTERED_SELECTION"):
+        ledger.open_holdout(study.study_id, ())
+
+
+def test_ledger_source_never_writes_gate_records_directly():
+    """HOLDOUT_OPEN, frozen selections, read receipts and completions come only from the
+    reviewed SECURITY DEFINER functions; the research role holds no INSERT on them.
+    """
+    source = (ROOT / "src/auvexo_alpha/infrastructure/research_ledger.py").read_text()
+    for table in (
+        "research_event",
+        "research_selection",
+        "research_read_receipt",
+        "research_holdout_completion",
+    ):
+        assert f"INSERT INTO {table}" not in source

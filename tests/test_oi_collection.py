@@ -16,8 +16,12 @@ import psutil
 import pytest
 
 from auvexo_alpha.domain.oi_schedule import (
+    OIAcceptedStart,
     OIClockProof,
     OICollectionConfig,
+    OIRuntimeIdentity,
+    OIStartAcceptance,
+    OIStartAcceptanceFile,
     OIStartEnvelope,
     current_slot,
     require_scheduled_start,
@@ -80,6 +84,50 @@ def authority(config, at=NOW):
     )
 
 
+RUNTIME = OIRuntimeIdentity(
+    checkout_root="C:/synthetic/oi-runtime",
+    python_executable="C:/synthetic/oi-runtime/.venv/Scripts/python.exe",
+    python_executable_sha256="1" * 64,
+    base_interpreter_sha256="2" * 64,
+)
+COMMIT = "f" * 40
+
+
+def acceptance(envelope, config):
+    """Synthetic stand-in for one entry of a committed acceptance file; never real."""
+    return OIStartAcceptance(
+        study_id=config.study_id,
+        envelope=envelope,
+        runtime=RUNTIME,
+        commissioning_clock_source=config.clock_source,
+        commissioning_clock_evidence_hash="9" * 64,
+        acceptance_review_ref="synthetic-independent-review",
+    )
+
+
+def accepted(envelope, config):
+    return OIAcceptedStart(acceptance_commit=COMMIT, acceptance=acceptance(envelope, config))
+
+
+def committed_start(module, monkeypatch, path, envelope, config):
+    """Synthetic committed tree for the CLI: no Git object, ref or real START is written.
+
+    The CLI's loader is replaced by one reading this file for the proven commit only.
+    Returns the digest a reviewed task would pass.
+    """
+    entry = acceptance(envelope, config)
+    path.write_bytes(OIStartAcceptanceFile(accepted=(entry,)).canonical_bytes())
+
+    def load(root, commit, digest):
+        assert root == ROOT and commit == COMMIT
+        committed = OIStartAcceptanceFile.model_validate_json(path.read_bytes())
+        return OIAcceptedStart(acceptance_commit=commit, acceptance=committed.select(digest))
+
+    monkeypatch.setattr(module, "load_accepted_start", load)
+    monkeypatch.setattr(module, "runtime_identity", lambda _root: RUNTIME)
+    return entry.content_hash()
+
+
 def clock_proof(at=NOW):
     return OIClockProof(
         source="synthetic-ntp",
@@ -116,6 +164,8 @@ class Store:
             [],
             [],
         )
+        # Gap writes are durable evidence, deliberately kept apart from lease/data calls.
+        self.gaps, self.missed = [], []
 
     @contextmanager
     def collection_lease(self):
@@ -129,7 +179,18 @@ class Store:
     def checkpoint(self, symbol):
         return self.manifests.get(symbol)
 
-    def publish(self, observation, raw, *, rights, classification, now):
+    def record_gaps(self, gaps):
+        self.gaps.extend(gaps)
+        return len(gaps)
+
+    def record_missed_slots(self, study, before, recorded_at):
+        self.missed.append((study.start_digest, before, recorded_at))
+        return 0
+
+    def slot_gap_recorded(self, symbol, slot_at):
+        return any(g.symbol == symbol and g.slot_at == slot_at for g in self.gaps)
+
+    def publish(self, observation, raw, *, rights, classification, now, start_digest, transport):
         m = OIManifest(
             dataset_version=oi_dataset_version(observation),
             logical_key=f"ds04-a1:{observation.symbol}:{observation.provider_time_ms}:{observation.parser_version}",
@@ -143,6 +204,8 @@ class Store:
             created_at=now,
             processed_at=now,
             classification=classification,
+            start_digest=start_digest,
+            transport=transport,
         )
         self.manifests[observation.symbol] = m
         return m
@@ -244,12 +307,67 @@ def test_disabled_no_catchup_and_boundary_deadlines():
 def test_start_envelope_hash_and_scope_bindings(field, bad):
     config = configuration(enabled=True)
     envelope = authority(config)
-    envelope.require_start(config, envelope.content_hash(), NOW)
+    envelope.require_start(config, NOW)
+    accepted(envelope, config).require_start(config, NOW)
     altered = OIStartEnvelope.model_validate({**envelope.model_dump(mode="python"), field: bad})
     with pytest.raises(ValueError, match="START_AUTHORITY_INVALID"):
-        altered.require_start(config, altered.content_hash(), NOW)
+        altered.require_start(config, NOW)
+    # Committed acceptance of the altered envelope still cannot authorize this config.
     with pytest.raises(ValueError, match="START_AUTHORITY_INVALID"):
-        envelope.require_start(config, "0" * 64, NOW)
+        accepted(altered, config).require_start(config, NOW)
+
+
+def test_self_computed_digest_is_never_acceptance():
+    """The old same-party check: any digest computed over a supplied envelope passed.
+
+    Acceptance now exists only as an entry of the committed file. A digest naming no
+    entry, or an envelope the file does not contain, selects nothing.
+    """
+    config = configuration(enabled=True)
+    envelope = authority(config)
+    committed = OIStartAcceptanceFile(accepted=(acceptance(envelope, config),))
+    entry = committed.select(acceptance(envelope, config).content_hash())
+    assert entry.envelope == envelope
+    other = OIStartEnvelope.model_validate(
+        {**envelope.model_dump(mode="python"), "owner_authorization_ref": "self-issued"}
+    )
+    for digest in (
+        envelope.content_hash(),
+        other.content_hash(),
+        acceptance(other, config).content_hash(),
+        "0" * 64,
+    ):
+        with pytest.raises(ValueError, match="OI_START_NOT_ACCEPTED"):
+            committed.select(digest)
+    with pytest.raises(ValueError, match="OI_START_ACCEPTANCE_DUPLICATE"):
+        OIStartAcceptanceFile(accepted=(entry, entry))
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"study_id": "another-study"},
+        {"commissioning_clock_source": "another-ntp"},
+    ],
+)
+def test_committed_start_binds_study_and_commissioning_clock_source(changes):
+    config = configuration(enabled=True)
+    entry = acceptance(authority(config), config).model_copy(update=changes)
+    with pytest.raises(ValueError, match="START_AUTHORITY_INVALID"):
+        OIAcceptedStart(acceptance_commit=COMMIT, acceptance=entry).require_start(config, NOW)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["checkout_root", "python_executable", "python_executable_sha256", "base_interpreter_sha256"],
+)
+def test_committed_start_binds_the_exact_runtime(field):
+    config = configuration(enabled=True)
+    entry = acceptance(authority(config), config)
+    entry.require_runtime(RUNTIME)
+    value = "3" * 64 if field.endswith("sha256") else "C:/synthetic/elsewhere"
+    with pytest.raises(ValueError, match="OI_START_RUNTIME_MISMATCH"):
+        entry.require_runtime(RUNTIME.model_copy(update={field: value}))
 
 
 def test_clock_expiry_future_source_and_rights_failure():
@@ -369,7 +487,7 @@ def test_start_binds_fixed_database_config_and_refuses_pre_database_hash():
     envelope = authority(config)
     legacy = OIStartEnvelope.model_validate({**envelope.model_dump(), "config_hash": legacy_hash})
     with pytest.raises(ValueError, match="OI_START_AUTHORITY_INVALID"):
-        legacy.require_start(config, legacy.content_hash(), NOW)
+        legacy.require_start(config, NOW)
 
 
 @pytest.mark.parametrize(
@@ -394,7 +512,7 @@ def test_database_identity_config_is_fixed_and_constructed_start_bypass_denied(c
     if "database_host" not in changes:
         tampered = config.model_copy(update=changes)
         with pytest.raises(ValueError):
-            envelope.require_start(tampered, envelope.content_hash(), NOW)
+            envelope.require_start(tampered, NOW)
 
 
 @pytest.mark.parametrize(
@@ -402,7 +520,7 @@ def test_database_identity_config_is_fixed_and_constructed_start_bypass_denied(c
     [
         ("disabled", "OI_COLLECTOR_DISABLED"),
         ("missing", "OI_OWNER_START_REQUIRED"),
-        ("digest", "OI_START_AUTHORITY_INVALID"),
+        ("unbound", "OI_START_AUTHORITY_INVALID"),
         ("clock", "OI_CLOCK_UNTRUSTED"),
         ("resource", "OI_RESOURCE_YIELD"),
         ("late", "OI_LATE_NO_CATCHUP"),
@@ -419,53 +537,54 @@ def test_all_preflight_gates_precede_store_or_http(case, reason):
         else NOW
     )
     job, store, http, _, _ = job_fixture(config, at=at, ready=lambda: case != "resource")
-    envelope = None if case == "missing" else authority(config, at)
-    digest = "0" * 64 if case == "digest" else envelope.content_hash() if envelope else None
+    envelope = authority(config, at)
+    if case == "unbound":
+        envelope = OIStartEnvelope.model_validate(
+            {**envelope.model_dump(mode="python"), "config_hash": "0" * 64}
+        )
     result = job.run(
-        envelope=envelope,
-        accepted_start_digest=digest,
+        start=None if case == "missing" else accepted(envelope, config),
         clock=None if case == "clock" else clock_proof(at),
     )
     assert result.code == "BLOCKED" and result.reason == reason
     assert result.forward_days == 0 and not http.calls and not store.calls
+    # OI-9: a refused scheduled slot under a valid START is a durable gap for both
+    # symbols; no START, an invalid START, a disabled config or a protected hour is not.
+    if case in ("clock", "resource", "late"):
+        assert [(g.symbol, g.slot_at, g.reason) for g in store.gaps] == [
+            ("BTCUSDT", NOW, reason),
+            ("ETHUSDT", NOW, reason),
+        ]
+    else:
+        assert not store.gaps
 
 
 def test_cancel_and_single_instance_prevent_network():
     job, store, http, _, cancel = job_fixture()
     envelope = authority(job.config)
     cancel.set()
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert result.code == "STOPPED" and not http.calls and not store.calls
     job, store, http, _, _ = job_fixture(busy=True)
     envelope = authority(job.config)
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert result.code == "BUSY" and not http.calls and not store.studies
 
 
 def test_two_symbol_job_staggers_bounds_and_restart_never_catches_up():
     job, store, http, clock, _ = job_fixture()
     envelope = authority(job.config)
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert result.code == "COMPLETE" and result.exit_code == 0 and result.forward_days == 0
     assert [row[0] for row in http.calls] == ["BTCUSDT", "ETHUSDT"]
     assert http.calls[1][1] - http.calls[0][1] == timedelta(seconds=2)
     assert all(row[2] == 60 for row in http.calls) and clock.seconds == 2
     assert len(store.manifests) == len(store.features) == 2
     before = len(http.calls)
-    repeated = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    repeated = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert repeated.code == "COMPLETE" and len(http.calls) == before
     clock.seconds = 16
-    late = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    late = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert late.reason == "OI_LATE_NO_CATCHUP" and len(http.calls) == before
 
 
@@ -473,9 +592,7 @@ def test_source_failure_and_schema_failure_never_publish_fake_data():
     for error, body in (("OI_COOLDOWN", None), (None, b"{}")):
         job, store, http, _, _ = job_fixture(error=error, body=body)
         envelope = authority(job.config)
-        result = job.run(
-            envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-        )
+        result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
         assert result.code == "SOURCE_UNAVAILABLE" and len(http.calls) == 1
         assert not store.manifests and not store.features
         assert bool(store.quarantines) == (error is None)
@@ -489,9 +606,7 @@ def test_resource_recheck_yields_before_second_symbol():
     decisions = iter((True, True, True, False))
     job, store, http, _, _ = job_fixture(ready=lambda: next(decisions))
     envelope = authority(job.config)
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert result.reason == "OI_RESOURCE_YIELD" and len(http.calls) == 1
 
 
@@ -728,9 +843,7 @@ def test_authority_expiry_during_symbol_stagger_prevents_second_request():
     envelope = OIStartEnvelope.model_validate(
         {**base.model_dump(mode="python"), "expires_at": NOW + timedelta(seconds=1)}
     )
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert result.code == "BLOCKED" and result.reason == "OI_RUNTIME_AUTHORITY_OR_CLOCK_INVALID"
     assert [call[0] for call in http.calls] == ["BTCUSDT"]
 
@@ -757,9 +870,7 @@ def test_interruption_during_wait_never_reaches_http(change, reason):
         return False
 
     job.wait = interrupted_wait
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert result.reason == reason and not http.calls and not store.manifests
 
 
@@ -782,18 +893,15 @@ def test_local_oi_tests_never_reach_the_fixed_production_runtime_port(variable, 
     monkeypatch.delenv("OI_TEST_PG_PORT", raising=False)
     monkeypatch.setenv("TEST_PG_PORT", "55432")
     monkeypatch.setenv(variable, "55433")
-    for marker in (None, "false", "TRUE", "1"):
+    # Refused everywhere, hosted CI included: its disposable container uses another port.
+    for marker in (None, "false", "TRUE", "1", "true"):
         if marker is None:
             monkeypatch.delenv("GITHUB_ACTIONS", raising=False)
         else:
             monkeypatch.setenv("GITHUB_ACTIONS", marker)
         with pytest.raises(ValueError, match="OI_TEST_PORT_INVALID"):
             with oi_test_server():
-                pytest.fail("a local test must never reach the production OI runtime")
-    # Only the disposable CI container may listen on that port.
-    monkeypatch.setenv("GITHUB_ACTIONS", "true")
-    with oi_test_server() as port:
-        assert port == 55433
+                pytest.fail("a test must never reach the production OI runtime")
 
 
 @pytest.mark.parametrize(
@@ -830,26 +938,23 @@ def test_task_optional_reviewed_start_inputs_remain_disabled(tmp_path):
         config=tmp_path / "config.json",
         start=NOW,
     )
-    xml = module.task_definition(
-        **args,
-        start_envelope=tmp_path / "synthetic-start.json",
-        accepted_start_hash="a" * 64,
-    )
+    xml = module.task_definition(**args, accepted_start_hash="a" * 64)
     root = ElementTree.fromstring(xml)
     ns = {"t": "http://schemas.microsoft.com/windows/2004/02/mit/task"}
     arguments = root.find("t:Actions/t:Exec/t:Arguments", ns).text
-    assert "--start-envelope" in arguments and "--accepted-start-hash" in arguments
+    assert "--accepted-start-hash" in arguments and ("a" * 64) in arguments
+    # START content is never a task input; only the committed file supplies it.
+    assert "--start-envelope" not in arguments
     assert "--database" not in arguments and "--port" not in arguments
     assert root.find("t:Settings/t:Enabled", ns).text == "false"
     assert root.find("t:Triggers/t:TimeTrigger/t:Enabled", ns).text == "false"
-    for changes in (
-        {"start_envelope": tmp_path / "synthetic-start.json"},
-        {"accepted_start_hash": "a" * 64},
-        {"start_envelope": Path("relative.json"), "accepted_start_hash": "a" * 64},
-        {"start_envelope": tmp_path / "synthetic-start.json", "accepted_start_hash": "invalid"},
-    ):
+    for value in ("invalid", "A" * 64, "a" * 63, "a" * 64 + "\n"):
         with pytest.raises(ValueError, match="OI_TASK_CONFIG"):
-            module.task_definition(**args, **changes)
+            module.task_definition(**args, accepted_start_hash=value)
+    with pytest.raises(TypeError):
+        module.task_definition(
+            **args, start_envelope=tmp_path / "synthetic-start.json", accepted_start_hash="a" * 64
+        )
     # Database identity belongs only to the config accepted by START, never the task.
     for changes in (
         {"database": "auvexo_dev_oiresearch"},
@@ -880,11 +985,26 @@ def test_study_calendar_bounds_precede_store_and_source(boundary, reason, monkey
         monkeypatch.setattr(OIStudyWindow, "evaluation_end", property(lambda self: end))
     job, store, http, _, _ = job_fixture()
     envelope = authority(job.config)
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    start = accepted(envelope, job.config)
+    result = job.run(start=start, clock=clock_proof())
     assert result.code == "BLOCKED" and result.reason == reason and result.forward_days == 0
-    assert not http.calls and not store.calls and not store.studies and not store.manifests
+    assert not http.calls and not store.manifests and not store.gaps
+    if boundary == "before_t0":
+        assert not store.calls and not store.studies and not store.missed
+    else:
+        # OI-9: under the lease, trailing slots up to the window end become gaps, once.
+        assert store.calls == ["lease", "study"]
+        assert store.missed == [(start.digest, end, NOW)]
+
+
+def test_window_complete_run_records_trailing_gaps_only_under_the_lease(monkeypatch):
+    from auvexo_alpha.application.oi_research import OIStudyWindow
+
+    monkeypatch.setattr(OIStudyWindow, "evaluation_end", property(lambda self: NOW))
+    job, store, http, _, _ = job_fixture(busy=True)
+    result = job.run(start=accepted(authority(job.config), job.config), clock=clock_proof())
+    assert result.code == "BUSY" and result.reason == "OI_SINGLE_INSTANCE"
+    assert store.calls == ["lease"] and not store.missed and not http.calls
 
 
 @pytest.mark.parametrize(
@@ -910,9 +1030,9 @@ def test_cli_schedule_denies_before_build_clock_or_database(at, tmp_path, monkey
     config = configuration(enabled=True)
     config_path = tmp_path / "synthetic-config.json"
     config_path.write_bytes(config.canonical_bytes())
-    envelope = authority(config, at)
-    envelope_path = tmp_path / "synthetic-envelope.json"
-    envelope_path.write_bytes(envelope.canonical_bytes())
+    digest = committed_start(
+        module, monkeypatch, tmp_path / "synthetic-acceptance.json", authority(config, at), config
+    )
 
     class FixedTime:
         @classmethod
@@ -941,10 +1061,8 @@ def test_cli_schedule_denies_before_build_clock_or_database(at, tmp_path, monkey
             "--config",
             str(config_path),
             "--scheduled",
-            "--start-envelope",
-            str(envelope_path),
             "--accepted-start-hash",
-            envelope.content_hash(),
+            digest,
         ],
     )
     assert module.main() == 2
@@ -957,9 +1075,9 @@ def test_cli_uses_dedicated_oi_managed_root_not_engineering_cache(tmp_path, monk
     config = configuration(enabled=True)
     config_path = tmp_path / "synthetic-config.json"
     config_path.write_bytes(config.canonical_bytes())
-    envelope = authority(config)
-    envelope_path = tmp_path / "synthetic-envelope.json"
-    envelope_path.write_bytes(envelope.canonical_bytes())
+    digest = committed_start(
+        module, monkeypatch, tmp_path / "synthetic-acceptance.json", authority(config), config
+    )
     captured = {}
 
     class FixedTime:
@@ -986,7 +1104,7 @@ def test_cli_uses_dedicated_oi_managed_root_not_engineering_cache(tmp_path, monk
             return OIJobStatus("COMPLETE", "SYNTHETIC_NO_COLLECTION")
 
     monkeypatch.setattr(module, "datetime", FixedTime)
-    monkeypatch.setattr(module, "require_build", lambda *_: None)
+    monkeypatch.setattr(module, "require_build", lambda *_: COMMIT)
     monkeypatch.setattr(module, "inspect_clock", lambda *_: clock_proof())
     monkeypatch.setattr(
         module, "create_engine", lambda *_a, **_kw: SimpleNamespace(dispose=lambda: None)
@@ -1004,10 +1122,8 @@ def test_cli_uses_dedicated_oi_managed_root_not_engineering_cache(tmp_path, monk
             "--config",
             str(config_path),
             "--scheduled",
-            "--start-envelope",
-            str(envelope_path),
             "--accepted-start-hash",
-            envelope.content_hash(),
+            digest,
         ],
     )
     assert module.main() == 0
@@ -1058,9 +1174,7 @@ def test_receipt_after_owner_expiry_is_quarantined_without_manifest():
         return result
 
     http.fetch = delayed
-    result = job.run(
-        envelope=envelope, accepted_start_digest=envelope.content_hash(), clock=clock_proof()
-    )
+    result = job.run(start=accepted(envelope, job.config), clock=clock_proof())
     assert result.code == "BLOCKED" and result.reason == "OI_RECEIPT_ADMISSION_EXPIRED"
     assert store.quarantines[-1][2] == "RIGHTS_REJECTED" and not store.manifests
 
@@ -1103,8 +1217,8 @@ def cli_authorized_fixture(tmp_path, monkeypatch, *, at=NOW, config=None):
     config_path = tmp_path / "synthetic-config.json"
     config_path.write_bytes(config.canonical_bytes())
     envelope = authority(config, at)
-    envelope_path = tmp_path / "synthetic-start.json"
-    envelope_path.write_bytes(envelope.canonical_bytes())
+    committed_path = tmp_path / "synthetic-acceptance.json"
+    digest = committed_start(module, monkeypatch, committed_path, envelope, config)
 
     class FixedTime:
         @classmethod
@@ -1113,20 +1227,18 @@ def cli_authorized_fixture(tmp_path, monkeypatch, *, at=NOW, config=None):
 
     monkeypatch.setattr(module, "datetime", FixedTime)
     monkeypatch.setattr(module.signal, "signal", lambda *_: None)
-    monkeypatch.setattr(module, "require_build", lambda *_: None)
+    monkeypatch.setattr(module, "require_build", lambda *_: COMMIT)
     monkeypatch.setattr(module, "inspect_clock", lambda *_: clock_proof(at))
     argv = [
         "run_oi_collection",
         "--config",
         str(config_path),
         "--scheduled",
-        "--start-envelope",
-        str(envelope_path),
         "--accepted-start-hash",
-        envelope.content_hash(),
+        digest,
     ]
     monkeypatch.setattr(module.sys, "argv", argv)
-    return module, config, config_path, envelope, envelope_path, argv
+    return module, config, config_path, envelope, committed_path, argv
 
 
 @pytest.mark.parametrize(
@@ -1140,6 +1252,8 @@ def cli_authorized_fixture(tmp_path, monkeypatch, *, at=NOW, config=None):
         "config_invalid",
         "start_missing",
         "start_invalid",
+        "start_self_digest",
+        "runtime_mismatch",
         "build_invalid",
         "clock_inspection_failed",
         "clock_untrusted",
@@ -1162,7 +1276,7 @@ def test_cli_every_early_gate_prevents_persistent_secret_decryption(
         else NOW
     )
     config = configuration(enabled=case != "disabled")
-    module, _, config_path, envelope, envelope_path, argv = cli_authorized_fixture(
+    module, _, config_path, envelope, _, argv = cli_authorized_fixture(
         tmp_path, monkeypatch, at=at, config=config
     )
     if case == "manual":
@@ -1170,10 +1284,18 @@ def test_cli_every_early_gate_prevents_persistent_secret_decryption(
     elif case == "config_invalid":
         config_path.write_bytes(b'{"unknown":"SYNTHETIC_SENSITIVE_FAILURE"}')
     elif case == "start_missing":
-        argv.remove("--start-envelope")
-        argv.remove(str(envelope_path))
+        del argv[-2:]
     elif case == "start_invalid":
         argv[-1] = "0" * 64
+    elif case == "start_self_digest":
+        # The pre-fix acceptance: a digest the launcher computed over its own envelope.
+        argv[-1] = envelope.content_hash()
+    elif case == "runtime_mismatch":
+        monkeypatch.setattr(
+            module,
+            "runtime_identity",
+            lambda _root: RUNTIME.model_copy(update={"base_interpreter_sha256": "3" * 64}),
+        )
     elif case == "build_invalid":
 
         def bad_build(*_):
@@ -1237,6 +1359,7 @@ def test_cli_os_secret_decrypts_after_clock_and_before_first_database_connection
 
     def built(*_):
         calls.append("build")
+        return COMMIT
 
     def inspected(*_):
         calls.append("clock")
@@ -1361,7 +1484,7 @@ def test_cli_revalidates_time_sensitive_authority_before_secret_decryption(
     capsys,
 ):
     initial = datetime(2026, 11, 26, 23, tzinfo=UTC) if gate == "rights_expired" else NOW
-    module, config, _, envelope, envelope_path, argv = cli_authorized_fixture(
+    module, config, _, envelope, committed_path, argv = cli_authorized_fixture(
         tmp_path, monkeypatch, at=initial
     )
     if gate == "start_expired":
@@ -1372,8 +1495,7 @@ def test_cli_revalidates_time_sensitive_authority_before_secret_decryption(
         envelope = OIStartEnvelope.model_validate(
             {**envelope.model_dump(mode="python"), "expires_at": config.rights.review_due}
         )
-    envelope_path.write_bytes(envelope.canonical_bytes())
-    argv[-1] = envelope.content_hash()
+    argv[-1] = committed_start(module, monkeypatch, committed_path, envelope, config)
     clock = {"at": initial}
     calls = []
 
@@ -1395,6 +1517,7 @@ def test_cli_revalidates_time_sensitive_authority_before_secret_decryption(
         calls.append("build")
         if inspection == "build":
             advance()
+        return COMMIT
 
     def inspect(*_):
         calls.append("clock")
@@ -1412,7 +1535,10 @@ def test_cli_revalidates_time_sensitive_authority_before_secret_decryption(
     status = module.main()
     output = capsys.readouterr()
     _check_sensitive(not output.err and "SYNTHETIC_SENSITIVE" not in output.out)
-    assert status == 2 and calls == ["build", "clock"]
+    # START is read from the commit the build gate proves, so it is checked right after
+    # the build: authority that expires during the build stops before the clock query.
+    expected = ["build"] if inspection == "build" and gate != "late" else ["build", "clock"]
+    assert status == 2 and calls == expected
     assert json.loads(output.out) == {
         "status": "BLOCKED",
         "reason": "OI_PREFLIGHT_OR_PERSISTENCE_FAILED",
@@ -1678,3 +1804,166 @@ def test_cli_reports_recorded_research_failures_with_nonzero_exit(tmp_path, monk
         "research_failures": list(failures),
         "forward_days": 0,
     }
+
+
+def gap_rows(store):
+    return [(g.symbol, g.slot_at, g.reason) for g in store.gaps]
+
+
+@pytest.mark.parametrize(
+    "error,body,reason",
+    [
+        ("OI_COOLDOWN", None, "OI_COOLDOWN"),
+        # A code outside the closed gap set is still a gap, under the explicit catch-all.
+        ("REDIRECT_BLOCKED", None, "OI_REFUSED_UNCLASSIFIED"),
+        ("OI_UNLISTED_FUTURE_CODE", None, "OI_REFUSED_UNCLASSIFIED"),
+        (None, b"{}", "OI_SCHEMA_OR_QUALITY"),
+    ],
+)
+def test_source_or_schema_failure_records_a_gap_for_each_unadmitted_symbol(error, body, reason):
+    job, store, http, _, _ = job_fixture(error=error, body=body)
+    start = accepted(authority(job.config), job.config)
+    result = job.run(start=start, clock=clock_proof())
+    assert result.code == "SOURCE_UNAVAILABLE" and not store.manifests
+    # The first symbol's failure ends the slot: both symbols are gaps, never retried later.
+    assert gap_rows(store) == [("BTCUSDT", NOW, reason), ("ETHUSDT", NOW, reason)]
+    assert store.missed == [(start.digest, NOW, NOW)]
+
+
+def test_mid_slot_yield_records_only_the_symbol_that_was_not_collected():
+    decisions = iter((True, True, True, False))
+    job, store, http, _, _ = job_fixture(ready=lambda: next(decisions))
+    start = accepted(authority(job.config), job.config)
+    result = job.run(start=start, clock=clock_proof())
+    assert result.reason == "OI_RESOURCE_YIELD" and list(store.manifests) == ["BTCUSDT"]
+    assert gap_rows(store) == [("ETHUSDT", NOW, "OI_RESOURCE_YIELD")]
+    manifest = store.manifests["BTCUSDT"]
+    # Lineage, not a label: the START digest is recorded and the fixture transport is
+    # never production, whatever the classification says.
+    assert manifest.start_digest == start.digest
+    assert manifest.transport == "ENGINEERING_FIXTURE"
+    assert manifest.classification.value == "PERSONAL_RESEARCH"
+    assert store.studies[0].start_digest == start.digest
+
+
+def test_gap_reason_is_a_closed_set_with_one_explicit_catch_all():
+    from auvexo_alpha.domain.oi_schedule import OI_GAP_REASONS, OISlotGap, closed_gap_reason
+
+    assert "OI_REFUSED_UNCLASSIFIED" in OI_GAP_REASONS and "OI_NO_RUN_RECORDED" in OI_GAP_REASONS
+    for value in ("OI_NETWORK", "OI_CLOCK_UNTRUSTED", "OI_SLOT_DEADLINE"):
+        assert closed_gap_reason(value) == value
+    for value in ("OI_ANYTHING_MATCHING_THE_OLD_PATTERN", "oi_network", "", None, 7):
+        assert closed_gap_reason(value) == "OI_REFUSED_UNCLASSIFIED"
+    with pytest.raises(ValueError):
+        OISlotGap(symbol="BTCUSDT", slot_at=NOW, reason="OI_FREE_TEXT", recorded_at=NOW)
+
+
+def test_a_symbol_slot_with_a_recorded_gap_is_never_fetched():
+    from auvexo_alpha.domain.oi_schedule import OISlotGap
+
+    job, store, http, _, _ = job_fixture()
+    start = accepted(authority(job.config), job.config)
+    # A racing refused launch closed BTC at this slot before the collector reached it.
+    store.gaps.append(
+        OISlotGap(symbol="BTCUSDT", slot_at=NOW, reason="OI_CLOCK_UNTRUSTED", recorded_at=NOW)
+    )
+    result = job.run(start=start, clock=clock_proof())
+    assert result.code == "BLOCKED" and result.reason == "OI_SLOT_GAP_RECORDED"
+    assert not http.calls and not store.manifests
+    assert gap_rows(store) == [
+        ("BTCUSDT", NOW, "OI_CLOCK_UNTRUSTED"),
+        ("BTCUSDT", NOW, "OI_SLOT_GAP_RECORDED"),  # The real store keeps only the first.
+        ("ETHUSDT", NOW, "OI_SLOT_GAP_RECORDED"),
+    ]
+
+
+def test_a_gap_recorded_during_the_fetch_blocks_with_its_reason_and_stores_nothing():
+    from auvexo_alpha.domain.oi_schedule import OISlotGap
+
+    job, store, http, _, _ = job_fixture()
+    start = accepted(authority(job.config), job.config)
+
+    def racing_publish(observation, raw, **_):
+        # The store refuses under its lock once a racing launch has gapped the slot.
+        store.gaps.append(
+            OISlotGap(
+                symbol=observation.symbol,
+                slot_at=observation.slot_at,
+                reason="OI_CLOCK_UNTRUSTED",
+                recorded_at=NOW,
+            )
+        )
+        raise ValueError("OI_SLOT_GAP_RECORDED")
+
+    store.publish = racing_publish
+    result = job.run(start=start, clock=clock_proof())
+    assert result.code == "BLOCKED" and result.reason == "OI_SLOT_GAP_RECORDED"
+    assert len(http.calls) == 1 and not store.manifests and not store.quarantines
+    assert gap_rows(store) == [
+        ("BTCUSDT", NOW, "OI_CLOCK_UNTRUSTED"),
+        ("BTCUSDT", NOW, "OI_SLOT_GAP_RECORDED"),  # The real store keeps only the first.
+        ("ETHUSDT", NOW, "OI_SLOT_GAP_RECORDED"),
+    ]
+
+
+def test_late_or_cancelled_launch_of_a_collected_slot_is_not_a_gap():
+    job, store, http, clock, cancel = job_fixture()
+    start = accepted(authority(job.config), job.config)
+    assert job.run(start=start, clock=clock_proof()).code == "COMPLETE"
+    clock.seconds = 16
+    assert job.run(start=start, clock=clock_proof()).reason == "OI_LATE_NO_CATCHUP"
+    clock.seconds = 0
+    cancel.set()
+    assert job.run(start=start, clock=clock_proof()).reason == "OI_STOPPED"
+    assert not store.gaps
+
+
+@pytest.mark.parametrize("change", ["before_t0", "after_end", "expired_start", "disabled"])
+def test_refusal_outside_a_valid_study_window_records_nothing(change, monkeypatch):
+    from auvexo_alpha.application.oi_research import OIStudyWindow
+
+    config = configuration(enabled=change != "disabled")
+    envelope = authority(config)
+    if change == "before_t0":
+        monkeypatch.setattr(OIStudyWindow, "t0", property(lambda self: NOW + timedelta(hours=1)))
+    elif change == "after_end":
+        monkeypatch.setattr(OIStudyWindow, "evaluation_end", property(lambda self: NOW))
+    elif change == "expired_start":
+        envelope = OIStartEnvelope.model_validate(
+            {**envelope.model_dump(mode="python"), "expires_at": NOW}
+        )
+    job, store, http, _, _ = job_fixture(config, ready=lambda: False)
+    result = job.run(start=accepted(envelope, config), clock=clock_proof())
+    assert result.code == "BLOCKED" and not store.gaps and not http.calls
+
+
+def test_production_transport_is_only_the_builtin_isolated_worker():
+    from threading import Event
+
+    from auvexo_alpha.infrastructure.oi_http import OIHTTP, OIBudgetState
+
+    state = OIBudgetState(
+        hour_started_at=NOW, day_started_at=NOW.replace(hour=0), hour_attempts=0, day_attempts=0
+    )
+
+    def refuse(*_):
+        pytest.fail("no request in this test")
+
+    builtin = OIHTTP(Event(), state=state, persist=refuse)
+    injected = OIHTTP(Event(), state=state, persist=refuse, transport=refuse)
+    assert builtin.transport_kind == "PRODUCTION_HTTPS"
+    assert injected.transport_kind == "ENGINEERING_FIXTURE"
+
+
+def test_production_manifest_without_a_start_digest_is_refused():
+    manifest = next(iter(job_run_manifests().values()))
+    payload = manifest.model_dump(mode="python") | {"transport": "PRODUCTION_HTTPS"}
+    with pytest.raises(ValueError, match="OI_START_BINDING_REQUIRED"):
+        OIManifest.model_validate(payload | {"start_digest": None})
+    assert OIManifest.model_validate(payload).start_digest == manifest.start_digest
+
+
+def job_run_manifests():
+    job, store, _, _, _ = job_fixture()
+    job.run(start=accepted(authority(job.config), job.config), clock=clock_proof())
+    return store.manifests

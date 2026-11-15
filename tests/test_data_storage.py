@@ -7,7 +7,6 @@ import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
-from pathlib import Path
 from uuid import uuid4
 
 import psycopg
@@ -56,11 +55,8 @@ def store(tmp_path):
             check=True,
             capture_output=True,
         )
-        secret_path = Path(".local/data-secrets.json")
-        password = (
-            os.environ.get("TEST_PG_DATA_WRITER_PASSWORD")
-            or json.loads(secret_path.read_text())["data_writer"]
-        )
+        # The harness role is proven against the disposable-cluster marker; no secret files.
+        password = connection_args("data_writer")["password"]
         engine = create_engine(
             url.set(username="auvexo_data_writer", password=password),
             hide_parameters=True,
@@ -83,8 +79,8 @@ def publish(store, key="sample", price="100", checkpoint=None, parser_version="s
     return store.publish(
         bars,
         report,
-        identity("DS-02"),
-        rights("DS-02"),
+        identity("DS-02", NOW),
+        rights("DS-02", NOW),
         key,
         "https://fixture.invalid",
         raw,
@@ -153,8 +149,8 @@ def test_republished_eight_decimal_rows_count_only_real_changes(store):
         return store.publish(
             bars,
             report,
-            identity("DS-02"),
-            rights("DS-02"),
+            identity("DS-02", received),
+            rights("DS-02", received),
             "eight.decimal.fixture",
             "https://fixture.invalid",
             raw,
@@ -192,8 +188,8 @@ def test_parser_revision_creates_new_lineage_without_overwriting_source(store):
     args = (
         bars,
         report,
-        identity("DS-02"),
-        rights("DS-02"),
+        identity("DS-02", NOW),
+        rights("DS-02", NOW),
         "parser.fixture",
         "https://fixture.invalid",
         raw,
@@ -339,8 +335,8 @@ def test_false_complete_report_refused(store):
         store.publish(
             bars,
             forged,
-            identity("DS-02"),
-            rights("DS-02"),
+            identity("DS-02", NOW),
+            rights("DS-02", NOW),
             "forged",
             "https://fixture.invalid",
             raw,

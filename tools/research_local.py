@@ -5,11 +5,10 @@ import secrets
 import sys
 
 import psycopg
-from local_db import LOCAL, PORT, credentials, write_private
-from psycopg import sql
+from local_db import LOCAL, PORT, credentials, login_role_sql, write_private
 
 
-def main():
+def main() -> None:
     if sys.argv[1:] != ["provision"]:
         raise SystemExit("Usage: python tools/research_local.py provision")
     path = LOCAL / "research-secrets.json"
@@ -28,10 +27,12 @@ def main():
             "SELECT 1 FROM pg_roles WHERE rolname='auvexo_research_worker'"
         ).fetchone():
             conn.execute(
-                sql.SQL(
-                    "CREATE ROLE auvexo_research_worker LOGIN PASSWORD {} "
-                    "NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT"
-                ).format(sql.Literal(password))
+                login_role_sql(
+                    conn,
+                    "auvexo_research_worker",
+                    password,
+                    "NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT",
+                )
             )
         conn.execute("GRANT auvexo_research TO auvexo_research_worker")
         conn.execute("GRANT CONNECT ON DATABASE auvexo_dev,auvexo_test TO auvexo_research_worker")

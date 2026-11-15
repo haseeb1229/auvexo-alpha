@@ -10,7 +10,8 @@ from research_fixtures import config, fitted, synthetic_result, synthetic_study,
 from auvexo_alpha.application.research_metrics import block_uncertainty
 from auvexo_alpha.application.research_simulator import artifact_bytes, simulate
 from auvexo_alpha.application.research_study import frozen_configs, screen, select_validation
-from auvexo_alpha.domain.research import CostModel, PriceAvailability
+from auvexo_alpha.domain.research import CostModel, PriceAvailability, bars_digest
+from auvexo_alpha.infrastructure.research_data import ResearchRead
 from auvexo_alpha.infrastructure.research_ledger import SELECTION_TRIAL, frozen_selection
 from auvexo_alpha.infrastructure.research_worker import ResearchWorker
 
@@ -238,43 +239,76 @@ def test_manifest_driven_screen_reproduces_the_previous_defaults_for_data_plan_v
 class MemoryLedger:
     """Worker-facing ledger port in memory; the PostgreSQL gates are integration tests."""
 
-    def __init__(self, study):
+    def __init__(self, study, crash_after=None):
         self.manifest, self.trials, self.opened = study, {}, None
+        self.phases, self.reads, self.opens, self.completed = {}, set(), 0, None
+        self.crash_after = crash_after
 
     def study(self, study_id):
         return self.manifest
 
-    def record(self, study_id, trial_id, phase, config_hash, result):
+    def record(self, study_id, trial_id, phase, config_hash, result, resume=False):
+        identity = json.loads(result)["identity"]
+        # The artifact's own identity must name the filed config and only served reads.
+        assert identity["config_hash"] == config_hash and set(identity["reads"]) <= self.reads
+        if resume and trial_id in self.trials:
+            assert self.trials[trial_id] == result and phase == "OOS"
+            return
         assert trial_id not in self.trials and len(self.trials) < self.manifest.trial_budget
-        assert (phase == "OOS") == (self.opened is not None)
+        assert (phase == "OOS") == (self.opened is not None) and self.completed is None
+        if self.crash_after is not None and phase == "OOS":
+            if self.crash_after == 0:
+                raise RuntimeError("simulated worker crash during the holdout run")
+            self.crash_after -= 1
         self.trials[trial_id] = result
+        self.phases[trial_id] = phase
 
     def read_trial(self, study_id, trial_id):
         return self.trials[trial_id]
 
+    def holdout_state(self, study_id):
+        if self.opened is None:
+            return "SEALED"
+        return "OPEN" if self.completed is None else "COMPLETE"
+
     def open_holdout(self, study_id, selected):
+        assert self.opened is None, "a holdout is never re-opened"
         frozen = self.read_trial(study_id, SELECTION_TRIAL)
         assert frozen_selection(self.manifest.configs, frozen) == selected
         self.opened = selected
+        self.opens += 1
+
+    def complete_holdout(self, study_id, trials):
+        assert self.completed is None and all(self.phases[t] == "OOS" for t in trials)
+        self.completed = trials
 
 
 class WaveReader:
+    def __init__(self, ledger):
+        self.ledger, self.phases = ledger, []
+
     def read(self, study_id, phase, start, end):
-        return wave_prices(200, start, drift=1)
+        bars = wave_prices(200, start, drift=1)
+        self.phases.append((phase, start, end))
+        read = ResearchRead(bars, bars_digest(bars))
+        self.ledger.reads.add(read.digest)
+        return read
 
 
 def run_worker(**registered):
     study = synthetic_study(configs=frozen_configs()).model_copy(update=registered)
     ledger = MemoryLedger(study)
-    worker = ResearchWorker(ledger, WaveReader())
+    worker = ResearchWorker(ledger, WaveReader(ledger))
     worker.development(study.study_id)
     return study, ledger, worker.holdout(study.study_id)
 
 
 def test_worker_records_each_hypothesis_verdict_with_its_inputs_inside_the_trial_budget():
     study, ledger, report = run_worker()
-    # 1 fit + 7 train + 14 fold + 21 validation + 1 selection + 15 OOS + 2 verdicts.
-    assert len(ledger.trials) == 61 <= study.trial_budget == 64
+    # 1 fit + 7 train + 7 fold + 21 validation + 1 selection + 15 OOS + 2 verdicts. The
+    # second fold used to repeat the validation window exactly and is no longer run (RS-10).
+    assert len(ledger.trials) == 54 <= study.trial_budget == 64
+    assert ledger.completed == tuple(t for t, p in ledger.phases.items() if p == "OOS")
     assert sorted(t for t in ledger.trials if t.startswith("verdict.")) == [
         "verdict.BREAKOUT",
         "verdict.MEAN_REVERSION",
@@ -335,3 +369,40 @@ def test_worker_verdict_follows_non_default_registered_parameters():
     default = json.loads(default_ledger.trials["verdict.BREAKOUT"])["screen"]["inputs"]
     assert default["closed_trades"] == inputs["closed_trades"] > 0
     assert default["uncertainty"] != inputs["uncertainty"]
+
+
+def test_interrupted_holdout_resumes_only_missing_trials_without_reopening():
+    study = synthetic_study(configs=frozen_configs())
+    complete = MemoryLedger(study)
+    ResearchWorker(complete, WaveReader(complete)).development(study.study_id)
+    uninterrupted = ResearchWorker(complete, WaveReader(complete)).holdout(study.study_id)
+    ledger = MemoryLedger(study, crash_after=4)
+    ResearchWorker(ledger, WaveReader(ledger)).development(study.study_id)
+    with pytest.raises(RuntimeError, match="simulated worker crash"):
+        ResearchWorker(ledger, WaveReader(ledger)).holdout(study.study_id)
+    before = {t: r for t, r in ledger.trials.items() if ledger.phases[t] == "OOS"}
+    assert len(before) == 4 and ledger.holdout_state(study.study_id) == "OPEN"
+    ledger.crash_after = None
+    reader = WaveReader(ledger)
+    resumed = ResearchWorker(ledger, reader).holdout(study.study_id)
+    # Opened exactly once; the earlier four are byte-identical and only the rest were added.
+    assert ledger.opens == 1 and reader.phases == [
+        ("OOS", study.split.oos_start, study.split.oos_end)
+    ]
+    assert all(ledger.trials[t] == r for t, r in before.items())
+    assert {t: r for t, r in ledger.trials.items() if ledger.phases[t] == "OOS"} == {
+        t: r for t, r in complete.trials.items() if complete.phases[t] == "OOS"
+    }
+    assert json.loads(artifact_bytes(resumed)) == json.loads(artifact_bytes(uninterrupted))
+    with pytest.raises(ValueError, match="^HOLDOUT_ALREADY_CONSUMED_AND_COMPLETE$"):
+        ResearchWorker(ledger, WaveReader(ledger)).holdout(study.study_id)
+
+
+def test_walk_forward_reads_stay_inside_training_and_are_marked_informational():
+    study, ledger, _ = run_worker()
+    folds = {t: json.loads(r) for t, r in ledger.trials.items() if t.startswith("fold.")}
+    assert sorted(folds) == [f"fold.0.{i}" for i in range(7)]
+    for artifact in folds.values():
+        assert artifact["selection_role"] == "INFORMATIONAL_ONLY_NOT_USED_FOR_SELECTION"
+        assert artifact["identity"]["purpose"] == "INFORMATIONAL_WALK_FORWARD"
+        assert artifact["fold"]["evaluate_end"] <= study.split.train_end.isoformat()

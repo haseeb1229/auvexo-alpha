@@ -1,7 +1,6 @@
 """Measure only the local Phase 1 API and owned PostgreSQL cluster; no trading load claim."""
 
 import json
-import os
 import platform
 import socket
 import subprocess
@@ -11,7 +10,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import psutil
-from local_db import DATA, LOCAL, ROOT, app_env, credentials
+from local_db import DATA, LOCAL, NO_WINDOW, ROOT, app_env, credentials
 
 
 def main() -> None:
@@ -29,7 +28,7 @@ def main() -> None:
             cwd=ROOT,
             stdout=output,
             stderr=output,
-            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            creationflags=NO_WINDOW,
         )
         try:
             url = "http://127.0.0.1:18765/api/v1/ready"

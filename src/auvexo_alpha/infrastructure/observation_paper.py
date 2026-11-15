@@ -3,7 +3,12 @@
 from datetime import datetime
 from typing import Literal, cast
 
-from auvexo_alpha.application.observation_ports import DecisionJournalEntry, PaperSubmission
+from auvexo_alpha.application.observation_ports import (
+    DecisionJournalEntry,
+    JournalFact,
+    PaperSubmission,
+)
+from auvexo_alpha.domain.observation import ObservationStandingResumeUse
 from auvexo_alpha.domain.paper import (
     PaperAccountSnapshot,
     PaperInstrumentSpec,
@@ -13,8 +18,8 @@ from auvexo_alpha.domain.paper import (
     PaperReservation,
 )
 from auvexo_alpha.domain.paper_lifecycle import KillLevel, Release
-from auvexo_alpha.infrastructure.paper_store import PaperStore
-from auvexo_alpha.infrastructure.paper_truth import PaperTruth
+from auvexo_alpha.infrastructure.paper_store import PROJECTION_EVENTS, PaperStore
+from auvexo_alpha.infrastructure.paper_truth import PaperTruth, canonical_payload
 
 
 class ObservationPaperCommands:
@@ -32,6 +37,33 @@ class ObservationPaperCommands:
 
     def reconcile(self, account_ref: str, *, now: datetime) -> bool:
         return self.paper.reconcile(account_ref, now=now)
+
+    def roll_flat_boundary(self, account_ref: str, *, now: datetime) -> None:
+        # The writer epoch is the one acquire_writer recorded on this same store.
+        self.paper.roll_flat_boundary(account_ref, now=now)
+
+    def journal_facts(self, account_ref: str) -> tuple[JournalFact, ...]:
+        return tuple(
+            JournalFact(
+                kind=str(event["kind"]),
+                content_hash=str(event["content_hash"]),
+                recorded_at=event["recorded_at"],
+                account=PaperAccountSnapshot.model_validate_json(
+                    canonical_payload(event["data"]["account"])
+                )
+                if event["kind"] in PROJECTION_EVENTS
+                else None,
+            )
+            for event in self.paper.journal(account_ref)
+        )
+
+    def ledger_mismatch_count(self, account_ref: str) -> int:
+        return self.paper.ledger_replay(account_ref).mismatch_count
+
+    def standing_resume(
+        self, account_ref: str, use: ObservationStandingResumeUse, *, actor: str, now: datetime
+    ) -> None:
+        self.paper.resume(account_ref, actor=actor, now=now, standing_use=use)
 
     def set_kill(self, account_ref: str, level: KillLevel, *, actor: str, now: datetime) -> None:
         self.paper.set_kill(account_ref, level, actor=actor, now=now)
@@ -63,3 +95,6 @@ class ObservationPaperTruth:
 
     def mark(self, account_ref: str, market: PaperMarketSnapshot, *, now: datetime) -> None:
         self.truth.mark(account_ref, market, now=now)
+
+    def observe_spec(self, account_ref: str, spec: PaperInstrumentSpec, *, now: datetime) -> None:
+        self.truth.observe_spec(account_ref, spec, now=now)

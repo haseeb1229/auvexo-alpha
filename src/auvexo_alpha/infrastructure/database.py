@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from auvexo_alpha.application.safety import POLICY_VERSION
 from auvexo_alpha.config import Settings
 
-SCHEMA_REVISION = "0005_paper_core"
+SCHEMA_REVISION = "0007_paper_state_guards"
 
 
 def make_engine(settings: Settings) -> Engine:

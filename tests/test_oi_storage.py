@@ -26,6 +26,8 @@ from auvexo_alpha.domain.research import DataUseClass
 from auvexo_alpha.infrastructure.oi_http import OIBudgetState
 from auvexo_alpha.infrastructure.oi_parser import parse_oi
 from auvexo_alpha.infrastructure.oi_store import OIStore
+from auvexo_alpha.infrastructure.paper_identity import DisposableCluster
+from tools.disposable_pg import harness_cluster, require_disposable
 
 pytestmark = pytest.mark.integration
 NOW = datetime(2026, 10, 30, 10, tzinfo=UTC)
@@ -44,6 +46,7 @@ def store(tmp_path, oi_server):
     args.update(port=oi_server, dbname="postgres")
     name = "auvexo_test_oi" + uuid4().hex[:12]
     with psycopg.connect(**args, autocommit=True) as admin:
+        require_disposable(admin, DisposableCluster(oi_server, harness_cluster().cluster_id))
         admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
         admin.execute(sql.SQL("REVOKE ALL ON DATABASE {} FROM PUBLIC").format(sql.Identifier(name)))
         admin.execute(
@@ -78,9 +81,8 @@ def store(tmp_path, oi_server):
                     )
                 )
             admin.execute("GRANT auvexo_ingest TO auvexo_data_writer")
-            password = os.environ.get("TEST_PG_DATA_WRITER_PASSWORD")
-            if not password:
-                password = json.loads(Path(".local/data-secrets.json").read_text())["data_writer"]
+            # The disposable cluster's writer only; never a local secret file.
+            password = os.environ["TEST_PG_DATA_WRITER_PASSWORD"]
             engine = create_engine(
                 url.set(username="auvexo_data_writer", password=password),
                 hide_parameters=True,
@@ -94,7 +96,12 @@ def store(tmp_path, oi_server):
 
 
 def observation(
-    slot=NOW, symbol="BTCUSDT", value="100", provider_at=None, review_receipt_hash=None
+    slot=NOW,
+    symbol="BTCUSDT",
+    value="100",
+    provider_at=None,
+    review_receipt_hash=None,
+    code_hash="a" * 64,
 ):
     provider_at = provider_at or slot + timedelta(seconds=1)
     raw = json.dumps(
@@ -110,7 +117,7 @@ def observation(
         received_at=slot + timedelta(seconds=3),
         processed_at=slot + timedelta(seconds=4),
         code_revision="synthetic-fixture",
-        code_hash="a" * 64,
+        code_hash=code_hash,
         review_receipt_hash=review_receipt_hash,
     )
     return parsed, raw
@@ -1149,3 +1156,319 @@ def test_oi_restart_rejects_continuation_not_in_supplied_accepted_chain(store):
     with pytest.raises(ValueError, match="^OI_DEDICATED_DATABASE_REQUIRED$"):
         OIStore(store.engine, store.root, store.managed_root, review_authority=authority)
     assert _generic_counts(store) == before
+
+
+def synthetic_study(start_digest=None, study_id="synthetic-oi-fwd"):
+    from auvexo_alpha.application.oi_research import OIStudyWindow
+
+    return OIStudyWindow(
+        study_id=study_id,
+        owner_start_at=datetime(2026, 10, 27, 12, tzinfo=UTC),
+        preregistration_hash="c" * 64,
+        code_hash="a" * 64,
+        rights_snapshot_hash=accepted_oi_rights().content_hash(),
+        start_digest=start_digest,
+    )
+
+
+def synthetic_accepted_start(study_id="synthetic-oi-fwd"):
+    """Synthetic stand-in for a committed acceptance entry; never written or accepted."""
+    from auvexo_alpha.domain.oi_schedule import (
+        OIAcceptedStart,
+        OIRuntimeIdentity,
+        OIStartAcceptance,
+        OIStartEnvelope,
+    )
+
+    owner_start = datetime(2026, 10, 27, 12, tzinfo=UTC)
+    return OIAcceptedStart(
+        acceptance_commit="f" * 40,
+        acceptance=OIStartAcceptance(
+            study_id=study_id,
+            envelope=OIStartEnvelope(
+                owner_authorization_ref="synthetic-owner-ref",
+                independent_review_ref="synthetic-review-ref",
+                implementation_revision="e" * 40,
+                config_hash="e" * 64,
+                code_hash="a" * 64,
+                source_hash="d" * 64,
+                rights_hash=accepted_oi_rights().content_hash(),
+                preregistration_hash="c" * 64,
+                issued_at=owner_start,
+                owner_start_at=owner_start,
+                expires_at=owner_start + timedelta(days=60),
+            ),
+            runtime=OIRuntimeIdentity(
+                checkout_root="C:/synthetic/oi-runtime",
+                python_executable="C:/synthetic/oi-runtime/python.exe",
+                python_executable_sha256="1" * 64,
+                base_interpreter_sha256="2" * 64,
+            ),
+            commissioning_clock_source="synthetic-ntp",
+            commissioning_clock_evidence_hash="9" * 64,
+            acceptance_review_ref="synthetic-independent-review",
+        ),
+    )
+
+
+def test_oi_database_holds_exactly_one_study(store):
+    first = synthetic_study()
+    digest = store.append_study(first)
+    assert store.append_study(first) == digest
+    with pytest.raises(ValueError, match="OI_ONE_STUDY_PER_DATABASE"):
+        store.append_study(synthetic_study(study_id="synthetic-second-study"))
+    with pytest.raises(ValueError, match="OI_IMMUTABLE_LEDGER_CONFLICT"):
+        store.append_study(synthetic_study(start_digest="0" * 64))
+    assert len(store.ledger("STUDY")) == 1
+    # A second study row written around the API is refused by the restart attestation.
+    with store.engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO data_event(event_id,feed_key,observed_at,payload) VALUES (:i,:f,:t,:p)"
+            ),
+            {
+                "i": "oi-ledger:STUDY:" + "0" * 64,
+                "f": "DS-04-A1:ledger:STUDY",
+                "t": NOW,
+                "p": "{}",
+            },
+        )
+    with pytest.raises(ValueError, match="OI_DEDICATED_DATABASE_REQUIRED"):
+        OIStore(store.engine, store.root, store.managed_root)
+
+
+def test_oi_gap_records_are_append_only_namespaced_and_keep_their_first_reason(store):
+    from auvexo_alpha.domain.oi_schedule import OISlotGap
+
+    def gap(symbol, reason, slot=NOW):
+        return OISlotGap(symbol=symbol, slot_at=slot, reason=reason, recorded_at=slot)
+
+    assert store.record_gaps((gap("BTCUSDT", "OI_NETWORK"), gap("ETHUSDT", "OI_NETWORK"))) == 2
+    assert store.record_gaps((gap("BTCUSDT", "OI_NO_RUN_RECORDED"),)) == 0
+    assert {(g.symbol, g.reason) for g in store.gaps()} == {
+        ("BTCUSDT", "OI_NETWORK"),
+        ("ETHUSDT", "OI_NETWORK"),
+    }
+    # The dedicated-database proof admits the gap namespace on restart.
+    OIStore(store.engine, store.root, store.managed_root)
+    with store.engine.begin() as conn, pytest.raises(DBAPIError):
+        conn.execute(
+            text("UPDATE data_event SET payload=payload WHERE feed_key='DS-04-A1:slot-gap'")
+        )
+    forged = gap("BTCUSDT", "OI_NETWORK", NOW + timedelta(hours=1))
+    with store.engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO data_event(event_id,feed_key,observed_at,payload) VALUES (:i,:f,:t,:p)"
+            ),
+            {
+                "i": "oi-gap:" + "0" * 64,
+                "f": "DS-04-A1:slot-gap",
+                "t": NOW,
+                "p": forged.canonical_bytes().decode("ascii"),
+            },
+        )
+    with pytest.raises(ValueError, match="OI_GAP_HASH_MISMATCH"):
+        store.gaps()
+
+
+def test_oi_a_slot_is_either_a_gap_or_a_valid_snapshot_never_both(store):
+    from auvexo_alpha.domain.oi_schedule import OISlotGap
+
+    def gap(symbol, slot):
+        return OISlotGap(symbol=symbol, slot_at=slot, reason="OI_CLOCK_UNTRUSTED", recorded_at=slot)
+
+    # A gap recorded first closes its symbol slot: a later snapshot is refused durably.
+    assert store.record_gaps((gap("BTCUSDT", NOW),)) == 1
+    assert store.slot_gap_recorded("BTCUSDT", NOW)
+    assert not store.slot_gap_recorded("ETHUSDT", NOW)
+    with pytest.raises(ValueError, match="^OI_SLOT_GAP_RECORDED$"):
+        publish(store, slot=NOW)
+    assert store.manifests() == []
+    # A snapshot published first makes a racing gap for the same symbol slot a no-op.
+    collected = publish(store, slot=NOW + timedelta(hours=1))
+    assert store.record_gaps((gap("BTCUSDT", NOW + timedelta(hours=1)),)) == 0
+    assert not store.slot_gap_recorded("BTCUSDT", NOW + timedelta(hours=1))
+    assert store.manifests() == [collected]
+    assert [(g.symbol, g.slot_at) for g in store.gaps()] == [("BTCUSDT", NOW)]
+
+
+def test_oi_missed_slots_become_gaps_without_any_collection(store):
+    from auvexo_alpha.domain.oi_schedule import slot_allowed
+
+    study = synthetic_study()
+    publish(store, slot=NOW - timedelta(hours=1))
+    publish(store, slot=NOW, value="101")
+    before = NOW + timedelta(hours=1)
+    added = store.record_missed_slots(study, before, before)
+    slots = []
+    slot = study.t0
+    while slot < before:
+        if slot_allowed(slot):
+            slots.append(slot)
+        slot += timedelta(hours=1)
+    expected = {(s, slot) for slot in slots for s in ("BTCUSDT", "ETHUSDT")} - {
+        ("BTCUSDT", NOW - timedelta(hours=1)),
+        ("BTCUSDT", NOW),
+    }
+    assert added == len(expected) == 104
+    assert {(g.symbol, g.slot_at) for g in store.gaps()} == expected
+    assert {g.reason for g in store.gaps()} == {"OI_NO_RUN_RECORDED"}
+    assert len(store.manifests()) == 2
+    assert store.record_missed_slots(study, before, before) == 0
+
+
+def test_oi_lineage_counts_only_verified_production_manifests_under_the_committed_start(store):
+    start = synthetic_accepted_start()
+    study = synthetic_study(start_digest=start.digest)
+    store.append_study(study)
+
+    def put(slot, value, **kwargs):
+        parsed, raw = observation(slot, "BTCUSDT", value)
+        return store.publish(
+            parsed,
+            raw,
+            classification=DataUseClass.PERSONAL_RESEARCH,
+            now=parsed.available_at,
+            **kwargs,
+        )
+
+    genuine = put(
+        NOW - timedelta(hours=3), "100", start_digest=start.digest, transport="PRODUCTION_HTTPS"
+    )
+    fixture = put(NOW - timedelta(hours=2), "101", start_digest=start.digest)
+    other = put(
+        NOW - timedelta(hours=1), "102", start_digest="0" * 64, transport="PRODUCTION_HTTPS"
+    )
+    unbound = put(NOW, "103")
+    lineage = store.study_lineage(start)
+    assert lineage.genuine_manifest_hashes == (genuine.content_hash(),)
+    assert {fixture.content_hash(), other.content_hash(), unbound.content_hash()}.isdisjoint(
+        lineage.genuine_manifest_hashes
+    )
+    assert lineage.binds(study)
+    with pytest.raises(ValueError, match="OI_STUDY_START_BINDING"):
+        store.study_lineage(synthetic_accepted_start("another-study"))
+    # A corrupted artifact is never silently excluded: the lineage refuses.
+    raw_path = store.root / genuine.raw_relative_path
+    original = raw_path.read_bytes()
+    raw_path.write_bytes(b"{}")
+    with pytest.raises(ValueError, match="OI_RAW_SOURCE_MISMATCH"):
+        store.study_lineage(start)
+    raw_path.write_bytes(original)
+
+
+def committed_checkout(tmp_path, monkeypatch, *, owner="synthetic-owner-ref"):
+    """Fixture checkout at the release plus recorded Git answers for its committed file.
+
+    The real build gate and committed-file reader run; only Git plumbing is recorded.
+    No Git object, ref, acceptance file or real START is created.
+    """
+    from test_oi_start_acceptance import FakeGit, acceptance_entry, build_tree
+
+    from auvexo_alpha.domain.oi_schedule import OIStartAcceptanceFile
+
+    root = tmp_path / "checkout"
+    config = build_tree(root, monkeypatch).model_copy(
+        update={"study_id": "synthetic-oi-fwd", "rights": accepted_oi_rights()}
+    )
+    entry = acceptance_entry(config, owner)
+    git = FakeGit(monkeypatch, blob=OIStartAcceptanceFile(accepted=(entry,)).canonical_bytes())
+    return root, config, entry, git
+
+
+def test_oi_genuine_evaluation_only_through_the_build_gated_committed_start(
+    store, tmp_path, monkeypatch
+):
+    from auvexo_alpha.application.oi_research import (
+        OIStudyWindow,
+        compute_oi_features,
+        create_forecast,
+        score_forecast,
+    )
+    from auvexo_alpha.infrastructure.oi_store import evaluate_recorded_study
+
+    root, config, entry, git = committed_checkout(tmp_path, monkeypatch)
+    study = OIStudyWindow(
+        study_id=config.study_id,
+        owner_start_at=entry.envelope.owner_start_at,
+        preregistration_hash=config.preregistration_hash,
+        code_hash=config.code_hash,
+        rights_snapshot_hash=config.rights.content_hash(),
+        start_digest=entry.content_hash(),
+    )
+    store.append_study(study)
+
+    def put(slot, value):
+        parsed, raw = observation(slot, value=value, code_hash=config.code_hash)
+        return store.publish(
+            parsed,
+            raw,
+            classification=DataUseClass.PERSONAL_RESEARCH,
+            now=parsed.available_at,
+            start_digest=entry.content_hash(),
+            transport="PRODUCTION_HTTPS",
+        )
+
+    previous, current = put(NOW - timedelta(hours=1), "100"), put(NOW, "101")
+    feature = compute_oi_features(current, previous, at=current.observation.available_at)
+    forecast = create_forecast(study, feature, created_at=current.observation.available_at)
+    store.append_feature(feature)
+    store.append_prediction(forecast)
+    target = put(NOW + timedelta(hours=1), "102")
+    store.append_score(
+        score_forecast(study, forecast, current, target, scored_at=target.created_at)
+    )
+
+    def evaluate(candidate=config):
+        return evaluate_recorded_study(
+            store, root, candidate, as_of=NOW + timedelta(hours=2), current_rights=None
+        )
+
+    result = evaluate()
+    # The committed START, read from the commit the build gate proved, makes the store's
+    # own production records genuine; the window is still open, so nothing is decided.
+    assert result.classification == DataUseClass.PERSONAL_RESEARCH
+    assert result.start_digest == entry.content_hash()
+    assert result.reason == "STUDY_WINDOW_OPEN_NO_INTERIM_RESULT" and not result.empirical_result
+    blob = f"{config.git_revision}:acceptance/oi-start-acceptance.json"
+    assert [command[4:] for command in git.commands] == [
+        ["rev-parse", "HEAD"],
+        ["status", "--porcelain", "-z", "--untracked-files=all"],
+        ["cat-file", "-s", blob],
+        ["cat-file", "blob", blob],
+    ]
+    # A config the START did not accept refuses, though the build gate itself passes.
+    with pytest.raises(ValueError, match="^OI_START_AUTHORITY_INVALID$"):
+        evaluate(config.model_copy(update={"clock_source": "other-synthetic-ntp"}))
+    # An unproven build is refused before the committed file is ever read.
+    git.commands.clear()
+    git.status = " M src/auvexo_alpha/a.py\0"
+    with pytest.raises(ValueError, match="^OI_BUILD_BINDING$"):
+        evaluate()
+    assert all(command[4] != "cat-file" for command in git.commands)
+
+
+def test_oi_study_start_missing_from_the_committed_file_is_never_genuine(
+    store, tmp_path, monkeypatch
+):
+    from test_oi_start_acceptance import acceptance_entry
+
+    from auvexo_alpha.application.oi_research import OIStudyWindow
+    from auvexo_alpha.infrastructure.oi_store import evaluate_recorded_study
+
+    root, config, _, _ = committed_checkout(tmp_path, monkeypatch, owner="committed-owner-ref")
+    # A START built in process, with the same bindings, but never committed.
+    hand_built = acceptance_entry(config, "hand-built-owner-ref")
+    store.append_study(
+        OIStudyWindow(
+            study_id=config.study_id,
+            owner_start_at=hand_built.envelope.owner_start_at,
+            preregistration_hash=config.preregistration_hash,
+            code_hash=config.code_hash,
+            rights_snapshot_hash=config.rights.content_hash(),
+            start_digest=hand_built.content_hash(),
+        )
+    )
+    with pytest.raises(ValueError, match="^OI_START_NOT_ACCEPTED$"):
+        evaluate_recorded_study(store, root, config, as_of=NOW, current_rights=None)

@@ -9,6 +9,7 @@ are linked from here.
 | [Checkouts and scheduled tasks](CHECKOUTS_AND_TASKS.md) | You need to know which folder does what and what must never be touched |
 | [Local verification](LOCAL_VERIFICATION.md) | You changed code or documents and need to prove it |
 | [Evidence campaigns](EVIDENCE_CAMPAIGNS.md) | A scheduled night failed, or you need to see evidence health without touching it |
+| [PostgreSQL autostart candidate](POSTGRES_AUTOSTART.md) | Deciding how the Operational cluster stays running across reboots |
 | [Clock trust](CLOCK_TRUST.md) | Time quality matters: observation, qualification, open-interest START |
 | [Backup and restore](BACKUP_AND_RESTORE.md) | Before any risky operational change; after loss |
 | [Break glass](BREAK_GLASS.md) | Suspected compromise, leaked secret or unexplained behaviour |

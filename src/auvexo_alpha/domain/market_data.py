@@ -1,7 +1,7 @@
 """Versioned data contracts. No trading authority or inferred broker specification."""
 
-from datetime import datetime, timedelta
-from typing import Annotated, Literal, Self
+from datetime import UTC, datetime, timedelta
+from typing import Annotated, Final, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -253,6 +253,13 @@ class Checkpoint(Contract):
     recorded_at: UTCTime
 
 
+# Binance limits are per IP and per service; the archive and REST hosts are separate services.
+ProviderHost = Literal["data.binance.vision", "data-api.binance.vision"]
+ARCHIVE_HOST: Final = "data.binance.vision"
+REST_HOST: Final = "data-api.binance.vision"
+PROVIDER_HOSTS: tuple[ProviderHost, ...] = (ARCHIVE_HOST, REST_HOST)
+
+
 class IngestionEvent(Contract):
     event_id: Label
     feed_key: Label
@@ -264,7 +271,141 @@ class IngestionEvent(Contract):
     dataset_version: Digest | None = None
     blocked_until: UTCTime | None = None
     quarantined_source_hash: Digest | None = None
+    # Legacy cooldowns have no host and keep blocking every host.
+    cooldown_host: ProviderHost | None = None
+
+    @model_validator(mode="after")
+    def scoped_cooldown(self) -> Self:
+        if self.cooldown_host is not None and self.blocked_until is None:
+            raise ValueError("COOLDOWN_HOST_WITHOUT_COOLDOWN")
+        return self
+
+
+class CooldownSpan(Contract):
+    """One provider cooldown on one host as it actually lasted: until its expiry or a
+    passed probe on that host. A legacy host-less cooldown is reported once per host.
+    """
+
+    event_id: Label
+    host: ProviderHost
+    reason: Label
+    start: UTCTime
+    end: UTCTime
+
+
+class CooldownRelease(Contract):
+    """Owner decision to end a cooldown early. It grants exactly one probe request."""
+
+    host: ProviderHost
+    released_at: UTCTime
+    reviewer: Label
+    reason: str = Field(pattern=r"^[ -~]{8,512}$")
+    released_until: UTCTime
+    released_events: tuple[Label, ...] = Field(min_length=1, max_length=4096)
+
+    @model_validator(mode="after")
+    def active(self) -> Self:
+        if self.released_until <= self.released_at:
+            raise ValueError("NO_ACTIVE_COOLDOWN")
+        return self
+
+
+class GapObservation(Contract):
+    """One stored provider response whose bars omit the whole reviewed range."""
+
+    dataset_version: Digest
+    source_hash: Digest
+    received_at: UTCTime
+
+
+class GapReview(Contract):
+    """Explicit reviewed provider gap: permanent coverage evidence, never a filled bar."""
+
+    feed_key: Label
+    source_id: Literal["DS-02"] = "DS-02"
+    instrument_id: Literal["binance.spot.BTCUSDT", "binance.spot.ETHUSDT"]
+    interval: Interval
+    gap_start: UTCTime
+    gap_end: UTCTime
+    reason: Literal["PROVIDER_INTERVAL_ABSENT"] = "PROVIDER_INTERVAL_ABSENT"
+    evidence: tuple[GapObservation, ...] = Field(min_length=2, max_length=64)
+    reviewer: Label
+    reviewed_at: UTCTime
+
+    @model_validator(mode="after")
+    def bounded(self) -> Self:
+        step = timedelta(seconds=interval_seconds(self.interval))
+        symbol = self.instrument_id.rsplit(".", 1)[-1]
+        if self.feed_key != f"DS-02.{symbol}.{self.interval}":
+            raise ValueError("GAP_FEED_MISMATCH")
+        if (
+            self.gap_end <= self.gap_start
+            or (self.gap_start - EPOCH_UTC) % step
+            or (self.gap_end - self.gap_start) % step
+            or self.gap_end - self.gap_start > MAX_GAP_INTERVALS * step
+        ):
+            raise ValueError("GAP_RANGE_INVALID")
+        if len({item.dataset_version for item in self.evidence}) != len(self.evidence) or len(
+            {item.received_at for item in self.evidence}
+        ) != len(self.evidence):
+            raise ValueError("GAP_EVIDENCE_NOT_REPEATED")
+        if self.reviewed_at < max(item.received_at for item in self.evidence):
+            raise ValueError("GAP_REVIEW_BEFORE_EVIDENCE")
+        return self
+
+    def overlaps(self, start: datetime, end: datetime) -> bool:
+        return self.gap_start < end and start < self.gap_end
+
+
+class SourceConflict(Contract):
+    """The same bar from the archive and from REST with different market values.
+
+    Both facts stay, each under its own source rights; neither is preferred.
+    """
+
+    instrument_id: Literal["binance.spot.BTCUSDT", "binance.spot.ETHUSDT"]
+    interval: Interval
+    open_at: UTCTime
+    archive_version: Digest
+    archive_source_hash: Digest
+    archive_rights_version: Label
+    archive_market_hash: Digest
+    archive_values: tuple[str, ...]
+    rest_version: Digest
+    rest_source_hash: Digest
+    rest_rights_version: Label
+    rest_market_hash: Digest
+    rest_values: tuple[str, ...]
+    # Point in time: the conflict was knowable only once both bars were available.
+    known_at: UTCTime
+
+    @model_validator(mode="after")
+    def distinct(self) -> Self:
+        if self.archive_market_hash == self.rest_market_hash:
+            raise ValueError("IDENTICAL_FACTS_ARE_NOT_A_CONFLICT")
+        return self
+
+
+class SourceComparison(Contract):
+    """Deterministic result of comparing every archive and REST version in one bounded range."""
+
+    instrument_id: Literal["binance.spot.BTCUSDT", "binance.spot.ETHUSDT"]
+    interval: Interval
+    range_start: UTCTime
+    range_end: UTCTime
+    archive_versions: tuple[Digest, ...]
+    rest_versions: tuple[Digest, ...]
+    matched: Annotated[int, Field(ge=0)]
+    archive_only: Annotated[int, Field(ge=0)]
+    rest_only: Annotated[int, Field(ge=0)]
+    conflicts: tuple[Digest, ...]
+    method: Literal["NUMERIC_MARKET_FIELDS.v1"] = "NUMERIC_MARKET_FIELDS.v1"
 
 
 def interval_seconds(interval: Interval) -> int:
     return 60 if interval == "1m" else 3600
+
+
+EPOCH_UTC = datetime(1970, 1, 1, tzinfo=UTC)
+# A reviewed gap never spans more than one day of bars; longer absences are outages.
+MAX_GAP_INTERVALS = 1440

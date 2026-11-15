@@ -16,12 +16,18 @@ import pytest
 from test_ds03_authority import authority_fixture
 
 from auvexo_alpha.domain.ds03 import Ds03Error
+from auvexo_alpha.domain.ds03_actual import REASON_CODES
 from auvexo_alpha.infrastructure import ds03_mt5_binding as module
 
 
-def failure(call):
-    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE$"):
+def failure(call, reason=None):
+    # Internal helpers keep the bare redacted code; public boundaries add one closed reason.
+    with pytest.raises(Ds03Error, match="^DS03_UNAVAILABLE(:[A-Z_]+)?$") as captured:
         call()
+    shown = str(captured.value).partition(":")[2]
+    assert not shown or shown in REASON_CODES
+    if reason is not None:
+        assert shown == reason
 
 
 def test_runtime_paths_derive_only_home_and_accept_no_override(monkeypatch, tmp_path):
@@ -241,7 +247,7 @@ def test_package_drift_unlisted_cache_record_hash_and_versions_refuse(case, monk
         monkeypatch.setattr(module.importlib.metadata, "version", lambda name: "0.0.0")
     else:
         distribution.files = []
-    failure(module.verify_installed_package)
+    failure(module.verify_installed_package, "PACKAGE_MISMATCH")
 
 
 def test_linux_package_and_native_apis_refuse_before_distribution_or_process(monkeypatch):
@@ -251,9 +257,9 @@ def test_linux_package_and_native_apis_refuse_before_distribution_or_process(mon
         raise AssertionError("Windows API/package discovery must not run on Linux")
 
     monkeypatch.setattr(module.importlib.metadata, "distribution", unexpected)
-    failure(module.verify_installed_package)
-    failure(module._terminal_pids)
-    failure(module.provider_job)
+    failure(module.verify_installed_package, "PACKAGE_MISMATCH")
+    failure(module._terminal_pids, "TERMINAL_IDENTITY")
+    failure(module.provider_job, "JOB_CONTAINMENT")
 
 
 class NativeCall:

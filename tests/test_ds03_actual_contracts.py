@@ -37,6 +37,13 @@ from auvexo_alpha.domain.ds03_actual import (
 
 NOW = datetime(2026, 11, 3, 12, tzinfo=UTC)
 SYMBOL = "BTCUSDm"
+# A synthetic bound UTC basis: every provider-time record carries the identity's basis.
+BASIS = "0b" * 32
+TIMED = {"server_offset_seconds": 0, "time_basis_hash": BASIS}
+
+
+def ms(at):
+    return int(at.timestamp()) * 1000 + at.microsecond // 1000
 
 
 def identity(**changes):
@@ -57,6 +64,8 @@ def identity(**changes):
         rights_hash="7" * 64,
         account_type_source="OWNER_METADATA_ONLY_NOT_EXPOSED_BY_MT5",
         authority_hash="8" * 64,
+        time_basis_hash=BASIS,
+        server_offset_seconds=0,
     )
     return ActualIdentity(**{**values, **changes})
 
@@ -122,6 +131,8 @@ def spec(**changes):
         provider_order_mode=127,
         provider_filling_mode=3,
         provider_trade_calc_mode=2,
+        provider_quote_time_raw=None,
+        **TIMED,
     )
     return ActualSymbolSpec(**{**args, **changes})
 
@@ -134,9 +145,10 @@ def tick(at=NOW, first_seen=None, **changes):
         ask=Decimal("101"),
         first_seen_at=first_seen or at,
         source_ref="a" * 64,
-        time_msc=int(at.timestamp()) * 1000 + at.microsecond // 1000,
+        time_msc=ms(at),
         flags=2,
         volume_real=Decimal("0"),
+        **TIMED,
     )
     return ActualTick(**{**values, **changes})
 
@@ -152,6 +164,8 @@ def bar(at, first_seen=NOW, **changes):
         close=Decimal("101"),
         first_seen_at=first_seen,
         source_ref="b" * 64,
+        provider_time_raw=int(at.timestamp()),
+        **TIMED,
     )
     return ActualBar(**{**values, **changes})
 
@@ -334,6 +348,9 @@ def test_order_state_enums_preserved_without_lossy_open_closed_mapping(state):
         provider_at=NOW,
         first_seen_at=NOW,
         source_ref="e" * 64,
+        setup_time_msc_raw=ms(NOW - timedelta(hours=1)),
+        done_time_msc_raw=ms(NOW),
+        **TIMED,
     )
     assert record.provider_state == state and record.volume_current == 0
     assert "state" not in record.model_dump()
@@ -356,6 +373,8 @@ def deal(**changes):
         provider_at=NOW,
         first_seen_at=NOW,
         source_ref="a" * 64,
+        time_msc_raw=ms(NOW),
+        **TIMED,
     )
     return ActualDealFact(**{**values, **changes})
 

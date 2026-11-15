@@ -24,6 +24,12 @@ from auvexo_alpha.application.terminal_models import (
 )
 from auvexo_alpha.application.terminal_reads import UnconnectedTerminalReads
 from auvexo_alpha.domain.paper import PaperAccountSnapshot, PaperReservation
+from auvexo_alpha.infrastructure.paper_identity import (
+    DISPOSABLE_MARKER_SQL,
+    DisposableCluster,
+    attested_port,
+    require_disposable_marker,
+)
 
 # One catalog snapshot per acquired connection; no cached identity/privilege verdict.
 _READ_IDENTITY_SQL = text("""
@@ -38,7 +44,7 @@ WITH reader AS (
 SELECT
     session_user::text = :login AND current_user::text = :login
     AND current_database() = :database
-    AND inet_server_addr() = '127.0.0.1'::inet AND inet_server_port() = 55432
+    AND inet_server_addr() = '127.0.0.1'::inet AND inet_server_port() = :port
     AND current_setting('TimeZone') = 'UTC'
     AND current_setting('transaction_isolation') = 'repeatable read'
     AND current_setting('transaction_read_only') = 'on'
@@ -96,6 +102,11 @@ _JOURNAL_REASONS: Final[Mapping[str, JournalReason]] = MappingProxyType(
         "OWNER_POLICY_PIN": "OWNER_PIN",
         "EDGE_STATE": "EDGE_STATE",
         "UTC_DAY_ROLLOVER": "DAY_ROLLOVER",
+        # ADR-032 OBV2-02: the flat-boundary roll is a day rollover.
+        "FLAT_BOUNDARY_ROLL": "DAY_ROLLOVER",
+        # P-9/OBV2-09: invalid truth excluded (never deleted) by a reconciliation, which
+        # also pauses the account; the reviewed vocabulary names it a reconciliation.
+        "TRUTH_QUARANTINE": "RECONCILIATION",
         "INITIALIZED": "INITIALIZED",
     }
 )
@@ -109,20 +120,25 @@ def journal_reason(kind: str) -> JournalReason:
 class PostgresTerminalReads(UnconnectedTerminalReads):
     """Isolated synthetic namespace only; future operational wiring is not authorized."""
 
-    def __init__(self, engine: Engine, account_ref: str) -> None:
+    def __init__(
+        self, engine: Engine, account_ref: str, *, disposable: DisposableCluster | None = None
+    ) -> None:
+        database = engine.url.database or ""
         if (
             engine.url.drivername != "postgresql+psycopg"
             or engine.url.host != "127.0.0.1"
-            or engine.url.port != 55432
+            or not re.fullmatch(r"auvexo_test_[a-f0-9]{20}", database)
+            or engine.url.port != attested_port(database, disposable)
             or not engine.url.password
             or bool(engine.url.query)
             or bool(engine.get_execution_options())
-            or not re.fullmatch(r"auvexo_test_[a-f0-9]{20}", engine.url.database or "")
             or not re.fullmatch(r"auvexo_read_[a-f0-9]{20}", engine.url.username or "")
             or not re.fullmatch(r"paper\.[a-zA-Z0-9._-]{1,100}", account_ref)
         ):
             raise ValueError("ISOLATED_READ_MODEL_IDENTITY_REQUIRED")
         self.engine, self.account_ref = engine, account_ref
+        self._disposable = disposable
+        self._port = engine.url.port
         self._expected_login = engine.url.username or ""
         self._expected_database = engine.url.database or ""
 
@@ -134,10 +150,17 @@ class PostgresTerminalReads(UnconnectedTerminalReads):
                 conn.execute(text("SET LOCAL statement_timeout='2000ms'"))
                 valid = conn.execute(
                     _READ_IDENTITY_SQL,
-                    {"login": self._expected_login, "database": self._expected_database},
+                    {
+                        "login": self._expected_login,
+                        "database": self._expected_database,
+                        "port": self._port,
+                    },
                 ).scalar_one()
                 if valid is not True:
                     raise ValueError("READ_ONLY_IDENTITY_OR_PRIVILEGES_REQUIRED")
+                if self._disposable is not None:
+                    marker = conn.execute(text(DISPOSABLE_MARKER_SQL)).one()
+                    require_disposable_marker(tuple(marker), self._disposable)
                 yield conn
 
     @staticmethod

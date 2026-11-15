@@ -49,14 +49,16 @@ git -c safe.directory="C:/Users/<owner>/Desktop/Auvexo Alpha" -C "<path>" status
 
 ## Port 55432
 
-Port 55432 on loopback belongs to the Operational PostgreSQL cluster. The Development
-tooling uses the same port number. Therefore, in the Development checkout:
+Port 55432 on loopback belongs to the Operational PostgreSQL cluster, and 55433 is
+reserved for the open-interest runtime. In the Development checkout:
 
 - never run `tools/local_db.py start`; it refuses when the port is in use, and it would
   otherwise create a second cluster on the Operational port;
-- never run PostgreSQL integration tests on this laptop while the Operational cluster is
-  up; they run as the cluster superuser;
-- rely on hosted CI for the PostgreSQL-backed tests. CI uses an isolated container.
+- run PostgreSQL-backed tests only through `tools/disposable_pg.py`, which creates a
+  throwaway cluster on a random high port and destroys it afterwards. Every test helper
+  refuses 55432 and 55433 and proves the throwaway cluster's server marker before
+  writing, so a misconfigured run cannot reach the Operational cluster. See
+  [local verification](LOCAL_VERIFICATION.md).
 
 ## Scheduled tasks
 

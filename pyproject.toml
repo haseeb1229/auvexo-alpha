@@ -16,8 +16,6 @@ dependencies = [
   "uvicorn==0.54.0",
   "polars==2.0.0",
   "psutil==7.2.2",
-  "metatrader5==5.0.6231; sys_platform == 'win32' and platform_machine == 'AMD64'",
-  "numpy==2.4.6; sys_platform == 'win32' and platform_machine == 'AMD64'",
 ]
 
 [project.scripts]
@@ -34,6 +32,13 @@ dev = [
   "httpx2==2.13.1",
   "pip-audit==2.10.1",
 ]
+# The order-capable broker SDK is never part of the project's install requirements. Only
+# the isolated read-only provider child imports it, through the verified loader (ADR-029);
+# install it explicitly on Windows with `uv sync --locked --group provider`.
+provider = [
+  "metatrader5==5.0.6231; sys_platform == 'win32' and platform_machine == 'AMD64'",
+  "numpy==2.4.6; sys_platform == 'win32' and platform_machine == 'AMD64'",
+]
 
 [tool.uv]
 required-version = "==0.13.1"
@@ -48,8 +53,26 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
-files = ["src", "migrations"]
-mypy_path = ["$MYPY_CONFIG_FILE_DIR/typings"]
+files = ["src", "migrations", "tools"]
+mypy_path = [
+  "$MYPY_CONFIG_FILE_DIR/typings",
+  "$MYPY_CONFIG_FILE_DIR/tools",
+  "$MYPY_CONFIG_FILE_DIR/tests",
+]
+# Tools run as scripts (bare sibling imports) and as tools.* from tests; check the
+# script form only, so each tool file has exactly one module name.
+always_false = ["__package__"]
+
+[[tool.mypy.overrides]]
+# The synthetic PAPER fixtures two benchmark tools share with tests: typed, not a target.
+module = ["paper_fixtures"]
+follow_imports = "silent"
+
+[[tool.mypy.overrides]]
+# Hash-frozen by tests/test_paper_performance.py, so not editable. Its one finding is a
+# reused "_" name (an int parameter, then a discarded str). Review date 2027-02-14.
+module = ["benchmark_paper"]
+disable_error_code = ["assignment"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

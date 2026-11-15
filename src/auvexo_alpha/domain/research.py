@@ -1,5 +1,7 @@
 """Nonproduction research contracts. None grants execution or promotion authority."""
 
+import hashlib
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 from decimal import Decimal
 from enum import StrEnum
@@ -19,6 +21,7 @@ from auvexo_alpha.domain.contracts import (
 )
 from auvexo_alpha.domain.market_data import Candle, DatasetManifest
 from auvexo_alpha.domain.research_gaps import VenueUnavailable, coverage_disposition
+from auvexo_alpha.domain.source_reviews import REVIEWS, continues_for_research
 
 
 class DataUseClass(StrEnum):
@@ -113,19 +116,21 @@ def classify_manifest(
         or m.source.rights_version != m.rights.version
     ):
         reasons.append("UNQUALIFIED_SOURCE_OR_CROSS_PRODUCT_TRANSFER")
+    # Every owner-confirmed review's terms hash, plus the superseded first DS-01 snapshot.
     accepted_hashes = {
-        "DS-01": {
-            "dcf358e9d18f598a7a635fac80f6e643fa24a0e111a4d39bda47f1e246b31eb1",
-            "99c4921dbe023cd68c1a447775707d621453cc78aec6ac0bfe2e6c06a5114ee0",
-        },
-        "DS-02": {"bf4879710c904b991848972ec4818ba2cf9e4ce314c09adae84fa2750d3477f7"},
+        "DS-01": {"dcf358e9d18f598a7a635fac80f6e643fa24a0e111a4d39bda47f1e246b31eb1"}
+        | {r.terms_hash for r in REVIEWS["DS-01"]},
+        "DS-02": {r.terms_hash for r in REVIEWS["DS-02"]},
     }
     if m.rights.terms_hash not in accepted_hashes.get(m.source.source_id, set()):
         reasons.append("UNKNOWN_RIGHTS_SNAPSHOT")
     try:
         m.rights.require_research(now)
     except ValueError:
-        reasons.append("EXPIRED_RIGHTS_OR_INCOMPLETE_DATA")
+        # Data received under a recorded review stays usable only while a later review
+        # with exactly the same scope is in force.
+        if not continues_for_research(m.rights, now):
+            reasons.append("EXPIRED_RIGHTS_OR_INCOMPLETE_DATA")
     disposition = coverage_disposition(m, outages)
     if disposition == "UNKNOWN_GAP_BLOCKED":
         reasons.append("UNKNOWN_OR_UNEXPLAINED_QUALITY_FINDINGS")
@@ -223,6 +228,38 @@ class ResearchSplit(Contract):
             and self.validation_end + gap <= self.oos_start < self.oos_end
         ):
             raise ValueError("CHRONOLOGICAL_PURGE_EMBARGO_REQUIRED")
+        return self
+
+
+def bars_digest(bars: Sequence[Candle]) -> str:
+    """Identity of the exact bars a trial consumed, in order, from their canonical records."""
+    if not bars:
+        raise ValueError("EMPTY_RESEARCH_INPUT")
+    return hashlib.sha256(b"\n".join(bar.canonical_bytes() for bar in bars)).hexdigest()
+
+
+class TrialIdentity(Contract):
+    """What a recorded trial actually ran: verified by the ledger before it is accepted."""
+
+    study_hash: Digest
+    purpose: Literal[
+        "FITTED_FEATURES", "RESULT", "SELECTION", "VERDICT", "INFORMATIONAL_WALK_FORWARD"
+    ]
+    config: StrategyConfig
+    config_hash: Digest
+    cost_model: CostModel
+    availability: PriceAvailability
+    # Digests of authorized reads (each bound to a database read receipt) the trial used.
+    reads: tuple[Digest, ...] = Field(min_length=1, max_length=8)
+    consumed_digest: Digest
+    consumed_rows: Annotated[int, Field(ge=1, le=100_000)]
+    code_hash: Digest
+    dependency_hash: Digest
+
+    @model_validator(mode="after")
+    def derived_config_hash(self) -> Self:
+        if self.config.content_hash() != self.config_hash:
+            raise ValueError("TRIAL_CONFIG_HASH_NOT_DERIVED")
         return self
 
 

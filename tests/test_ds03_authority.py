@@ -6,6 +6,7 @@ from uuid import uuid4
 
 import pytest
 
+from auvexo_alpha.domain.ds03_actual import REASON_CODES, ServerTimeBasis
 from auvexo_alpha.domain.ds03_authority import (
     Ds03AuthorityError,
     Ds03LocalMetadata,
@@ -16,20 +17,44 @@ from auvexo_alpha.domain.ds03_authority import (
     decode_authority,
     decode_metadata,
 )
+from auvexo_alpha.infrastructure.ds03_metadata import metadata_references
+
+# Synthetic 32-byte reference key; production keys exist only in their DPAPI slot.
+REFERENCE_KEY = bytes(range(32))
+# Synthetic accepted UTC basis, measured before every fixture authorization.
+BASIS = ServerTimeBasis(
+    classification="UTC",
+    offset_seconds=0,
+    evidence_hash="c" * 64,
+    local_clock_evidence_hash="d" * 64,
+    sample_count=5,
+    measured_at=datetime(2026, 11, 3, 11, tzinfo=UTC),
+)
+
+
+def synthetic_metadata(**changes):
+    values = (
+        dict(
+            login=123456789,
+            assigned_server="synthetic-server.invalid",
+            account_type="SyntheticStandard",
+            currency="USD",
+            leverage=100,
+            owner_readonly_selection_ref="synthetic.owner.readonly",
+            terminal_path_hash="1" * 64,
+            profile_path_hash="2" * 64,
+        )
+        | changes
+    )
+    account, server = metadata_references(
+        REFERENCE_KEY, login=values["login"], assigned_server=values["assigned_server"]
+    )
+    return Ds03LocalMetadata(**values, account_digest=account, server_digest=server)
 
 
 def authority_fixture():
     now = datetime(2026, 11, 3, 12, tzinfo=UTC)
-    metadata = Ds03LocalMetadata(
-        login=123456789,
-        assigned_server="synthetic-server.invalid",
-        account_type="SyntheticStandard",
-        currency="USD",
-        leverage=100,
-        owner_readonly_selection_ref="synthetic.owner.readonly",
-        terminal_path_hash="1" * 64,
-        profile_path_hash="2" * 64,
-    )
+    metadata = synthetic_metadata()
     binding = Ds03RuntimeBinding(
         release_sha="1" * 40,
         release_tree="2" * 40,
@@ -48,8 +73,9 @@ def authority_fixture():
         authority_id=uuid4(),
         runtime=binding,
         metadata_hash=metadata.content_hash(),
-        account_digest=metadata.login_digest,
+        account_digest=metadata.account_digest,
         server_digest=metadata.server_digest,
+        server_time_basis=BASIS,
         account_type=metadata.account_type,
         currency=metadata.currency,
         leverage=metadata.leverage,
@@ -74,10 +100,13 @@ def admitted_fixture():
     return static, static.bind_metadata(metadata, now=now), now
 
 
-def failure(call):
+def failure(call, reason=None):
     with pytest.raises(Ds03AuthorityError) as captured:
         call()
-    assert str(captured.value) == "DS03_AUTHORITY_UNAVAILABLE"
+    assert captured.value.reason in REASON_CODES
+    assert str(captured.value) == "DS03_AUTHORITY_UNAVAILABLE:" + captured.value.reason
+    if reason is not None:
+        assert captured.value.reason == reason
     assert captured.value.__suppress_context__
 
 
@@ -90,7 +119,7 @@ def test_static_then_metadata_then_onboarding_has_no_observed_readonly_claim():
     full = static.bind_metadata(metadata, now=now)
     full.verify(now)
     assert full.metadata == metadata
-    assert metadata.account_ref == "ds03.account." + metadata.login_digest
+    assert metadata.account_ref == "ds03.account." + metadata.account_digest
     assert metadata.server_ref == "ds03.server." + metadata.server_digest
     assert not hasattr(static, "metadata")
     assert not hasattr(full, "account_trade_allowed")
@@ -117,7 +146,8 @@ def test_unaccepted_digest_refuses(digest):
     failure(
         lambda: admit_authority(
             authority, independently_accepted_digest=digest, binding=binding, now=now
-        )
+        ),
+        "AUTHORITY_INVALID",
     )
 
 
@@ -147,7 +177,8 @@ def test_every_measured_runtime_binding_mismatch_refuses(field, value):
             independently_accepted_digest=authority.content_hash(),
             binding=changed,
             now=now,
-        )
+        ),
+        "BINDING_MISMATCH",
     )
 
 
@@ -170,7 +201,7 @@ def test_metadata_account_server_provenance_and_profile_mismatch_refuse(field, v
         authority, independently_accepted_digest=authority.content_hash(), binding=binding, now=now
     )
     changed = metadata.model_copy(update={field: value})
-    failure(lambda: static.bind_metadata(changed, now=now))
+    failure(lambda: static.bind_metadata(changed, now=now), "METADATA_MISMATCH")
 
 
 @pytest.mark.parametrize(
@@ -196,8 +227,8 @@ def test_forged_constructed_models_do_not_bypass_closed_contract(field, value):
 
 def test_expiry_future_private_staleness_and_invalid_runtime_literals_refuse():
     static, full, now = admitted_fixture()
-    failure(lambda: static.verify(now - timedelta(minutes=2)))
-    failure(lambda: full.verify(now + timedelta(hours=1)))
+    failure(lambda: static.verify(now - timedelta(minutes=2)), "AUTHORITY_EXPIRED")
+    failure(lambda: full.verify(now + timedelta(hours=1)), "AUTHORITY_EXPIRED")
     failure(lambda: full.verify(now.replace(tzinfo=None)))
     for change in (
         {"expires_at": now + timedelta(hours=25)},

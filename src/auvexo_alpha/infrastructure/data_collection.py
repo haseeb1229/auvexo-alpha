@@ -9,14 +9,18 @@ from decimal import Decimal
 from uuid import uuid4
 
 from auvexo_alpha.application.data_reporting import stable_code
-from auvexo_alpha.domain.contracts import Product, Venue
+from auvexo_alpha.domain.contracts import Product, Venue, exact_decimal
 from auvexo_alpha.domain.market_data import (
+    ARCHIVE_HOST,
+    MAX_GAP_INTERVALS,
+    REST_HOST,
     Candle,
     DataAvailabilityWindow,
     DatasetManifest,
     IngestionEvent,
     InstrumentAlias,
     Interval,
+    ProviderHost,
     SpecSnapshot,
     Symbol,
     interval_seconds,
@@ -32,6 +36,14 @@ MAX_CLOCK_SKEW = timedelta(seconds=2)
 # One poll is a clock proof plus klines, each with PublicHTTP's three bounded attempts.
 POLL_ATTEMPTS = 6
 POLL_BYTES = 2 * 1024 * 1024 + 512
+
+
+# The single request an owner-released host may receive: the smallest known public object.
+PROBE_URLS: dict[ProviderHost, str] = {
+    REST_HOST: CLOCK_URL,
+    ARCHIVE_HOST: "https://data.binance.vision/data/spot/monthly/klines/BTCUSDT/1h/"
+    "BTCUSDT-1h-2024-01.zip.CHECKSUM",
+}
 
 
 class InputRejected(ValueError):
@@ -83,18 +95,62 @@ def processed(bars: list[Candle]) -> list[Candle]:
     ]
 
 
+def exchange_info_terms(raw: bytes, symbol: Symbol) -> tuple[Decimal, int]:
+    """Minimum notional and provider time of one exchangeInfo response; strict or refused.
+
+    `Collector.parse_spec` reads the price and lot filters of the same bytes.
+    """
+    payload = json.loads(raw)
+    item = payload["symbols"][0]
+    server = payload["serverTime"]
+    if len(payload["symbols"]) != 1 or item["symbol"] != symbol or type(server) is not int:
+        raise ValueError("SPEC_UNIT")
+    filters = {f["filterType"]: f for f in item["filters"]}
+    notional = filters.get("NOTIONAL", filters.get("MIN_NOTIONAL"))
+    if notional is None:
+        raise ValueError("SPEC_NOTIONAL_MISSING")
+    return exact_decimal(notional["minNotional"]), server
+
+
 class Collector:
     def __init__(
         self, store: DataStore, http: PublicHTTP, revision: str, enabled: bool = False
     ) -> None:
         self.store, self.http, self.revision, self.enabled = store, http, revision, enabled
 
-    def preflight(self, now: datetime) -> None:
+    def preflight(self, now: datetime, host: ProviderHost = REST_HOST) -> None:
+        """Refuse while this host is cooling down; after an owner release, probe exactly once.
+
+        The default host is the REST service that every live feed, including observation,
+        polls; archive history passes its own host.
+        """
         if not self.enabled:
             raise ValueError("COLLECTOR_DISABLED")
         self.store.check_quota(16 * 1024 * 1024)
-        if self.store.cooldown(now):
+        state, release_id = self.store.cooldown_state(now, host)
+        if state == "BLOCKED":
             raise SourceError("PERSISTED_PROVIDER_COOLDOWN")
+        if state == "PROBE_AVAILABLE" and release_id is not None:
+            self.probe(host, release_id)
+
+    def probe(self, host: ProviderHost, release_id: str) -> None:
+        """One request to the released host. The database refuses a second probe."""
+        url = PROBE_URLS[host]
+        self.store.start_probe(release_id, url, datetime.now(UTC))
+        single = PublicHTTP(
+            self.http.cancel, self.http.transport, self.http.wait, max_requests=1, max_bytes=512
+        )
+        try:
+            single.get(url, 512)
+        except SourceError as error:
+            self.store.probe_result(release_id, False, error.code, datetime.now(UTC))
+            self.refuse(f"public.{host}", error, None, "BLOCKED", host)
+            raise SourceError("COOLDOWN_PROBE_FAILED") from error
+        finally:
+            self.http.requests += single.requests
+            self.http.bytes += single.bytes
+        self.store.probe_result(release_id, True, "PROBE_PASSED", datetime.now(UTC))
+        self.record(f"public.{host}", "FRESH", "COOLDOWN_PROBE_PASSED", datetime.now(UTC))
 
     def record(
         self,
@@ -105,6 +161,7 @@ class Collector:
         manifest: DatasetManifest | None = None,
         cooldown: int = 0,
         quarantined_source_hash: str | None = None,
+        host: ProviderHost | None = None,
     ) -> None:
         self.store.event(
             IngestionEvent.model_validate(
@@ -119,18 +176,19 @@ class Collector:
                     dataset_version=manifest.dataset_version if manifest else None,
                     blocked_until=now + timedelta(seconds=cooldown) if cooldown else None,
                     quarantined_source_hash=quarantined_source_hash,
+                    cooldown_host=host if cooldown else None,
                 )
             )
         )
 
     def history(self, symbol: Symbol, interval: Interval, period: str) -> DatasetManifest:
         now = datetime.now(UTC)
-        self.preflight(now)
-        rights("DS-01").require_research(now)
+        self.preflight(now, ARCHIVE_HOST)
+        rights("DS-01", now).require_research(now)
         url, filename, start, end = archive_location(symbol, interval, period)
+        feed = f"DS-01.{symbol}.{interval}.{period}"
         if end > now:
             raise ValueError("UNFINISHED_ARCHIVE")
-        feed = f"DS-01.{symbol}.{interval}.{period}"
         raw: bytes | None = None
         try:
             checksum = self.http.get(url + ".CHECKSUM", 512)
@@ -148,8 +206,8 @@ class Collector:
             manifest = self.store.publish(
                 bars,
                 report,
-                identity("DS-01"),
-                rights("DS-01"),
+                identity("DS-01", received),
+                rights("DS-01", received),
                 feed,
                 url,
                 raw,
@@ -165,7 +223,7 @@ class Collector:
             )
             return manifest
         except ValueError as error:
-            self.refuse(feed, error, raw, "BLOCKED")
+            self.refuse(feed, error, raw, "BLOCKED", ARCHIVE_HOST)
             raise
 
     def provider_time(self) -> tuple[datetime, datetime]:
@@ -213,8 +271,8 @@ class Collector:
 
     def poll(self, symbol: Symbol, interval: Interval = "1m") -> DatasetManifest | None:
         now = datetime.now(UTC)
-        self.preflight(now)
-        rights("DS-02").require_research(now)
+        self.preflight(now, REST_HOST)
+        rights("DS-02", now).require_research(now)
         feed = f"DS-02.{symbol}.{interval}"
         step = timedelta(seconds=interval_seconds(interval))
         # Two-second publication grace; a poll is not proof of a two-second executable quote.
@@ -223,9 +281,20 @@ class Collector:
         try:
             checkpoint = self.store.checkpoint(feed)
             start = checkpoint.next_open if checkpoint else end - 2 * step
+            next_gap: datetime | None = None
+            if checkpoint:
+                # Only an owner-reviewed gap at the checkpoint moves the feed past absent
+                # provider bars. Nothing is filled; the gap stays in coverage for good.
+                horizon = start + (1000 + MAX_GAP_INTERVALS) * step
+                for gap in self.store.gaps(start, horizon, feed):
+                    if gap.gap_start <= start < gap.gap_end:
+                        start = gap.gap_end
+                    elif start < gap.gap_start:
+                        next_gap = gap.gap_start
+                        break
             if start >= end:
                 return None
-            end = min(end, start + 1000 * step)
+            end = min(end, start + 1000 * step, next_gap or end)
             begin_ms, end_ms = (
                 (start - EPOCH) // timedelta(milliseconds=1),
                 (end - EPOCH) // timedelta(milliseconds=1) - 1,
@@ -245,8 +314,8 @@ class Collector:
             manifest = self.store.publish(
                 bars,
                 report,
-                identity("DS-02"),
-                rights("DS-02"),
+                identity("DS-02", received),
+                rights("DS-02", received),
                 key,
                 url,
                 raw,
@@ -260,7 +329,7 @@ class Collector:
             )
             return manifest
         except ValueError as error:
-            self.refuse(feed, error, raw, "STALE")
+            self.refuse(feed, error, raw, "STALE", REST_HOST)
             raise
 
     def catch_up(
@@ -287,10 +356,24 @@ class Collector:
             reached = end
         return outcome
 
-    def refuse(self, feed: str, error: ValueError, raw: bytes | None, source_state: str) -> None:
+    def refuse(
+        self,
+        feed: str,
+        error: ValueError,
+        raw: bytes | None,
+        source_state: str,
+        host: ProviderHost,
+    ) -> None:
         """Leave one durable event for a failed step under that failure's own stable code."""
         if isinstance(error, SourceError):
-            self.record(feed, source_state, error.code, datetime.now(UTC), cooldown=error.cooldown)
+            self.record(
+                feed,
+                source_state,
+                error.code,
+                datetime.now(UTC),
+                cooldown=error.cooldown,
+                host=host,
+            )
         elif isinstance(error, InputRejected):
             self.reject_input(feed, raw)
         else:
@@ -310,8 +393,8 @@ class Collector:
 
     def spec(self, symbol: Symbol) -> SpecSnapshot:
         now = datetime.now(UTC)
-        self.preflight(now)
-        rights("DS-02").require_research(now)
+        self.preflight(now, REST_HOST)
+        rights("DS-02", now).require_research(now)
         url = "https://data-api.binance.vision/api/v3/exchangeInfo?symbol=" + symbol
         feed = f"DS-02.{symbol}.spec"
         raw: bytes | None = None
@@ -319,7 +402,14 @@ class Collector:
             raw = self.http.get(url, 2 * 1024 * 1024)
             return self.parse_spec(symbol, url, raw)
         except SourceError as error:
-            self.record(feed, "BLOCKED", error.code, datetime.now(UTC), cooldown=error.cooldown)
+            self.record(
+                feed,
+                "BLOCKED",
+                error.code,
+                datetime.now(UTC),
+                cooldown=error.cooldown,
+                host=REST_HOST,
+            )
             raise
         except (ValueError, KeyError, TypeError, IndexError) as error:
             self.reject_input(feed, raw)

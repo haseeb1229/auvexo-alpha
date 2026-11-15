@@ -1,6 +1,8 @@
 """Strict immutable virtual PAPER contracts, with no broker account or credentials."""
 
 import hashlib
+import json
+from collections.abc import Mapping
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
@@ -31,6 +33,30 @@ SignedAmount = Annotated[Decimal, BeforeValidator(exact_decimal)]
 Count = Annotated[int, Field(ge=0, le=1_000_000)]
 Fraction = Annotated[Decimal, BeforeValidator(exact_decimal), Field(ge=0, le=1)]
 _ACCOUNT_LABEL: TypeAdapter[str] = TypeAdapter(Label)
+
+# Spread gate v1 (P-14). A policy that does not state `max_spread_bps` gets this versioned
+# default. It is 50 basis points of the bid; no fixture or minute-bar snapshot comes near it
+# (both carry bid == ask), so existing canonical decisions are unchanged.
+DEFAULT_MAX_SPREAD_BPS = Decimal("50")
+# Stated bound between a caller's `now` and the database clock under STORE_VERIFIED input
+# trust (P-3). Caller and database share one host clock, so a larger gap is a forged or
+# replayed time, not drift.
+DEFAULT_MAX_STORE_CLOCK_SKEW_MS = 1000
+
+
+def canonical_without_defaults(value: Contract, defaults: Mapping[str, object]) -> bytes:
+    """Fields added after a contract was first hashed are omitted at their legacy default.
+
+    Every policy and market snapshot recorded before the field existed therefore keeps its
+    content hash, and parses back to exactly the documented default.
+    """
+    payload = json.loads(Contract.canonical_bytes(value))
+    for key, default in defaults.items():
+        if getattr(value, key) == default:
+            del payload[key]
+    return json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+    ).encode("ascii")
 
 
 def paper_position_ref(account_ref: str, intent_id: UUID) -> str:
@@ -117,6 +143,14 @@ class PaperInstrumentSpec(Contract):
         return self
 
 
+def spec_terms_hash(spec: PaperInstrumentSpec) -> str:
+    """Pin identity of a specification's terms; the observation instant is excluded."""
+    payload = json.loads(spec.canonical_bytes())
+    del payload["observed_at"]
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(encoded.encode("ascii")).hexdigest()
+
+
 class PaperMarketSnapshot(Contract):
     snapshot_id: Identifier
     instrument_id: Label
@@ -129,12 +163,25 @@ class PaperMarketSnapshot(Contract):
     health: Literal["HEALTHY", "STALE", "UNKNOWN", "GAPPED"]
     session_open: bool
     clock_offset_ms: Annotated[int, Field(ge=-86_400_000, le=86_400_000)]
+    # QUOTE: a two-sided quote. BAR_CLOSE: one bar's close used as both sides, so its spread
+    # is zero by construction; the basis is stated so a passed spread gate is not read as a
+    # measured tight market.
+    price_basis: Literal["QUOTE", "BAR_CLOSE"] = "QUOTE"
 
     @model_validator(mode="after")
     def chronology(self) -> Self:
         if self.as_of > self.available_at or self.bid > self.ask:
             raise ValueError("MARKET_SNAPSHOT_INVALID")
+        if self.price_basis == "BAR_CLOSE" and self.bid != self.ask:
+            raise ValueError("BAR_CLOSE_SPREAD_MUST_BE_ZERO")
         return self
+
+    def canonical_bytes(self) -> bytes:
+        return canonical_without_defaults(self, {"price_basis": "QUOTE"})
+
+    def spread_bps(self) -> Decimal:
+        """Quoted spread over the bid, in basis points; zero for a bar close."""
+        return (self.ask - self.bid) * Decimal("10000") / self.bid
 
 
 class PaperPosition(Contract):
@@ -239,6 +286,16 @@ class PaperPolicy(Contract):
     slippage_bps: NonnegativeAmount
     gap_bps: NonnegativeAmount
     max_queue_depth: Count
+    # Added after v1 hashes existed; each is omitted from canonical bytes at its default.
+    max_spread_bps: NonnegativeAmount = DEFAULT_MAX_SPREAD_BPS
+    # CALLER_SUPPLIED is the v1 behaviour: market, specification and time are the caller's.
+    # STORE_VERIFIED (P-3/OBV2-07) makes the store require a stored verified truth mark, a
+    # pinned and observed specification and a `now` within the database clock bound.
+    input_trust: Literal["CALLER_SUPPLIED", "STORE_VERIFIED"] = "CALLER_SUPPLIED"
+    pinned_spec_terms: tuple[Digest, ...] = ()
+    max_store_clock_skew_ms: Annotated[int, Field(ge=1, le=60_000)] = (
+        DEFAULT_MAX_STORE_CLOCK_SKEW_MS
+    )
 
     @model_validator(mode="after")
     def coherent(self) -> Self:
@@ -250,7 +307,22 @@ class PaperPolicy(Contract):
             or any(not value.startswith("paper.") for value in self.allowed_accounts)
         ):
             raise ValueError("PAPER_POLICY_MAPPING_INVALID")
+        if len(self.pinned_spec_terms) != len(set(self.pinned_spec_terms)) or (
+            self.input_trust == "STORE_VERIFIED" and not self.pinned_spec_terms
+        ):
+            raise ValueError("PAPER_POLICY_TRUST_INVALID")
         return self
+
+    def canonical_bytes(self) -> bytes:
+        return canonical_without_defaults(
+            self,
+            {
+                "max_spread_bps": DEFAULT_MAX_SPREAD_BPS,
+                "input_trust": "CALLER_SUPPLIED",
+                "pinned_spec_terms": (),
+                "max_store_clock_skew_ms": DEFAULT_MAX_STORE_CLOCK_SKEW_MS,
+            },
+        )
 
 
 class PaperReservation(Contract):
@@ -334,6 +406,12 @@ class PaperReason(StrEnum):
     POSITION_UNKNOWN = "POSITION_UNKNOWN"
     OVER_CLOSE = "OVER_CLOSE"
     TARGET_UNKNOWN = "TARGET_UNKNOWN"
+    # Appended so the stable reason order of every earlier decision is unchanged.
+    SPREAD_WIDE = "SPREAD_WIDE"
+    MARKET_UNVERIFIED = "MARKET_UNVERIFIED"
+    SPEC_UNPINNED = "SPEC_UNPINNED"
+    SPEC_UNOBSERVED = "SPEC_UNOBSERVED"
+    CLOCK_UNTRUSTED = "CLOCK_UNTRUSTED"
 
 
 class PaperDecision(Contract):

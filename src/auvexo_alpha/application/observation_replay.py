@@ -8,6 +8,7 @@ from auvexo_alpha.domain.observation import (
     ObservationProposalTrace,
     observation_market,
     observation_policy,
+    pinned_spec,
 )
 from auvexo_alpha.domain.paper import PaperDecision
 from auvexo_alpha.domain.paper_risk import assess_paper, verify_authorization
@@ -29,8 +30,8 @@ def replay_observation_traces(
         fact = by_hash.get(trace.source_observation_hash)
         if (
             fact is None
-            or trace.market != observation_market(fact)
-            or trace.spec not in config.specs
+            or trace.market != observation_market(fact, config)
+            or not pinned_spec(config, trace.spec)
             or trace.intent.instrument_id != fact.candle.instrument_id
             or trace.intent.account_ref != config.account_ref
             or trace.account_before.account_ref != config.account_ref

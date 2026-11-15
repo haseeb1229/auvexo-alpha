@@ -123,8 +123,20 @@ class Contract(BaseModel):
                 return str(value)
             raise TypeError("unsupported canonical value")
 
+        def nested(value: object) -> object:
+            # A nested contract contributes its own canonical form, so a field added later
+            # and omitted at its legacy default (canonical_without_defaults) keeps every
+            # enclosing contract's recorded hash too. Other values encode as before.
+            if isinstance(value, Contract):
+                return json.loads(value.canonical_bytes())
+            if isinstance(value, tuple | list):
+                return [nested(item) for item in value]
+            if isinstance(value, dict):
+                return {key: nested(item) for key, item in value.items()}
+            return value
+
         return json.dumps(
-            self.model_dump(mode="python"),
+            {name: nested(getattr(self, name)) for name in type(self).model_fields},
             default=default,
             sort_keys=True,
             separators=(",", ":"),

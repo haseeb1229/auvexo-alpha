@@ -1,4 +1,8 @@
-"""Future explicit START-gated DS04-A1 job. Defaults disabled; no registration or issuer."""
+"""Future explicit START-gated DS04-A1 job. Defaults disabled; no registration or issuer.
+
+START authority is only an entry of the acceptance file committed in this pinned checkout,
+selected by ``--accepted-start-hash``. This tool never writes, commits or derives it.
+"""
 
 import argparse
 import json
@@ -17,13 +21,18 @@ from sqlalchemy.exc import SQLAlchemyError
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, OIReviewContinuation
 from auvexo_alpha.domain.oi_schedule import (
     OICollectionConfig,
-    OIStartEnvelope,
     require_scheduled_start,
     scheduled_slot,
 )
 from auvexo_alpha.infrastructure.oi_collection import OICollectionJob
 from auvexo_alpha.infrastructure.oi_http import OIHTTP
-from auvexo_alpha.infrastructure.oi_runtime import inspect_clock, require_build, resources_ready
+from auvexo_alpha.infrastructure.oi_runtime import (
+    inspect_clock,
+    load_accepted_start,
+    require_build,
+    resources_ready,
+    runtime_identity,
+)
 from auvexo_alpha.infrastructure.oi_secrets import load_oi_database_password
 from auvexo_alpha.infrastructure.oi_store import OIStore
 from auvexo_alpha.infrastructure.public_http import SourceError
@@ -95,7 +104,6 @@ def main() -> int:
     parser = _RedactedArgumentParser(description=__doc__, exit_on_error=False)
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--scheduled", action="store_true")
-    parser.add_argument("--start-envelope", type=Path)
     parser.add_argument("--accepted-start-hash")
     parser.add_argument("--review-chain", type=Path)
     parser.add_argument("--accepted-review-hash", action="append", default=[])
@@ -114,15 +122,13 @@ def main() -> int:
             config, args.review_chain, args.accepted_review_hash, datetime.now(UTC)
         )
         require_scheduled_start(config, datetime.now(UTC), review_authority)
-        if not args.scheduled or args.start_envelope is None or args.accepted_start_hash is None:
+        if not args.scheduled or args.accepted_start_hash is None:
             raise ValueError("OI_OWNER_START_REQUIRED")
-        if args.start_envelope.stat().st_size > 16384:
-            raise ValueError("OI_START_AUTHORITY_INVALID")
-        envelope = OIStartEnvelope.model_validate_json(args.start_envelope.read_bytes())
-        envelope.require_start(
-            config, args.accepted_start_hash, datetime.now(UTC), review_authority
-        )
-        require_build(root, config)
+        # The clean exact build first: START is read from the commit this gate proves.
+        commit = require_build(root, config)
+        start = load_accepted_start(root, commit, args.accepted_start_hash)
+        start.acceptance.require_runtime(runtime_identity(root))
+        start.require_start(config, datetime.now(UTC), review_authority)
         clock = inspect_clock(config.clock_source)
         clock.require_trusted(config, datetime.now(UTC))
         # Build/clock inspection can consume the launch or authorization interval.
@@ -130,7 +136,7 @@ def main() -> int:
         decrypt_at = datetime.now(UTC)
         scheduled_slot(config, decrypt_at)
         require_scheduled_start(config, decrypt_at, review_authority)
-        envelope.require_start(config, args.accepted_start_hash, decrypt_at, review_authority)
+        start.require_start(config, decrypt_at, review_authority)
         clock.require_trusted(config, decrypt_at)
         # Only the current-user Windows OS store supplies a real scheduled DB secret.
         # No plaintext environment/config/task/CLI fallback and no interactive prompt.
@@ -159,7 +165,7 @@ def main() -> int:
         )
 
         def before_attempt(at: datetime) -> None:
-            envelope.require_start(config, args.accepted_start_hash, at, review_authority)
+            start.require_start(config, at, review_authority)
             clock.require_trusted(config, at)
             if not resources_ready(root):
                 raise ValueError("OI_RESOURCE_YIELD")
@@ -178,9 +184,7 @@ def main() -> int:
             resources_ready=lambda: resources_ready(root),
             review_authority=review_authority,
         )
-        result = job.run(
-            envelope=envelope, accepted_start_digest=args.accepted_start_hash, clock=clock
-        )
+        result = job.run(start=start, clock=clock)
         print(
             json.dumps(
                 {

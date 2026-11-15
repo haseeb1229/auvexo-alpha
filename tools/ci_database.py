@@ -1,48 +1,26 @@
-"""Provision only the isolated GitHub service database with synthetic credentials."""
+"""Provision the hosted-CI PostgreSQL container through the disposable-cluster harness.
+
+The container listens on a non-operational port and carries a per-run marker, so CI
+exercises the same refusal of 55432/55433 and the same marker proof as local runs.
+"""
 
 import os
-import subprocess
-import sys
 
-import psycopg
-from sqlalchemy import URL
+from disposable_pg import ROLES, harness_cluster, provision
 
 if os.environ.get("GITHUB_ACTIONS") != "true":
-    raise RuntimeError("CI-only synthetic setup; use local_db.py for Windows")
-with psycopg.connect(
-    host="127.0.0.1",
-    port=55432,
-    user="auvexo_admin",
-    password="ci-synthetic-ephemeral-only",
-    dbname="auvexo_test",
-    autocommit=True,
-) as conn:
-    conn.execute(
-        "CREATE ROLE auvexo_app LOGIN PASSWORD 'ci-synthetic-app-only-not-a-secret-123' "
-        "NOSUPERUSER NOCREATEDB NOCREATEROLE"
-    )
-    conn.execute("REVOKE CREATE ON SCHEMA public FROM PUBLIC")
-env = os.environ.copy()
-env["AUVEXO_MIGRATION_DSN"] = URL.create(
-    "postgresql+psycopg",
-    username="auvexo_admin",
-    password="ci-synthetic-ephemeral-only",
-    host="127.0.0.1",
-    port=55432,
-    database="auvexo_test",
-).render_as_string(hide_password=False)
-subprocess.run([sys.executable, "-m", "alembic", "upgrade", "head"], env=env, check=True)
-
-with psycopg.connect(
-    host="127.0.0.1",
-    port=55432,
-    user="auvexo_admin",
-    password="ci-synthetic-ephemeral-only",
-    dbname="auvexo_test",
-    autocommit=True,
-) as conn:
-    conn.execute(
-        "CREATE ROLE auvexo_data_writer LOGIN PASSWORD 'ci-synthetic-data-only-not-a-secret-123' "
-        "NOSUPERUSER NOCREATEDB NOCREATEROLE"
-    )
-    conn.execute("GRANT auvexo_ingest TO auvexo_data_writer")
+    raise RuntimeError("CI-only synthetic setup; use tools/disposable_pg.py locally")
+cluster = harness_cluster()
+passwords = {role: os.environ[f"TEST_PG_{role.upper()}_PASSWORD"] for role in ROLES}
+provision(
+    dict(
+        host="127.0.0.1",
+        port=cluster.port,
+        user="auvexo_admin",
+        password=passwords["admin"],
+        connect_timeout=3,
+    ),
+    passwords,
+    cluster,
+)
+print(f"CI disposable cluster provisioned on 127.0.0.1:{cluster.port}")

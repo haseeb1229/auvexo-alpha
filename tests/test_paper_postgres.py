@@ -19,6 +19,7 @@ from sqlalchemy.exc import DBAPIError
 
 from auvexo_alpha.domain.paper import PaperIntent, PaperReason, paper_position_ref
 from auvexo_alpha.domain.paper_lifecycle import KillLevel
+from auvexo_alpha.infrastructure.database import SCHEMA_REVISION
 from auvexo_alpha.infrastructure.paper_identity import PaperIdentityError
 from auvexo_alpha.infrastructure.paper_store import PaperStore, PaperTruth
 from tools.paper_local import (
@@ -64,7 +65,7 @@ def test_paper_forward_migration_idempotent_and_downgrade_refused(paper_database
     assert snapshot(paper_database) == before
     with psycopg.connect(dbname=paper_database, **admin_args()) as conn:
         assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0005_paper_core",
+            SCHEMA_REVISION,
         )
         assert conn.execute(
             "SELECT execution_enabled,binance_live_derivatives FROM foundation_policy"
@@ -195,8 +196,15 @@ def _race_submit(arguments):
         # Every proposal sees an individually valid pre-race account snapshot.
         # All independent writers cross into the transaction concurrently.
         barrier.wait(timeout=30)
+        # P-11: workers of one writer present its granted epoch; no worker acquires its own.
         result = store.authorize(
-            intent, bundle.policy, bundle.market, bundle.spec, bundle.release, now=bundle.now
+            intent,
+            bundle.policy,
+            bundle.market,
+            bundle.spec,
+            bundle.release,
+            now=bundle.now,
+            epoch=bundle.account.epoch,
         )
         return result.decision.status, intent.content_hash(), tuple(result.decision.reasons)
     finally:
@@ -912,7 +920,13 @@ def _uuid_collision_worker(arguments):
         intent = bundle.rebind(intent_id=identity, logical_key="uuid.collision." + str(index))
         barrier.wait(timeout=30)
         decision = store.authorize(
-            intent, bundle.policy, bundle.market, bundle.spec, bundle.release, now=bundle.now
+            intent,
+            bundle.policy,
+            bundle.market,
+            bundle.spec,
+            bundle.release,
+            now=bundle.now,
+            epoch=bundle.account.epoch,
         ).decision
         return decision.status
     finally:

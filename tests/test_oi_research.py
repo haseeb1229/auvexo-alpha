@@ -4,17 +4,20 @@ import hashlib
 import random
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, localcontext
+from pathlib import Path
 
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
+from auvexo_alpha.application import oi_research
 from auvexo_alpha.application.oi_research import (
     OIBootstrapInterval,
     OIDailyEvidence,
     OIForecast,
     OIPairScore,
+    OIStudyLineage,
     OIStudyResult,
     OIStudyWindow,
     bootstrap_intervals,
@@ -28,6 +31,13 @@ from auvexo_alpha.application.oi_research import (
     score_forecast,
 )
 from auvexo_alpha.domain.oi_rights_review import OIReviewAuthority, OIReviewContinuation
+from auvexo_alpha.domain.oi_schedule import (
+    OIAcceptedStart,
+    OIRuntimeIdentity,
+    OISlotGap,
+    OIStartAcceptance,
+    OIStartEnvelope,
+)
 from auvexo_alpha.domain.open_interest import (
     OIManifest,
     OIObservation,
@@ -160,7 +170,8 @@ def fixture_ledger(
                     slot_at=slot,
                     created_at=slot + timedelta(seconds=2),
                     feature_hash=digest((symbol, slot, "f")),
-                    input_manifest_hashes=(digest((symbol, slot, "previous")), current_hash),
+                    # Adjacent slots share manifests, as a store's would.
+                    input_manifest_hashes=(digest((slot - HOUR, symbol)), current_hash),
                     current_manifest_hash=current_hash,
                     current_level=Decimal("100"),
                     source_hash="d" * 64,
@@ -176,7 +187,7 @@ def fixture_ledger(
                     forecast_hash=forecast.content_hash(),
                     symbol=symbol,
                     slot_at=slot,
-                    target_manifest_hash=digest((symbol, slot, "target")),
+                    target_manifest_hash=digest((slot + HOUR, symbol)),
                     outcome=observed,
                     paired_loss_difference=difference,
                     scored_at=slot + HOUR + timedelta(seconds=1),
@@ -845,6 +856,61 @@ def completed_window():
     return study(datetime(2026, 7, 27, tzinfo=UTC))
 
 
+def synthetic_start(window):
+    """A synthetic committed-START stand-in bound to ``window``; never a real START."""
+    envelope = OIStartEnvelope(
+        owner_authorization_ref="synthetic-owner-ref",
+        independent_review_ref="synthetic-review-ref",
+        implementation_revision="c" * 40,
+        config_hash="e" * 64,
+        code_hash=window.code_hash,
+        source_hash="d" * 64,
+        rights_hash=window.rights_snapshot_hash,
+        preregistration_hash=window.preregistration_hash,
+        issued_at=window.owner_start_at,
+        owner_start_at=window.owner_start_at,
+        expires_at=window.owner_start_at + timedelta(days=93),
+    )
+    return OIAcceptedStart(
+        acceptance_commit="f" * 40,
+        acceptance=OIStartAcceptance(
+            study_id=window.study_id,
+            envelope=envelope,
+            runtime=OIRuntimeIdentity(
+                checkout_root="C:/synthetic/oi-runtime",
+                python_executable="C:/synthetic/oi-runtime/python.exe",
+                python_executable_sha256="1" * 64,
+                base_interpreter_sha256="2" * 64,
+            ),
+            commissioning_clock_source="synthetic-ntp",
+            commissioning_clock_evidence_hash="9" * 64,
+            acceptance_review_ref="synthetic-independent-review",
+        ),
+    )
+
+
+def bound_window():
+    window = completed_window()
+    start = synthetic_start(window)
+    return window.model_copy(update={"start_digest": start.digest}), start
+
+
+def store_lineage(window, start, forecasts, scores, *, omit=(), gaps=()):
+    """Hand-built stand-in for OIStore.study_lineage, for the private decision core only.
+
+    The public ``evaluate_study`` takes no lineage; the genuine path through the real
+    entry point is proven against PostgreSQL in test_oi_storage.
+    """
+    hashes = {h for f in forecasts for h in f.input_manifest_hashes}
+    hashes |= {s.target_manifest_hash for s in scores if s.eligible}
+    return OIStudyLineage(
+        study_hash=window.content_hash(),
+        start=start,
+        genuine_manifest_hashes=tuple(sorted(hashes - set(omit))),
+        gaps=gaps,
+    )
+
+
 @pytest.mark.parametrize("beyond", [timedelta(0), timedelta(hours=1), timedelta(days=20)])
 def test_unsupported_or_future_as_of_cannot_turn_an_interim_ledger_into_a_final_result(beyond):
     window = completed_window()
@@ -930,7 +996,7 @@ def reference_bounds(btc_days, eth_days, block):
     ],
 )
 def test_evaluate_study_reaches_each_decision_through_the_real_bootstrap(base, step, decision):
-    window = completed_window()
+    window, start = bound_window()
 
     def outcome(day, symbol):
         return Decimal(base) + Decimal(step) * ((day + 3 * (symbol == "ETHUSDT")) % 7)
@@ -938,14 +1004,17 @@ def test_evaluate_study_reaches_each_decision_through_the_real_bootstrap(base, s
     def effect(day, symbol):
         return abs(outcome(day, symbol)) - abs(outcome(day, symbol) - Decimal("0.001"))
 
-    # No real observation exists. PERSONAL_RESEARCH here is the fixture's own assertion,
-    # exactly the caller-supplied label evaluate_study cannot verify without a store.
+    # No real observation exists. PERSONAL_RESEARCH here is the fixture's own assertion;
+    # only the store-derived lineage below (a synthetic stand-in) can make it genuine.
     forecasts, scores = fixture_ledger(
         window, day_count=90, use=DataUseClass.PERSONAL_RESEARCH, outcome=outcome
     )
-    result = evaluate_study(
+    labelled_only = evaluate_study(
         window, forecasts, scores, as_of=window.evaluation_end, current_rights=accepted_oi_rights()
     )
+    assert labelled_only.genuine_forward_days == 0 and not labelled_only.empirical_result
+    assert labelled_only.reason == "INSUFFICIENT_GENUINE_SAMPLE" and not labelled_only.intervals
+    result = evaluated(window, forecasts, scores, store_lineage(window, start, forecasts, scores))
     assert result.decision == decision and result.reason == "FIXED_WINDOW_COMPLETE"
     assert result.joint_valid_days == 90 and result.eligible_pairs == (1709, 1709)
     assert [interval.block_days for interval in result.intervals] == [14, 7, 28]
@@ -1031,3 +1100,160 @@ def test_primary_bar_is_one_basis_point_and_sensitivity_bar_is_zero(
     bounds = lower_bounds(primary, seven, twenty_eight, symbol=symbol)
     assert decide_predictability(bounds, sufficient_sample=True) == expected
     assert decide_predictability(bounds, sufficient_sample=False) == "INCONCLUSIVE"
+
+
+def genuine_ledger():
+    window, start = bound_window()
+    forecasts, scores = fixture_ledger(
+        window,
+        day_count=90,
+        use=DataUseClass.PERSONAL_RESEARCH,
+        outcome=lambda day, symbol: Decimal("0.0008") + Decimal("0.00002") * (day % 7),
+    )
+    return window, start, forecasts, scores
+
+
+def evaluated(window, forecasts, scores, lineage):
+    """The private decision core, which only ``evaluate_recorded_study`` calls in production."""
+    return oi_research._evaluate_with_store_lineage(
+        window,
+        forecasts,
+        scores,
+        as_of=window.evaluation_end,
+        current_rights=accepted_oi_rights(),
+        review_authority=None,
+        material_failure=False,
+        lineage=lineage,
+    )
+
+
+def test_public_evaluation_accepts_no_lineage_so_a_hand_built_one_is_never_genuine():
+    window, start, forecasts, scores = genuine_ledger()
+    forged = store_lineage(window, start, forecasts, scores)
+    with pytest.raises(TypeError):
+        evaluate_study(
+            window,
+            forecasts,
+            scores,
+            as_of=window.evaluation_end,
+            current_rights=accepted_oi_rights(),
+            lineage=forged,
+        )
+    public = evaluate_study(
+        window, forecasts, scores, as_of=window.evaluation_end, current_rights=accepted_oi_rights()
+    )
+    assert public.classification == DataUseClass.ENGINEERING_ONLY
+    assert not public.empirical_result and public.genuine_forward_days == 0
+
+
+def test_only_the_store_entry_point_reaches_the_lineage_decision_core():
+    root = Path(__file__).resolve().parents[1]
+    users = sorted(
+        path.relative_to(root).as_posix()
+        for scope in ("src", "tools")
+        for path in (root / scope).rglob("*.py")
+        if "_evaluate_with_store_lineage" in path.read_text(encoding="utf8")
+    )
+    assert users == [
+        "src/auvexo_alpha/application/oi_research.py",
+        "src/auvexo_alpha/infrastructure/oi_store.py",
+    ]
+
+
+def test_genuine_days_need_store_lineage_never_the_label():
+    window, start, forecasts, scores = genuine_ledger()
+    genuine = evaluated(window, forecasts, scores, store_lineage(window, start, forecasts, scores))
+    assert genuine.genuine_forward_days == 90 and genuine.empirical_result
+    assert genuine.classification == DataUseClass.PERSONAL_RESEARCH
+    assert genuine.start_digest == start.digest
+    # The identical labelled ledger without lineage is engineering evidence only.
+    unlabelled = evaluated(window, forecasts, scores, None)
+    assert unlabelled.genuine_forward_days == 0 and not unlabelled.empirical_result
+    assert unlabelled.classification == DataUseClass.ENGINEERING_ONLY
+
+
+@pytest.mark.parametrize("missing", ["forecast_input", "scored_target"])
+def test_one_unverified_input_or_target_makes_the_whole_study_non_genuine(missing):
+    window, start, forecasts, scores = genuine_ledger()
+    omitted = (
+        forecasts[0].input_manifest_hashes[0]
+        if missing == "forecast_input"
+        else scores[-1].target_manifest_hash
+    )
+    lineage = store_lineage(window, start, forecasts, scores, omit=(omitted,))
+    result = evaluated(window, forecasts, scores, lineage)
+    assert result.genuine_forward_days == 0 and not result.empirical_result
+    assert result.reason == "INSUFFICIENT_GENUINE_SAMPLE"
+
+
+@pytest.mark.parametrize(
+    "change",
+    ["other_start", "study_not_bound", "other_study_hash", "owner_start", "study_id"],
+)
+def test_lineage_must_bind_this_study_to_its_committed_start(change):
+    window, start, forecasts, scores = genuine_ledger()
+    lineage = store_lineage(window, start, forecasts, scores)
+    if change == "other_start":
+        other = synthetic_start(window.model_copy(update={"study_id": "another-study"}))
+        lineage = lineage.model_copy(update={"start": other})
+    elif change == "study_not_bound":
+        unbound = window.model_copy(update={"start_digest": None})
+        lineage = lineage.model_copy(update={"study_hash": unbound.content_hash()})
+        window = unbound
+    elif change == "other_study_hash":
+        lineage = lineage.model_copy(update={"study_hash": "0" * 64})
+    elif change == "owner_start":
+        shifted = start.envelope.model_copy(
+            update={"owner_start_at": window.owner_start_at + timedelta(minutes=1)}
+        )
+        moved = start.acceptance.model_copy(update={"envelope": shifted})
+        lineage = lineage.model_copy(
+            update={"start": start.model_copy(update={"acceptance": moved})}
+        )
+    else:
+        moved = start.acceptance.model_copy(update={"study_id": "another-study"})
+        lineage = lineage.model_copy(
+            update={"start": start.model_copy(update={"acceptance": moved})}
+        )
+    result = evaluated(window, forecasts, scores, lineage)
+    assert result.genuine_forward_days == 0 and not result.empirical_result
+
+
+def test_lineage_refuses_duplicates_and_reports_retained_gaps_without_changing_statistics():
+    window, start, forecasts, scores = genuine_ledger()
+    lineage = store_lineage(window, start, forecasts, scores)
+    with pytest.raises(ValueError, match="OI_LINEAGE_DUPLICATE"):
+        OIStudyLineage.model_validate(
+            lineage.model_dump(mode="python")
+            | {"genuine_manifest_hashes": lineage.genuine_manifest_hashes[:1] * 2}
+        )
+    inside = window.evaluation_start + timedelta(hours=15)
+    gaps = tuple(
+        OISlotGap(symbol=symbol, slot_at=slot, reason="OI_NO_RUN_RECORDED", recorded_at=slot)
+        for slot in (window.t0, inside)
+        for symbol in ("BTCUSDT", "ETHUSDT")
+    )
+    with pytest.raises(ValueError, match="OI_LINEAGE_DUPLICATE"):
+        store_lineage(window, start, forecasts, scores, gaps=gaps + gaps[:1])
+    with_gaps = evaluated(
+        window, forecasts, scores, store_lineage(window, start, forecasts, scores, gaps=gaps)
+    )
+    without = evaluated(window, forecasts, scores, lineage)
+    # Only the two in-window symbol gaps count; warm-up gaps are retained but outside it.
+    assert with_gaps.recorded_gap_slots == 2 and without.recorded_gap_slots == 0
+    assert with_gaps.intervals == without.intervals and with_gaps.decision == without.decision
+
+
+def test_gap_record_is_a_scheduled_slot_and_never_precedes_it():
+    slot = START + 13 * HOUR
+    gap = OISlotGap(symbol="BTCUSDT", slot_at=slot, reason="OI_NETWORK", recorded_at=slot)
+    assert gap.identity == "BTCUSDT:" + slot.isoformat()
+    for changes in (
+        {"slot_at": START + 16 * HOUR, "recorded_at": START + 16 * HOUR},
+        {"slot_at": slot + timedelta(minutes=1), "recorded_at": slot + HOUR},
+        {"recorded_at": slot - timedelta(microseconds=1)},
+        {"reason": "free text with a provider value"},
+        {"reason": "REDIRECT_BLOCKED"},
+    ):
+        with pytest.raises(ValueError):
+            OISlotGap.model_validate(gap.model_dump(mode="python") | changes)

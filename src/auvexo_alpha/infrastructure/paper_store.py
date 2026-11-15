@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal, localcontext
 from typing import Any
@@ -11,7 +11,8 @@ from uuid import uuid4
 
 from sqlalchemy import Connection, Engine, text
 
-from auvexo_alpha.domain.contracts import MoneyAction, utc_time
+from auvexo_alpha.application.paper_ledger import PaperLedgerReplay, replay_ledger
+from auvexo_alpha.domain.contracts import Contract, MoneyAction, exact_decimal, utc_time
 from auvexo_alpha.domain.paper import (
     PaperAccountSnapshot,
     PaperAuthorization,
@@ -39,7 +40,7 @@ from auvexo_alpha.domain.paper_lifecycle import (
     validate_registry_release,
     validate_release_transition,
 )
-from auvexo_alpha.domain.paper_risk import assess_paper, verify_authorization
+from auvexo_alpha.domain.paper_risk import assess_paper, loss_limits, verify_authorization
 from auvexo_alpha.infrastructure.paper_identity import enforce_paper_engine
 from auvexo_alpha.infrastructure.paper_truth import (
     PaperTruth,
@@ -50,7 +51,27 @@ from auvexo_alpha.infrastructure.paper_truth import (
     validate_market_mark,
     validate_position_mark,
     validate_resolution,
+    validate_spec_observation,
 )
+
+# Journal kinds whose `data.account` is a full account projection.
+PROJECTION_EVENTS = frozenset(
+    {
+        "INITIALIZED",
+        "WRITER_ACQUIRED_PAUSE_NEW",
+        "KILL_STATE",
+        "OWNER_PAPER_RESUME",
+        "UNKNOWN_RECONCILE_ONLY",
+        "RECONCILIATION",
+        "OWNER_RELEASE_PIN",
+        "OWNER_POLICY_PIN",
+        "UTC_DAY_ROLLOVER",
+        "FLAT_BOUNDARY_ROLL",
+        "LOSS_BREACH_LATCH",
+    }
+)
+# A fact that fails validation is excluded from the projection, never deleted (P-9).
+INVALID_TRUTH = (ValueError, KeyError, TypeError, ArithmeticError)
 
 
 @dataclass(frozen=True)
@@ -114,12 +135,100 @@ def bounded_amount(value: Decimal, *, ceiling: bool = False) -> Decimal:
     )
 
 
+@dataclass
+class _TruthFold:
+    """Projection folded from accepted truth. Each fact is applied to a copy, so a fact
+    that fails validation leaves no partial effect and is quarantined instead."""
+
+    positions: dict[str, PaperPosition]
+    owners: dict[str, str | None]
+    marks: dict[str, ObservedMark]
+    position_marks: dict[str, ObservedMark | None]
+    cash: Decimal
+    day_flows: Decimal
+    total_flows: Decimal
+    orders: dict[str, dict[str, Any]] = field(default_factory=dict)
+    fills: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
+    statuses: dict[str, str] = field(default_factory=dict)
+    rejected: set[str] = field(default_factory=set)
+    resolutions: dict[str, dict[str, Any]] = field(default_factory=dict)
+    external_new: bool = False
+
+    def copy(self) -> _TruthFold:
+        return replace(
+            self,
+            positions=dict(self.positions),
+            owners=dict(self.owners),
+            marks=dict(self.marks),
+            position_marks=dict(self.position_marks),
+            orders=dict(self.orders),
+            fills={key: list(value) for key, value in self.fills.items()},
+            statuses=dict(self.statuses),
+            rejected=set(self.rejected),
+            resolutions=dict(self.resolutions),
+        )
+
+
+@dataclass(frozen=True)
+class _Bound:
+    """Immutable authorization inputs of one outbox order, read from its AUTHORIZED event."""
+
+    intent: PaperIntent
+    authorization: PaperAuthorization
+    spec: PaperInstrumentSpec
+    market: PaperMarketSnapshot
+
+
 class PaperStore:
+    """Account-serialized PAPER writes.
+
+    Writer fencing (P-11/OBV2-10). `acquire_writer` records the epoch it was granted on
+    this instance. Writer operations (authorize, claim, mark_unknown, dispatch and both day
+    rolls) need that epoch, or an explicit `epoch`, equal to the account's current epoch.
+    Deterministic maintenance (reconcile, edge suspension) derives only from durable facts,
+    so a caller holding no epoch may run it, but a caller holding a superseded epoch is
+    refused. Raising a kill level is fail-closed and is accepted from any runtime caller.
+    """
+
     def __init__(self, engine: Engine, owner_engine: Engine | None = None) -> None:
         enforce_paper_engine(engine, "auvexo_paper")
         if owner_engine is not None:
             enforce_paper_engine(owner_engine, "auvexo_paper_owner")
         self.engine, self.owner_engine = engine, owner_engine
+        self._writer_epochs: dict[str, int] = {}
+
+    def _fence(
+        self, account_ref: str, row: dict[str, Any], epoch: int | None, *, writer: bool
+    ) -> None:
+        held = epoch if epoch is not None else self._writer_epochs.get(account_ref)
+        if held is None:
+            if writer:
+                raise ValueError("PAPER_WRITER_EPOCH_REQUIRED")
+            return
+        if held != int(row["writer_epoch"]):
+            raise ValueError("STALE_PAPER_WRITER")
+
+    @staticmethod
+    def _latest_truth(conn: Connection, account_ref: str) -> int:
+        return int(
+            conn.scalar(
+                text(
+                    "SELECT COALESCE(max(sequence),0) FROM paper_truth_event WHERE account_ref=:a"
+                ),
+                {"a": account_ref},
+            )
+            or 0
+        )
+
+    @staticmethod
+    def _pinned_policy(conn: Connection, row: dict[str, Any]) -> PaperPolicy:
+        payload = conn.scalar(
+            text("SELECT payload FROM paper_policy WHERE content_hash=:h"),
+            {"h": row["policy_hash"]},
+        )
+        if digest(str(payload)) != row["policy_hash"]:
+            raise ValueError("CORRUPT_PAPER_CONFIGURATION")
+        return PaperPolicy.model_validate_json(str(payload))
 
     @staticmethod
     def _lock(conn: Connection, account_ref: str) -> dict[str, Any]:
@@ -243,23 +352,11 @@ class PaperStore:
             if history is not None
             else cls._journal(conn, account.account_ref)
         )
-        projection_events = {
-            "INITIALIZED",
-            "WRITER_ACQUIRED_PAUSE_NEW",
-            "KILL_STATE",
-            "OWNER_PAPER_RESUME",
-            "UNKNOWN_RECONCILE_ONLY",
-            "RECONCILIATION",
-            "OWNER_RELEASE_PIN",
-            "OWNER_POLICY_PIN",
-            "UTC_DAY_ROLLOVER",
-            "LOSS_BREACH_LATCH",
-        }
         latest = next(
             (
                 event["data"]["account"]
                 for event in reversed(rows)
-                if event["kind"] in projection_events
+                if event["kind"] in PROJECTION_EVENTS
             ),
             None,
         )
@@ -291,11 +388,15 @@ class PaperStore:
         account: PaperAccountSnapshot,
         *,
         cursor: int | None = None,
+        policy_hash: str | None = None,
+        release_hash: str | None = None,
     ) -> None:
+        """One UPDATE per journaled transition; the 0007 guard binds it to that event."""
         conn.execute(
             text(
                 "UPDATE paper_account SET payload=:p,writer_epoch=:e,kill_level=:k,"
-                "reconciled=:r,version=version+1,truth_cursor=COALESCE(:c,truth_cursor) "
+                "reconciled=:r,version=version+1,truth_cursor=COALESCE(:c,truth_cursor),"
+                "policy_hash=COALESCE(:ph,policy_hash),release_hash=COALESCE(:rh,release_hash) "
                 "WHERE account_ref=:a"
             ),
             {
@@ -304,6 +405,8 @@ class PaperStore:
                 "k": account.kill.value,
                 "r": account.reconciled,
                 "c": cursor,
+                "ph": policy_hash,
+                "rh": release_hash,
                 "a": account.account_ref,
             },
         )
@@ -452,7 +555,8 @@ class PaperStore:
             )
             self._append(conn, account_ref, "WRITER_ACQUIRED_PAUSE_NEW", {"account": account}, now)
             self._save(conn, account)
-            return account.epoch
+        self._writer_epochs[account_ref] = account.epoch
+        return account.epoch
 
     def set_kill(
         self,
@@ -462,6 +566,7 @@ class PaperStore:
         actor: str,
         now: datetime,
     ) -> None:
+        """Raise (or restate) the kill level. Fail-closed, so never writer-fenced."""
         with self.engine.begin() as conn:
             account = self._account(conn, self._lock(conn, account_ref))
             if level < account.kill:
@@ -470,54 +575,44 @@ class PaperStore:
             self._append(conn, account_ref, "KILL_STATE", {"actor": actor, "account": updated}, now)
             self._save(conn, updated)
 
-    def resume(self, account_ref: str, *, actor: str, now: datetime) -> None:
+    def resume(
+        self,
+        account_ref: str,
+        *,
+        actor: str,
+        now: datetime,
+        standing_use: Contract | None = None,
+    ) -> None:
+        """Owner resume to K0. A standing use (ADR-032 OBV2-01) is narrower: it applies
+        only to exactly K1 and only if the journal tail is the one its facts were read at;
+        the facts are journaled with the resume event."""
         if self.owner_engine is None or not actor or "agent" in actor.lower():
             raise ValueError("PAPER_OWNER_ROLE_REQUIRED")
         with self.owner_engine.begin() as conn:
             row = self._lock(conn, account_ref)
             account = self._account(conn, row)
-            self._journal(conn, account_ref)
+            journal = self._journal(conn, account_ref)
+            if standing_use is not None and (
+                account.kill != KillLevel.K1
+                or json.loads(standing_use.canonical_bytes()).get("journal_tail_hash")
+                != journal[-1]["content_hash"]
+            ):
+                raise ValueError("PAPER_STANDING_RESUME_SCOPE_DENIED")
             if not account.reconciled or account.unknown_orders or not account.journal_healthy:
                 raise ValueError("PAPER_RECONCILIATION_REQUIRED")
-            policy = PaperPolicy.model_validate_json(
-                str(
-                    conn.scalar(
-                        text("SELECT payload FROM paper_policy WHERE content_hash=:h"),
-                        {"h": row["policy_hash"]},
-                    )
-                )
-            )
-            latest_truth = int(
-                conn.scalar(
-                    text(
-                        "SELECT COALESCE(max(sequence),0) "
-                        "FROM paper_truth_event WHERE account_ref=:a"
-                    ),
-                    {"a": account_ref},
-                )
-                or 0
-            )
+            policy = self._pinned_policy(conn, row)
             if (
-                latest_truth != int(row["truth_cursor"])
+                self._latest_truth(conn, account_ref) != int(row["truth_cursor"])
                 or account.kill == KillLevel.K4
                 or not timedelta(0)
                 <= now - account.as_of
                 <= timedelta(seconds=policy.max_account_age_seconds)
             ):
                 raise ValueError("PAPER_RECONCILIATION_REQUIRED")
-            daily = max(
-                account.day_start_equity - (account.equity - account.day_net_flows), Decimal("0")
-            )
-            drawdown = max(
-                account.high_water_equity - (account.equity - account.net_flows_since_high_water),
-                Decimal("0"),
-            )
-            if (
-                daily > account.day_start_equity * policy.max_daily_loss_fraction
-                or drawdown > account.high_water_equity * policy.max_drawdown_fraction
-            ):
+            daily, daily_cap, drawdown, drawdown_cap = loss_limits(account, policy)
+            if daily > daily_cap or drawdown > drawdown_cap:
                 raise ValueError("PAPER_LOSS_LIMIT_STILL_ACTIVE")
-            edges = [e for e in self._journal(conn, account_ref) if e["kind"] == "EDGE_STATE"]
+            edges = [e for e in journal if e["kind"] == "EDGE_STATE"]
             if edges and edges[-1]["data"]["to_state"] != "NORMAL":
                 raise ValueError("PAPER_EDGE_SUSPENDED")
             updated = PaperAccountSnapshot.model_validate(
@@ -526,52 +621,31 @@ class PaperStore:
                     "kill": KillLevel.K0,
                 }
             )
-            self._append(
-                conn, account_ref, "OWNER_PAPER_RESUME", {"actor": actor, "account": updated}, now
-            )
+            data: dict[str, object] = {"actor": actor, "account": updated}
+            if standing_use is not None:
+                data["standing_use"] = standing_use
+            self._append(conn, account_ref, "OWNER_PAPER_RESUME", data, now)
             self._save(conn, updated)
 
-    def roll_day(self, account_ref: str, *, now: datetime) -> None:
+    def roll_day(self, account_ref: str, *, now: datetime, epoch: int | None = None) -> None:
+        """Exact-midnight roll, kept for its existing callers; see roll_flat_boundary."""
         now = utc_time(now)
         midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
         denied = False
         with self.engine.begin() as conn:
-            account = self._account(conn, self._lock(conn, account_ref))
+            row = self._lock(conn, account_ref)
+            self._fence(account_ref, row, epoch, writer=True)
+            account = self._account(conn, row)
             if midnight <= account.day_start_at:
                 raise ValueError("UTC_DAY_NOT_ADVANCED")
-            row = (
-                conn.execute(
-                    text("SELECT policy_hash,truth_cursor FROM paper_account WHERE account_ref=:a"),
-                    {"a": account_ref},
-                )
-                .mappings()
-                .one()
-            )
-            policy = PaperPolicy.model_validate_json(
-                str(
-                    conn.scalar(
-                        text("SELECT payload FROM paper_policy WHERE content_hash=:h"),
-                        {"h": row["policy_hash"]},
-                    )
-                )
-            )
+            policy = self._pinned_policy(conn, row)
             account = self._latch_loss(conn, account, policy, now)
-            latest_truth = int(
-                conn.scalar(
-                    text(
-                        "SELECT COALESCE(max(sequence),0) "
-                        "FROM paper_truth_event WHERE account_ref=:a"
-                    ),
-                    {"a": account_ref},
-                )
-                or 0
-            )
             if (
                 now != midnight
                 or account.as_of != midnight
                 or not account.reconciled
                 or account.unknown_orders
-                or latest_truth != int(row["truth_cursor"])
+                or self._latest_truth(conn, account_ref) != int(row["truth_cursor"])
             ):
                 updated = PaperAccountSnapshot.model_validate(
                     account.model_dump()
@@ -591,27 +665,120 @@ class PaperStore:
         if denied:
             raise ValueError("EXACT_FRESH_UTC_BOUNDARY_REQUIRED")
 
+    def roll_flat_boundary(
+        self, account_ref: str, *, now: datetime, epoch: int | None = None
+    ) -> None:
+        """Roll the UTC day at a flat boundary (OBV2-02), at any time of the new day.
+
+        Allowed only when the account is flat, reconciled since the new day's midnight, has
+        no unknown order and no active reservation, and no truth fact exists after the last
+        reconciliation of the previous day. Equity cannot move while flat without facts, so
+        the new day's start equity is the journaled equity, recorded with that proof. Any
+        failed condition journals the refusal, sets K1 and raises; nothing is rolled.
+        """
+        now = utc_time(now)
+        midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        refused: list[str] = []
+        with self.engine.begin() as conn:
+            row = self._lock(conn, account_ref)
+            self._fence(account_ref, row, epoch, writer=True)
+            account = self._account(conn, row)
+            if midnight <= account.day_start_at:
+                raise ValueError("UTC_DAY_NOT_ADVANCED")
+            account = self._latch_loss(conn, account, self._pinned_policy(conn, row), now)
+            journal = self._journal(conn, account_ref)
+            latest_truth = self._latest_truth(conn, account_ref)
+            prior = next(
+                (
+                    event
+                    for event in reversed(journal)
+                    if event["kind"] == "RECONCILIATION" and event["recorded_at"] < midnight
+                ),
+                None,
+            )
+            checks = (
+                ("NOT_FLAT", bool(account.positions)),
+                ("NOT_RECONCILED", not account.reconciled),
+                ("UNKNOWN_ORDER", account.unknown_orders),
+                ("ACTIVE_RESERVATION", bool(self._reservations(conn, account_ref))),
+                ("TRUTH_AFTER_RECONCILIATION", latest_truth != int(row["truth_cursor"])),
+                (
+                    "NOT_RECONCILED_SINCE_MIDNIGHT",
+                    account.as_of < midnight or account.reconciled_at < midnight,
+                ),
+                ("NO_PRIOR_DAY_RECONCILIATION", prior is None),
+            )
+            refused = [reason for reason, failed in checks if failed]
+            prior_account = (
+                PaperAccountSnapshot.model_validate_json(
+                    canonical_payload(prior["data"]["account"])
+                )
+                if prior is not None
+                else None
+            )
+            if prior is not None and prior_account is not None:
+                if int(prior["data"]["truth_cursor"]) != latest_truth:
+                    refused.append("TRUTH_AFTER_PRIOR_DAY_RECONCILIATION")
+                if prior_account.equity != account.equity or prior_account.positions:
+                    refused.append("EQUITY_OR_EXPOSURE_CHANGED_WHILE_FLAT")
+            if refused:
+                updated = PaperAccountSnapshot.model_validate(
+                    account.model_dump() | {"kill": max(account.kill, KillLevel.K1)}
+                )
+                self._append(
+                    conn,
+                    account_ref,
+                    "KILL_STATE",
+                    {
+                        "actor": "deterministic.flat_boundary_roll_refused",
+                        "reasons": refused,
+                        "account": updated,
+                    },
+                    now,
+                )
+                self._save(conn, updated)
+            else:
+                assert prior is not None
+                updated = PaperAccountSnapshot.model_validate(
+                    account.model_dump()
+                    | {
+                        "day_start_at": midnight,
+                        "day_start_equity": account.equity,
+                        "day_net_flows": Decimal("0"),
+                    }
+                )
+                self._append(
+                    conn,
+                    account_ref,
+                    "FLAT_BOUNDARY_ROLL",
+                    {
+                        "prior_day": account,
+                        "account": updated,
+                        "kill_retained": account.kill,
+                        "proof": {
+                            "rule": "FLAT_NO_FACT_SINCE_PRIOR_DAY_RECONCILIATION",
+                            "prior_reconciliation_event_id": prior["event_id"],
+                            "prior_reconciliation_hash": prior["content_hash"],
+                            "prior_reconciliation_at": prior["recorded_at"],
+                            "truth_cursor": latest_truth,
+                            "journaled_equity": account.equity,
+                        },
+                    },
+                    now,
+                )
+                self._save(conn, updated)
+        if refused:
+            raise ValueError("FLAT_BOUNDARY_ROLL_REFUSED:" + ",".join(refused))
+
     def _latch_loss(
         self, conn: Connection, account: PaperAccountSnapshot, policy: PaperPolicy, now: datetime
     ) -> PaperAccountSnapshot:
-        daily = max(
-            account.day_start_equity - (account.equity - account.day_net_flows), Decimal("0")
-        )
-        drawdown = max(
-            account.high_water_equity - (account.equity - account.net_flows_since_high_water),
-            Decimal("0"),
-        )
+        daily, daily_cap, drawdown, drawdown_cap = loss_limits(account, policy)
         causes = tuple(
             reason
             for reason, breached in (
-                (
-                    "DAILY_LOSS_CAP",
-                    daily > account.day_start_equity * policy.max_daily_loss_fraction,
-                ),
-                (
-                    "DRAWDOWN_CAP",
-                    drawdown > account.high_water_equity * policy.max_drawdown_fraction,
-                ),
+                ("DAILY_LOSS_CAP", daily > daily_cap),
+                ("DRAWDOWN_CAP", drawdown > drawdown_cap),
             )
             if breached
         )
@@ -669,6 +836,89 @@ class PaperStore:
         )
         self._save(conn, updated)
 
+    @staticmethod
+    def _quarantined(journal: list[dict[str, Any]]) -> set[str]:
+        return {
+            str(event["data"]["truth_content_hash"])
+            for event in journal
+            if event["kind"] == "TRUTH_QUARANTINE"
+        }
+
+    @staticmethod
+    def _database_clock_untrusted(conn: Connection, policy: PaperPolicy, now: datetime) -> bool:
+        database_now = utc_time(conn.scalar(text("SELECT clock_timestamp()")))
+        return abs(now - database_now) > timedelta(milliseconds=policy.max_store_clock_skew_ms)
+
+    def _untrusted_inputs(
+        self,
+        conn: Connection,
+        history: _VerifiedJournal,
+        policy: PaperPolicy,
+        market: PaperMarketSnapshot,
+        spec: PaperInstrumentSpec,
+        *,
+        now: datetime,
+    ) -> set[PaperReason]:
+        """P-3/OBV2-07: market and specification must equal stored, reconciled truth facts.
+
+        A fact counts only if its row digest verifies, it was consumed by a reconciliation
+        (at or below the cursor), it is not quarantined and it was recorded by `now`.
+        The caller's `now` must lie within the policy's bound of the database clock.
+        """
+        account_ref = history.account_ref
+        reasons: set[PaperReason] = set()
+        if self._database_clock_untrusted(conn, policy, now):
+            reasons.add(PaperReason.CLOCK_UNTRUSTED)
+        try:
+            # Roundtrip rejects model_construct/model_copy bypasses before any hashing.
+            market = PaperMarketSnapshot.model_validate_json(
+                market.model_dump_json(warnings="error")
+            )
+            spec = PaperInstrumentSpec.model_validate_json(spec.model_dump_json(warnings="error"))
+        except (ValueError, TypeError):
+            # The kernel already denies such input as INVALID_INPUT; it is also unverified.
+            return reasons | {PaperReason.MARKET_UNVERIFIED, PaperReason.SPEC_UNOBSERVED}
+        quarantined = self._quarantined(history.for_scope(conn, account_ref))
+        rows = conn.execute(
+            text(
+                "SELECT t.* FROM paper_truth_event t JOIN paper_account a "
+                "ON a.account_ref=t.account_ref WHERE t.account_ref=:a "
+                "AND t.kind IN ('MARKET_MARK','SPEC_OBSERVATION') AND t.sequence<=a.truth_cursor "
+                "AND t.payload::jsonb #>> '{data,instrument_id}'=:i ORDER BY t.sequence"
+            ),
+            {"a": account_ref, "i": market.instrument_id},
+        ).mappings()
+        marks: set[str] = set()
+        specs: set[str] = set()
+        for row in rows:
+            payload = str(row["payload"])
+            envelope = json.loads(payload)
+            if (
+                digest(payload) != row["content_hash"]
+                or envelope["kind"] != row["kind"]
+                or envelope["account_ref"] != account_ref
+            ):
+                raise ValueError("CORRUPT_PAPER_TRUTH")
+            if row["content_hash"] in quarantined or row["recorded_at"] > now:
+                continue
+            if row["kind"] == "MARKET_MARK":
+                marks.add(
+                    PaperMarketSnapshot.model_validate_json(
+                        canonical_payload(envelope["data"])
+                    ).content_hash()
+                )
+            else:
+                specs.add(
+                    PaperInstrumentSpec.model_validate_json(
+                        canonical_payload(envelope["data"])
+                    ).content_hash()
+                )
+        if market.content_hash() not in marks:
+            reasons.add(PaperReason.MARKET_UNVERIFIED)
+        if spec.content_hash() not in specs or spec.instrument_id != market.instrument_id:
+            reasons.add(PaperReason.SPEC_UNOBSERVED)
+        return reasons
+
     def authorize(
         self,
         intent: PaperIntent,
@@ -678,10 +928,13 @@ class PaperStore:
         release: Release,
         *,
         now: datetime,
+        epoch: int | None = None,
     ) -> Submission:
         intent = PaperIntent.model_validate_json(intent.canonical_bytes())
+        now = utc_time(now)
         with self.engine.begin() as conn:
             row = self._lock(conn, intent.account_ref)
+            self._fence(intent.account_ref, row, epoch, writer=True)
             history = _VerifiedJournal(
                 conn,
                 conn.get_transaction(),
@@ -724,17 +977,11 @@ class PaperStore:
                 )
             ):
                 extra.add(PaperReason.DUPLICATE_INTENT)
-            latest_truth = int(
-                conn.scalar(
-                    text(
-                        "SELECT COALESCE(max(sequence),0) FROM paper_truth_event "
-                        "WHERE account_ref=:a"
-                    ),
-                    {"a": intent.account_ref},
+            if current_policy.input_trust == "STORE_VERIFIED":
+                extra |= self._untrusted_inputs(
+                    conn, history, current_policy, market, spec, now=now
                 )
-                or 0
-            )
-            if latest_truth != int(row["truth_cursor"]):
+            if self._latest_truth(conn, intent.account_ref) != int(row["truth_cursor"]):
                 extra.add(PaperReason.ACCOUNT_UNRECONCILED)
                 account = PaperAccountSnapshot.model_validate(
                     account.model_dump()
@@ -1035,6 +1282,10 @@ class PaperStore:
                 or (now - spec.observed_at).total_seconds() > policy.max_spec_age_seconds
                 or market.fx_as_of is None
                 or (now - market.fx_as_of).total_seconds() > policy.max_fx_age_seconds
+                or (
+                    policy.input_trust == "STORE_VERIFIED"
+                    and self._database_clock_untrusted(conn, policy, now)
+                )
             ):
                 raise ValueError("PAPER_DISPATCH_BINDING_OR_FRESHNESS_DENIED")
             # Authorization and original immutable calculation inputs are revalidated;
@@ -1059,13 +1310,7 @@ class PaperStore:
                 reservations=self._reservations(conn, intent.account_ref),
             ):
                 raise ValueError("PAPER_CURRENT_RISK_RECHECK_DENIED")
-            conn.execute(
-                text(
-                    "UPDATE paper_outbox SET state='SENT_PENDING',attempts=1,updated_at=:at "
-                    "WHERE intent_hash=:i"
-                ),
-                {"at": now, "i": intent_hash},
-            )
+            # The journal event precedes the state change it justifies (0007 guard).
             self._append(
                 conn,
                 intent.account_ref,
@@ -1073,6 +1318,13 @@ class PaperStore:
                 {"epoch": epoch, "authorization": auth},
                 now,
                 intent_hash,
+            )
+            conn.execute(
+                text(
+                    "UPDATE paper_outbox SET state='SENT_PENDING',attempts=1,updated_at=:at "
+                    "WHERE intent_hash=:i"
+                ),
+                {"at": now, "i": intent_hash},
             )
             return auth
 
@@ -1092,10 +1344,6 @@ class PaperStore:
                 for r in self._reservations(conn, intent.account_ref)
                 if r.intent_hash == intent_hash
             )
-            conn.execute(
-                text("UPDATE paper_outbox SET state='UNKNOWN',updated_at=:at WHERE intent_hash=:i"),
-                {"at": now, "i": intent_hash},
-            )
             # UNKNOWN retains original worst-case capacity even following a partial.
             auth_payload = conn.scalar(
                 text("SELECT payload FROM paper_authorization WHERE intent_hash=:i"),
@@ -1112,10 +1360,6 @@ class PaperStore:
                     "margin": auth.exposure.margin_required,
                 }
             )
-            conn.execute(
-                text("UPDATE paper_reservation SET payload=:p WHERE intent_hash=:i"),
-                {"p": reservation.canonical_bytes().decode(), "i": intent_hash},
-            )
             updated = PaperAccountSnapshot.model_validate(
                 account.model_dump()
                 | {
@@ -1124,6 +1368,7 @@ class PaperStore:
                     "kill": max(account.kill, KillLevel.K1),
                 }
             )
+            # The journal event precedes every state change it justifies (0007 guards).
             self._append(
                 conn,
                 intent.account_ref,
@@ -1131,6 +1376,14 @@ class PaperStore:
                 {"account": updated, "reservation": reservation},
                 now,
                 intent_hash,
+            )
+            conn.execute(
+                text("UPDATE paper_outbox SET state='UNKNOWN',updated_at=:at WHERE intent_hash=:i"),
+                {"at": now, "i": intent_hash},
+            )
+            conn.execute(
+                text("UPDATE paper_reservation SET payload=:p WHERE intent_hash=:i"),
+                {"p": reservation.canonical_bytes().decode(), "i": intent_hash},
             )
             self._save(conn, updated)
 
@@ -1349,6 +1602,8 @@ class PaperStore:
         assert engine is not None
         with engine.begin() as conn:
             row = self._lock(conn, account_ref)
+            if not relaxing:
+                self._fence(account_ref, row, None, writer=False)
             account = self._account(conn, row)
             release = Release.model_validate_json(
                 str(
@@ -1401,11 +1656,7 @@ class PaperStore:
                 {"actor": actor, "release_hash": release.content_hash(), "account": updated},
                 now,
             )
-            conn.execute(
-                text("UPDATE paper_account SET release_hash=:h WHERE account_ref=:a"),
-                {"h": release.content_hash(), "a": account_ref},
-            )
-            self._save(conn, updated)
+            self._save(conn, updated, release_hash=release.content_hash())
 
     def activate_policy(
         self, account_ref: str, policy: PaperPolicy, *, actor: str, now: datetime
@@ -1431,19 +1682,207 @@ class PaperStore:
                 {"actor": actor, "policy_hash": policy.content_hash(), "account": updated},
                 now,
             )
-            conn.execute(
-                text("UPDATE paper_account SET policy_hash=:h WHERE account_ref=:a"),
-                {"h": policy.content_hash(), "a": account_ref},
+            self._save(conn, updated, policy_hash=policy.content_hash())
+
+    def reconcile(self, account_ref: str, *, now: datetime, epoch: int | None = None) -> bool:
+        return self._reconcile(account_ref, now=utc_time(now), epoch=epoch)
+
+    @staticmethod
+    def _apply_truth(
+        fold: _TruthFold,
+        event: dict[str, Any],
+        accepted: list[dict[str, Any]],
+        bound: dict[str, _Bound],
+        baseline: PaperAccountSnapshot,
+        day_start_at: datetime,
+        cursor: int,
+        account_ref: str,
+    ) -> None:
+        """Apply one truth fact to `fold`; any invalid fact raises before it is accepted."""
+        ih = str(event["intent_hash"])
+        data = event["data"]
+        kind = event["kind"]
+        if kind == "ORDER":
+            if ih not in bound:
+                raise ValueError("UNBOUND_VIRTUAL_ORDER")
+            order_intent = bound[ih].intent
+            if order_intent.action == MoneyAction.OPEN and (
+                order_intent.position_ref is not None
+                or paper_position_ref(account_ref, order_intent.intent_id) in fold.positions
+            ):
+                raise ValueError("OPEN_POSITION_IDENTITY_COLLISION")
+            fold.orders[ih] = data
+        elif kind == "FILL":
+            if ih not in bound or ih not in fold.orders:
+                raise ValueError("UNBOUND_VIRTUAL_FILL")
+            intent = bound[ih].intent
+            auth = bound[ih].authorization
+            spec = bound[ih].spec
+            q, price = Decimal(str(data["quantity"])), Decimal(str(data["price"]))
+            if not q.is_finite() or not price.is_finite() or q <= 0 or price <= 0:
+                raise ValueError("CORRUPT_VIRTUAL_FILL")
+            fx = bound[ih].market.adverse_fx
+            if fx is None:
+                raise ValueError("VIRTUAL_FX_UNKNOWN")
+            total = auth.exposure.quantity
+            prior_fills = sum(
+                (Decimal(str(fill["quantity"])) for fill in fold.fills.get(ih, [])), Decimal("0")
             )
-            self._save(conn, updated)
+            if prior_fills + q > total:
+                raise ValueError("VIRTUAL_OVERFILL_OR_UNBOUND_FILL")
+            costs = (
+                auth.exposure.modeled_loss
+                if intent.action == MoneyAction.CLOSE
+                else max(
+                    Decimal("0"),
+                    auth.exposure.modeled_loss
+                    - total * spec.contract_multiplier * abs(intent.entry - intent.stop) * fx,
+                )
+            )
+            fee = bounded_amount(costs * q / total, ceiling=True) if total else Decimal("0")
+            value = q * price * spec.contract_multiplier * fx
+            if intent.action == MoneyAction.OPEN:
+                if intent.position_ref is not None:
+                    raise ValueError("OPEN_REQUIRES_NEW_POSITION")
+                ref = paper_position_ref(account_ref, intent.intent_id)
+                old = fold.positions.get(ref)
+                if old is not None and fold.owners.get(ref) != ih:
+                    raise ValueError("OPEN_POSITION_IDENTITY_COLLISION")
+                if old is not None and (
+                    old.instrument_id != intent.instrument_id
+                    or old.bucket != auth.exposure.bucket
+                    or old.stop_price != intent.stop
+                    or old.multiplier != spec.contract_multiplier
+                ):
+                    raise ValueError("OPEN_BOUND_POSITION_FIELDS_CHANGED")
+                fold.owners[ref] = ih
+                qty = q + (old.quantity if old else Decimal("0"))
+                entry = (
+                    q * price + (old.quantity * old.entry_price if old else Decimal("0"))
+                ) / qty
+                fold.positions[ref] = PaperPosition(
+                    position_ref=ref,
+                    instrument_id=intent.instrument_id,
+                    bucket=auth.exposure.bucket,
+                    quantity=qty,
+                    entry_price=bounded_amount(entry, ceiling=True),
+                    mark_price=price,
+                    stop_price=intent.stop,
+                    multiplier=spec.contract_multiplier,
+                    adverse_fx=fx,
+                    modeled_costs=bounded_amount(
+                        (old.modeled_costs if old else Decimal("0")) + fee, ceiling=True
+                    ),
+                    margin_used=bounded_amount(
+                        (old.margin_used if old else Decimal("0"))
+                        + auth.exposure.margin_required * q / total,
+                        ceiling=True,
+                    ),
+                )
+                fold.cash = bounded_amount(fold.cash - value - fee)
+            elif intent.action == MoneyAction.CLOSE:
+                ref = str(intent.position_ref)
+                if ref not in fold.positions or q > fold.positions[ref].quantity:
+                    raise ValueError("VIRTUAL_OVER_CLOSE_OR_UNKNOWN_POSITION")
+                old = fold.positions[ref]
+                remaining = old.quantity - q
+                if remaining:
+                    fold.positions[ref] = PaperPosition.model_validate(
+                        old.model_dump()
+                        | {
+                            "quantity": remaining,
+                            "margin_used": bounded_amount(
+                                old.margin_used * remaining / old.quantity, ceiling=True
+                            ),
+                            "modeled_costs": bounded_amount(
+                                old.modeled_costs * remaining / old.quantity, ceiling=True
+                            ),
+                        }
+                    )
+                else:
+                    del fold.positions[ref]
+                fold.cash = bounded_amount(fold.cash + value - fee)
+            else:
+                raise ValueError("VIRTUAL_FILL_FOR_NONFILL_ACTION")
+            if fold.cash < 0:
+                raise ValueError("VIRTUAL_NEGATIVE_CASH")
+            fold.fills.setdefault(ih, []).append(data)
+        elif kind == "STATUS":
+            status = str(data["status"])
+            if status == "REJECTED":
+                fold.rejected.add(ih)
+            # A late acknowledgment cannot overwrite a terminal virtual fact.
+            if fold.statuses.get(ih) not in ("CANCELED", "EXPIRED", "REJECTED"):
+                fold.statuses[ih] = status
+        elif kind == "RESOLUTION":
+            validate_resolution(list(accepted), ih, data)
+            fold.resolutions[ih] = data
+        elif kind == "EXTERNAL_POSITION":
+            p = PaperPosition.model_validate_json(canonical_payload(data))
+            validate_position_mark(
+                p, event["recorded_at"], list(accepted), baseline_positions=baseline.positions
+            )
+            fold.positions[p.position_ref] = p
+            fold.owners[p.position_ref] = None
+            original_mark = ObservedMark.from_position(p)
+            candidate_mark = (
+                ObservedMark(
+                    original_mark.price,
+                    original_mark.adverse_fx,
+                    original_mark.observed_at,
+                    p.mark_available_at or event["recorded_at"],
+                    original_mark.fx_as_of,
+                    p.content_hash(),
+                    str(event["content_hash"]),
+                )
+                if original_mark is not None
+                else None
+            )
+            previous_position_mark = fold.position_marks.get(p.position_ref)
+            if candidate_mark is not None and (
+                previous_position_mark is None
+                or candidate_mark.observed_at > previous_position_mark.observed_at
+            ):
+                fold.position_marks[p.position_ref] = candidate_mark
+            fold.external_new |= int(event["sequence"]) > cursor
+        elif kind == "ADJUSTMENT":
+            amount = exact_decimal(data["amount"])
+            if data.get("semantics") != "OBSERVED_VIRTUAL_ONLY":
+                raise ValueError("CORRUPT_VIRTUAL_ADJUSTMENT")
+            fold.cash += amount
+            fold.total_flows += amount
+            if event["recorded_at"] >= day_start_at:
+                fold.day_flows += amount
+            if fold.cash < 0:
+                raise ValueError("VIRTUAL_NEGATIVE_CASH")
+        elif kind == "MARKET_MARK":
+            validate_market_mark(
+                data, event["recorded_at"], list(accepted), baseline_positions=baseline.positions
+            )
+            market_mark = PaperMarketSnapshot.model_validate_json(canonical_payload(data))
+            assert market_mark.adverse_fx is not None and market_mark.fx_as_of is not None
+            previous_mark = fold.marks.get(market_mark.instrument_id)
+            if previous_mark is None or market_mark.as_of > previous_mark.observed_at:
+                fold.marks[market_mark.instrument_id] = ObservedMark(
+                    market_mark.bid,
+                    market_mark.adverse_fx,
+                    market_mark.as_of,
+                    market_mark.available_at,
+                    market_mark.fx_as_of,
+                    market_mark.content_hash(),
+                    str(event["content_hash"]),
+                    market_mark.clock_offset_ms,
+                )
+        elif kind == "SPEC_OBSERVATION":
+            validate_spec_observation(data, event["recorded_at"])
+        else:
+            raise ValueError("UNKNOWN_VIRTUAL_FACT_KIND")
 
-    def reconcile(self, account_ref: str, *, now: datetime) -> bool:
-        return self._reconcile(account_ref, now=utc_time(now))
-
-    def _reconcile(self, account_ref: str, *, now: datetime) -> bool:
+    def _reconcile(self, account_ref: str, *, now: datetime, epoch: int | None) -> bool:
         with self.engine.begin() as conn, localcontext() as context:
             context.prec = 100
             row = self._lock(conn, account_ref)
+            self._fence(account_ref, row, epoch, writer=False)
             account = self._account(conn, row)
             journal = self._journal(conn, account_ref)
             self._reservations(conn, account_ref)
@@ -1453,33 +1892,7 @@ class PaperStore:
             )
             if now < baseline.as_of or any(now < event["recorded_at"] for event in events):
                 raise ValueError("PAPER_RECONCILIATION_CLOCK_BEFORE_TRUTH")
-            positions = {p.position_ref: p for p in baseline.positions}
-            position_owners: dict[str, str | None] = {ref: None for ref in positions}
-            marks: dict[str, ObservedMark] = {}
-            position_marks = {
-                p.position_ref: ObservedMark.from_position(p) for p in baseline.positions
-            }
-            policy = PaperPolicy.model_validate_json(
-                str(
-                    conn.scalar(
-                        text("SELECT payload FROM paper_policy WHERE content_hash=:h"),
-                        {"h": row["policy_hash"]},
-                    )
-                )
-            )
-            cash = baseline.cash
-            day_flows = (
-                baseline.day_net_flows
-                if baseline.day_start_at == account.day_start_at
-                else Decimal("0")
-            )
-            total_flows = baseline.net_flows_since_high_water
-            orders: dict[str, dict[str, Any]] = {}
-            fills: dict[str, list[dict[str, Any]]] = {}
-            statuses: dict[str, str] = {}
-            rejected: set[str] = set()
-            resolutions: dict[str, dict[str, Any]] = {}
-            external_new = False
+            policy = self._pinned_policy(conn, row)
             all_outbox = (
                 conn.execute(
                     text(
@@ -1492,246 +1905,138 @@ class PaperStore:
                 .mappings()
                 .all()
             )
-            metadata: dict[
-                str,
-                tuple[PaperIntent, PaperAuthorization, PaperInstrumentSpec, PaperMarketSnapshot],
-            ] = {}
+            bound: dict[str, _Bound] = {}
             for outbox in all_outbox:
                 ih = str(outbox["intent_hash"])
-                intent = self._intent(conn, ih)
-                auth = PaperAuthorization.model_validate_json(
-                    str(
-                        conn.scalar(
-                            text("SELECT payload FROM paper_authorization WHERE intent_hash=:i"),
-                            {"i": ih},
-                        )
-                    )
-                )
                 original = next(
                     e["data"]
                     for e in journal
                     if e["kind"] == "AUTHORIZED" and e["intent_hash"] == ih
                 )
-                spec = PaperInstrumentSpec.model_validate_json(canonical_payload(original["spec"]))
-                market = PaperMarketSnapshot.model_validate_json(
-                    canonical_payload(original["market"])
-                )
-                metadata[ih] = (intent, auth, spec, market)
-            for event in events:
-                ih = event["intent_hash"]
-                data = event["data"]
-                if event["kind"] == "ORDER":
-                    if str(ih) not in metadata:
-                        raise ValueError("UNBOUND_VIRTUAL_ORDER")
-                    order_intent = metadata[str(ih)][0]
-                    if order_intent.action == MoneyAction.OPEN and (
-                        order_intent.position_ref is not None
-                        or paper_position_ref(account_ref, order_intent.intent_id) in positions
-                    ):
-                        raise ValueError("OPEN_POSITION_IDENTITY_COLLISION")
-                    orders[str(ih)] = data
-                elif event["kind"] == "FILL":
-                    fills.setdefault(str(ih), []).append(data)
-                    if str(ih) not in metadata or str(ih) not in orders:
-                        raise ValueError("UNBOUND_VIRTUAL_FILL")
-                    intent, auth, spec, market = metadata[str(ih)]
-                    q, price = Decimal(str(data["quantity"])), Decimal(str(data["price"]))
-                    if not q.is_finite() or not price.is_finite() or q <= 0 or price <= 0:
-                        raise ValueError("CORRUPT_VIRTUAL_FILL")
-                    fx = market.adverse_fx
-                    if fx is None:
-                        raise ValueError("VIRTUAL_FX_UNKNOWN")
-                    total = auth.exposure.quantity
-                    costs = (
-                        auth.exposure.modeled_loss
-                        if intent.action == MoneyAction.CLOSE
-                        else max(
-                            Decimal("0"),
-                            auth.exposure.modeled_loss
-                            - total
-                            * spec.contract_multiplier
-                            * abs(intent.entry - intent.stop)
-                            * fx,
-                        )
-                    )
-                    fee = bounded_amount(costs * q / total, ceiling=True) if total else Decimal("0")
-                    value = q * price * spec.contract_multiplier * fx
-                    if intent.action == MoneyAction.OPEN:
-                        if intent.position_ref is not None:
-                            raise ValueError("OPEN_REQUIRES_NEW_POSITION")
-                        ref = paper_position_ref(account_ref, intent.intent_id)
-                        old = positions.get(ref)
-                        if old is not None and position_owners.get(ref) != str(ih):
-                            raise ValueError("OPEN_POSITION_IDENTITY_COLLISION")
-                        if old is not None and (
-                            old.instrument_id != intent.instrument_id
-                            or old.bucket != auth.exposure.bucket
-                            or old.stop_price != intent.stop
-                            or old.multiplier != spec.contract_multiplier
-                        ):
-                            raise ValueError("OPEN_BOUND_POSITION_FIELDS_CHANGED")
-                        position_owners[ref] = str(ih)
-                        qty = q + (old.quantity if old else Decimal("0"))
-                        entry = (
-                            q * price + (old.quantity * old.entry_price if old else Decimal("0"))
-                        ) / qty
-                        positions[ref] = PaperPosition(
-                            position_ref=ref,
-                            instrument_id=intent.instrument_id,
-                            bucket=auth.exposure.bucket,
-                            quantity=qty,
-                            entry_price=bounded_amount(entry, ceiling=True),
-                            mark_price=price,
-                            stop_price=intent.stop,
-                            multiplier=spec.contract_multiplier,
-                            adverse_fx=fx,
-                            modeled_costs=bounded_amount(
-                                (old.modeled_costs if old else Decimal("0")) + fee, ceiling=True
-                            ),
-                            margin_used=bounded_amount(
-                                (old.margin_used if old else Decimal("0"))
-                                + auth.exposure.margin_required * q / total,
-                                ceiling=True,
-                            ),
-                        )
-                        cash = bounded_amount(cash - value - fee)
-                    elif intent.action == MoneyAction.CLOSE:
-                        ref = str(intent.position_ref)
-                        if ref not in positions or q > positions[ref].quantity:
-                            raise ValueError("VIRTUAL_OVER_CLOSE_OR_UNKNOWN_POSITION")
-                        old = positions[ref]
-                        remaining = old.quantity - q
-                        if remaining:
-                            positions[ref] = PaperPosition.model_validate(
-                                old.model_dump()
-                                | {
-                                    "quantity": remaining,
-                                    "margin_used": bounded_amount(
-                                        old.margin_used * remaining / old.quantity, ceiling=True
-                                    ),
-                                    "modeled_costs": bounded_amount(
-                                        old.modeled_costs * remaining / old.quantity, ceiling=True
-                                    ),
-                                }
+                bound[ih] = _Bound(
+                    self._intent(conn, ih),
+                    PaperAuthorization.model_validate_json(
+                        str(
+                            conn.scalar(
+                                text(
+                                    "SELECT payload FROM paper_authorization WHERE intent_hash=:i"
+                                ),
+                                {"i": ih},
                             )
-                        else:
-                            del positions[ref]
-                        cash = bounded_amount(cash + value - fee)
-                    else:
-                        raise ValueError("VIRTUAL_FILL_FOR_NONFILL_ACTION")
-                elif event["kind"] == "STATUS":
-                    if data["status"] == "REJECTED":
-                        rejected.add(str(ih))
-                    # A late acknowledgment cannot overwrite a terminal virtual fact.
-                    old_status = statuses.get(str(ih))
-                    if old_status not in ("CANCELED", "EXPIRED", "REJECTED"):
-                        statuses[str(ih)] = str(data["status"])
-                elif event["kind"] == "RESOLUTION":
-                    validate_resolution(
-                        [row for row in events if row["sequence"] < event["sequence"]],
-                        str(ih),
-                        data,
-                    )
-                    resolutions[str(ih)] = data
-                elif event["kind"] == "EXTERNAL_POSITION":
-                    p = PaperPosition.model_validate_json(canonical_payload(data))
-                    validate_position_mark(
-                        p,
-                        event["recorded_at"],
-                        [row for row in events if row["sequence"] < event["sequence"]],
-                        baseline_positions=baseline.positions,
-                    )
-                    positions[p.position_ref] = p
-                    position_owners[p.position_ref] = None
-                    original_mark = ObservedMark.from_position(p)
-                    candidate_mark = (
-                        ObservedMark(
-                            original_mark.price,
-                            original_mark.adverse_fx,
-                            original_mark.observed_at,
-                            p.mark_available_at or event["recorded_at"],
-                            original_mark.fx_as_of,
-                            p.content_hash(),
-                            str(event["content_hash"]),
                         )
-                        if original_mark is not None
-                        else None
+                    ),
+                    PaperInstrumentSpec.model_validate_json(canonical_payload(original["spec"])),
+                    PaperMarketSnapshot.model_validate_json(canonical_payload(original["market"])),
+                )
+            cursor = int(row["truth_cursor"])
+            fold = _TruthFold(
+                positions={p.position_ref: p for p in baseline.positions},
+                owners={p.position_ref: None for p in baseline.positions},
+                marks={},
+                position_marks={
+                    p.position_ref: ObservedMark.from_position(p) for p in baseline.positions
+                },
+                cash=baseline.cash,
+                day_flows=(
+                    baseline.day_net_flows
+                    if baseline.day_start_at == account.day_start_at
+                    else Decimal("0")
+                ),
+                total_flows=baseline.net_flows_since_high_water,
+            )
+            # P-9: a fact that fails validation is quarantined once, with a journaled
+            # correction fact, and excluded from every later fold; it is never deleted.
+            quarantined = self._quarantined(journal)
+            quarantined_intents = {
+                str(e["data"]["intent_hash"])
+                for e in journal
+                if e["kind"] == "TRUTH_QUARANTINE" and e["data"]["intent_hash"] is not None
+            }
+            accepted: list[dict[str, Any]] = []
+            new_quarantine: list[tuple[dict[str, Any], str]] = []
+            for event in events:
+                if event["content_hash"] in quarantined:
+                    continue
+                trial = fold.copy()
+                try:
+                    self._apply_truth(
+                        trial,
+                        event,
+                        accepted,
+                        bound,
+                        baseline,
+                        account.day_start_at,
+                        cursor,
+                        account_ref,
                     )
-                    previous_position_mark = position_marks.get(p.position_ref)
-                    if candidate_mark is not None and (
-                        previous_position_mark is None
-                        or candidate_mark.observed_at > previous_position_mark.observed_at
-                    ):
-                        position_marks[p.position_ref] = candidate_mark
-                    external_new |= int(event["sequence"]) > int(row["truth_cursor"])
-                elif event["kind"] == "ADJUSTMENT":
-                    from auvexo_alpha.domain.contracts import exact_decimal
-
-                    amount = exact_decimal(data["amount"])
-                    if data.get("semantics") != "OBSERVED_VIRTUAL_ONLY":
-                        raise ValueError("CORRUPT_VIRTUAL_ADJUSTMENT")
-                    cash += amount
-                    total_flows += amount
-                    if event["recorded_at"] >= account.day_start_at:
-                        day_flows += amount
-                elif event["kind"] == "MARKET_MARK":
-                    validate_market_mark(
-                        data,
-                        event["recorded_at"],
-                        [row for row in events if row["sequence"] < event["sequence"]],
-                        baseline_positions=baseline.positions,
-                    )
-                    market_mark = PaperMarketSnapshot.model_validate_json(canonical_payload(data))
-                    assert market_mark.adverse_fx is not None and market_mark.fx_as_of is not None
-                    previous_mark = marks.get(market_mark.instrument_id)
-                    if previous_mark is None or market_mark.as_of > previous_mark.observed_at:
-                        marks[market_mark.instrument_id] = ObservedMark(
-                            market_mark.bid,
-                            market_mark.adverse_fx,
-                            market_mark.as_of,
-                            market_mark.available_at,
-                            market_mark.fx_as_of,
-                            market_mark.content_hash(),
-                            str(event["content_hash"]),
-                            market_mark.clock_offset_ms,
-                        )
+                except INVALID_TRUTH as error:
+                    new_quarantine.append((event, type(error).__name__ + ":" + str(error)[:200]))
+                    continue
+                fold = trial
+                accepted.append(event)
+            for event, cause in new_quarantine:
+                self._append(
+                    conn,
+                    account_ref,
+                    "TRUTH_QUARANTINE",
+                    {
+                        "truth_sequence": event["sequence"],
+                        "truth_event_id": event["event_id"],
+                        "truth_content_hash": event["content_hash"],
+                        "truth_kind": event["kind"],
+                        "intent_hash": event["intent_hash"],
+                        "reason": cause,
+                        "semantics": "INVALID_TRUTH_EXCLUDED_NOT_DELETED",
+                    },
+                    now,
+                )
+                if event["intent_hash"] is not None:
+                    quarantined_intents.add(str(event["intent_hash"]))
             unresolved = False
             for outbox in all_outbox:
                 ih = str(outbox["intent_hash"])
-                intent, auth, spec, market = metadata[ih]
+                auth = bound[ih].authorization
                 reservation_payload = conn.scalar(
                     text("SELECT payload FROM paper_reservation WHERE intent_hash=:i"), {"i": ih}
                 )
                 reservation = PaperReservation.model_validate_json(str(reservation_payload))
                 quantity = auth.exposure.quantity
-                actual = Decimal("0")
-                notional = Decimal("0")
-                for fill in fills.get(ih, []):
-                    q, price = Decimal(str(fill["quantity"])), Decimal(str(fill["price"]))
-                    if not q.is_finite() or not price.is_finite() or q <= 0 or price <= 0:
-                        raise ValueError("CORRUPT_VIRTUAL_FILL")
-                    actual += q
-                    notional += q * price
-                if actual > quantity or (actual and ih not in orders):
-                    raise ValueError("VIRTUAL_OVERFILL_OR_UNBOUND_FILL")
+                actual = sum(
+                    (Decimal(str(fill["quantity"])) for fill in fold.fills.get(ih, [])),
+                    Decimal("0"),
+                )
                 state = str(outbox["state"])
-                contradiction = actual > 0 and ih in rejected
-                resolution = resolutions.get(ih)
+                contradiction = actual > 0 and ih in fold.rejected
+                resolution = fold.resolutions.get(ih)
                 finality = resolution is not None and resolution[
                     "observed_facts_hash"
-                ] == resolution_facts(events, ih)
-                if contradiction and not finality:
-                    state = "UNKNOWN"
-                elif finality:
+                ] == resolution_facts(accepted, ih)
+                reason: str | None = None
+                if finality:
                     assert resolution is not None
                     state = str(resolution["status"])
+                elif ih in quarantined_intents:
+                    # Invalid truth for this order: worst-case capacity, never a guess.
+                    state = "UNKNOWN"
+                    reason = "QUARANTINED_TRUTH_FOR_ORDER"
+                elif contradiction:
+                    state = "UNKNOWN"
+                    reason = "REJECTED_WITH_FILL_UNRESOLVED"
                 elif actual == quantity and quantity > 0:
                     state = "FILLED"
-                elif ih in orders:
-                    state = statuses.get(ih, "UNKNOWN")
+                elif ih in fold.orders:
+                    state = fold.statuses.get(ih, "UNKNOWN")
                     if state not in ("CANCELED", "REJECTED", "EXPIRED", "UNKNOWN") and actual:
                         state = "PARTIALLY_FILLED"
-                elif state != "RESERVED":
+                elif state == "EXPIRED" and int(outbox["attempts"]) == 0:
+                    state = "EXPIRED"
+                elif state == "RESERVED":
+                    # P-8: authorized but never dispatched. At its expiry the reservation is
+                    # released by this journaled reconciliation; it can never be sent later.
+                    if now >= reservation.expires_at:
+                        state = "EXPIRED"
+                        reason = "RESERVATION_EXPIRED_UNDISPATCHED"
+                else:
                     state = "UNKNOWN"
                 if state == "UNKNOWN":
                     unresolved = True
@@ -1784,9 +2089,7 @@ class PaperStore:
                             "state": state,
                             "filled_quantity": actual,
                             "reservation": updated_res,
-                            "reason": "REJECTED_WITH_FILL_UNRESOLVED"
-                            if contradiction and not finality
-                            else None,
+                            "reason": reason,
                             "authoritative_finality": resolution if finality else None,
                         },
                         now,
@@ -1806,13 +2109,12 @@ class PaperStore:
                     ),
                     {"p": updated_res.canonical_bytes().decode(), "active": not terminal, "i": ih},
                 )
-            if cash < 0:
-                raise ValueError("VIRTUAL_NEGATIVE_CASH")
+            positions = fold.positions
             marks_fresh = True
             mark_health: list[PaperMarkHealth] = []
             for ref, position in tuple(positions.items()):
-                mark = marks.get(position.instrument_id)
-                position_mark = position_marks.get(ref)
+                mark = fold.marks.get(position.instrument_id)
+                position_mark = fold.position_marks.get(ref)
                 if position_mark is not None and (
                     mark is None or position_mark.observed_at > mark.observed_at
                 ):
@@ -1856,7 +2158,7 @@ class PaperStore:
                     }
                 )
             equity = bounded_amount(
-                cash
+                fold.cash
                 + sum(
                     (
                         p.quantity * p.mark_price * p.multiplier * p.adverse_fx
@@ -1865,28 +2167,27 @@ class PaperStore:
                     Decimal("0"),
                 )
             )
-            high = max(account.high_water_equity, equity - total_flows)
+            high = max(account.high_water_equity, equity - fold.total_flows)
+            paused = unresolved or fold.external_new or not marks_fresh or bool(new_quarantine)
             updated = PaperAccountSnapshot.model_validate(
                 account.model_dump()
                 | {
                     "snapshot_id": uuid4(),
                     "as_of": now if marks_fresh else account.as_of,
                     "reconciled_at": now if marks_fresh else account.reconciled_at,
-                    "cash": cash,
+                    "cash": fold.cash,
                     "equity": equity,
                     "high_water_equity": high,
                     "positions": tuple(positions[k] for k in sorted(positions)),
-                    "day_net_flows": day_flows,
-                    "net_flows_since_high_water": total_flows,
-                    "reconciled": not unresolved and not external_new and marks_fresh,
+                    "day_net_flows": fold.day_flows,
+                    "net_flows_since_high_water": fold.total_flows,
+                    "reconciled": not paused,
                     "unknown_orders": unresolved,
-                    "kill": max(account.kill, KillLevel.K1)
-                    if unresolved or external_new or not marks_fresh
-                    else account.kill,
+                    "kill": max(account.kill, KillLevel.K1) if paused else account.kill,
                 }
             )
             updated = self._latch_loss(conn, updated, policy, now)
-            cursor = int(events[-1]["sequence"]) if events else int(row["truth_cursor"])
+            cursor = int(events[-1]["sequence"]) if events else cursor
             prior_health = [e for e in journal if e["kind"] == "MARK_HEALTH"]
             if not prior_health or canonical_payload(
                 prior_health[-1]["data"]["marks"]
@@ -1911,9 +2212,30 @@ class PaperStore:
                 {
                     "account": updated,
                     "truth_cursor": cursor,
-                    "external_fact_quarantine": external_new,
+                    "external_fact_quarantine": fold.external_new,
+                    "truth_quarantine": [event["content_hash"] for event, _ in new_quarantine],
                 },
                 now,
             )
             self._save(conn, updated, cursor=cursor)
             return updated.reconciled
+
+    def ledger_replay(self, account_ref: str) -> PaperLedgerReplay:
+        """OBV2-11: replay the verified journal and truth, compared field by field with the
+        stored account. A tampered stored account is counted, never raised."""
+        with self.engine.begin() as conn:
+            row = self._lock(conn, account_ref)
+            journal = self._journal(conn, account_ref)
+            truth = truth_rows(conn, account_ref)
+            return replay_ledger(
+                account_ref,
+                journal,
+                truth,
+                stored_payload=str(row["payload"]),
+                stored_columns={
+                    "writer_epoch": int(row["writer_epoch"]),
+                    "kill_level": str(row["kill_level"]),
+                    "reconciled": bool(row["reconciled"]),
+                    "truth_cursor": int(row["truth_cursor"]),
+                },
+            )

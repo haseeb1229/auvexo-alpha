@@ -7,8 +7,7 @@ import subprocess
 import sys
 
 import psycopg
-from local_db import LOCAL, PORT, ROOT, credentials, write_private
-from psycopg import sql
+from local_db import LOCAL, PORT, ROOT, credentials, login_role_sql, write_private
 
 
 def main() -> None:
@@ -29,10 +28,12 @@ def main() -> None:
                 "SELECT 1 FROM pg_roles WHERE rolname='auvexo_data_writer'"
             ).fetchone():
                 conn.execute(
-                    sql.SQL(
-                        "CREATE ROLE auvexo_data_writer LOGIN PASSWORD {} "
-                        "NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT"
-                    ).format(sql.Literal(password))
+                    login_role_sql(
+                        conn,
+                        "auvexo_data_writer",
+                        password,
+                        "NOSUPERUSER NOCREATEDB NOCREATEROLE INHERIT",
+                    )
                 )
             conn.execute("GRANT auvexo_ingest TO auvexo_data_writer")
             conn.execute("GRANT CONNECT ON DATABASE auvexo_dev, auvexo_test TO auvexo_data_writer")

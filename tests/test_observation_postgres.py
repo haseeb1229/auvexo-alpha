@@ -1,21 +1,30 @@
 """Real PG observation isolation and NON_COUNTING date-forgery regression gates."""
 
+import json
 from dataclasses import replace
 from datetime import UTC, datetime
+from hashlib import sha256
 from uuid import uuid4
 
 import psycopg
 import pytest
-from observation_fixtures import make_config
+from observation_fixtures import make_config, make_config_v2
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
 from auvexo_alpha.domain.observation import (
     ObservationResources,
     ObservationRunEvidence,
+    ObservationStandingResume,
+    ObservationStandingResumeUse,
     observation_window,
 )
-from auvexo_alpha.infrastructure.observation_store import ObservationStore
+from auvexo_alpha.domain.paper_lifecycle import KillLevel
+from auvexo_alpha.infrastructure.database import SCHEMA_REVISION
+from auvexo_alpha.infrastructure.observation_store import (
+    OBSERVATION_SCHEMA_HEAD,
+    ObservationStore,
+)
 from auvexo_alpha.infrastructure.paper_identity import PaperIdentityError
 from tools.paper_local import PAPER_GROUPS, admin_args
 from tools.paper_observation_local import (
@@ -29,7 +38,16 @@ from tools.paper_observation_local import (
 pytestmark = pytest.mark.integration
 TABLES = tuple(
     "paper_observation_" + suffix
-    for suffix in ("campaign", "activation", "run", "feed", "trace", "simulation", "receipt")
+    for suffix in (
+        "campaign",
+        "activation",
+        "run",
+        "feed",
+        "trace",
+        "simulation",
+        "receipt",
+        "standing_resume",
+    )
 )
 
 
@@ -44,11 +62,12 @@ def test_observation_extension_leaves_accepted_base_and_is_idempotent(observatio
     provision_services(observation_database)
     with psycopg.connect(dbname=observation_database, **admin_args()) as conn:
         assert conn.execute("SELECT version_num FROM alembic_version").fetchone() == (
-            "0005_paper_core",
+            SCHEMA_REVISION,
         )
         assert conn.execute("SELECT version_num FROM paper_observation_version").fetchone() == (
-            "obs0001_qualification",
+            OBSERVATION_SCHEMA_HEAD,
         )
+        assert OBSERVATION_SCHEMA_HEAD == "obs0002_campaign_v2"
         assert conn.execute(
             "SELECT execution_enabled,binance_live_derivatives FROM foundation_policy"
         ).fetchone() == (False, "BLOCKED_BY_POLICY")
@@ -183,7 +202,12 @@ def test_observation_prepared_manual_and_forged_pass_never_count(observation_dat
     try:
         store = ObservationStore(engines[0], engines[1], engines[2])
         now = datetime.now(UTC)
-        config = make_config()
+        # Pinned to the DS-02 record valid now. A campaign pinned to an earlier review is
+        # correctly refused by prepare (OBSERVATION_CURRENT_SOURCE_RIGHTS_MISMATCH) once the
+        # owner's 2026-11-14 renewal is the current record; only v2 can prepare at all.
+        config = make_config_v2(campaign_id="synthetic.forged.v2", at=now)
+        with pytest.raises(ValueError, match="OBSERVATION_CAMPAIGN_VERSION_RETIRED"):
+            store.prepare(make_config(), now=now)
         config_hash = store.prepare(config, now=now)
         with pytest.raises(ValueError, match="OWNER_START_REQUIRED"):
             store.begin(config_hash, kind="SCHEDULED", now=now)
@@ -291,3 +315,196 @@ def test_observation_pooled_checkout_rejects_identity_drift(observation_database
                 )
             )
         engine.dispose()
+
+
+def test_obs0002_truth_reads_cooldowns_and_retains_spec_bytes_only(observation_database):
+    engines = {g: engine_for(observation_database, g) for g in PAPER_GROUPS}
+    try:
+        with engines["auvexo_paper_truth"].connect() as conn:
+            for table in (
+                "data_cooldown_release",
+                "data_cooldown_probe",
+                "data_cooldown_probe_result",
+            ):
+                assert conn.scalar(text(f"SELECT count(*) FROM {table}")) == 0
+            privileges = conn.execute(
+                text(
+                    "SELECT has_table_privilege(current_user,'data_spec','INSERT'),"
+                    "has_table_privilege(current_user,'data_cooldown_probe','INSERT'),"
+                    "has_table_privilege(current_user,'paper_observation_standing_resume',"
+                    "'INSERT')"
+                )
+            ).one()
+            assert tuple(privileges) == (True, False, False)
+        for group in ("auvexo_paper", "auvexo_paper_owner"):
+            with pytest.raises(DBAPIError), engines[group].connect() as conn:
+                conn.execute(text("SELECT count(*) FROM data_cooldown_release"))
+    finally:
+        for engine in engines.values():
+            engine.dispose()
+
+
+def test_a_v1_campaign_row_cannot_begin_a_run_in_the_database(observation_database):
+    owner = engine_for(observation_database, "auvexo_paper_owner")
+    runtime = engine_for(observation_database, "auvexo_paper")
+    legacy = make_config()
+    try:
+        with owner.begin() as conn:
+            conn.execute(
+                text("INSERT INTO paper_observation_campaign(campaign_hash,payload) VALUES(:h,:p)"),
+                {"h": legacy.content_hash(), "p": legacy.canonical_bytes().decode()},
+            )
+        with pytest.raises(DBAPIError, match="OBSERVATION_CAMPAIGN_VERSION_RETIRED"):
+            with runtime.begin() as conn:
+                conn.execute(
+                    text(
+                        "INSERT INTO paper_observation_run "
+                        "(run_id,campaign_hash,kind,local_date,started_at,payload) "
+                        "VALUES(:id,:h,'PREFLIGHT',CURRENT_DATE,now(),'{}')"
+                    ),
+                    {"id": str(uuid4()), "h": legacy.content_hash()},
+                )
+        # It stays readable as recorded.
+        assert ObservationStore(runtime).config(legacy.content_hash()) == legacy
+    finally:
+        owner.dispose()
+        runtime.dispose()
+
+
+def activate(conn, activation_id, campaign_hash, reviewed_sha, authority_hash):
+    conn.execute(
+        "INSERT INTO paper_observation_activation"
+        "(activation_id,campaign_hash,reviewed_sha,first_date,task_hash,authority_hash) "
+        "VALUES(%s,%s,%s,(clock_timestamp() AT TIME ZONE 'Asia/Karachi')::date+1,%s,%s)",
+        (activation_id, campaign_hash, reviewed_sha, "0" * 64, authority_hash),
+    )
+
+
+def standing(conn, activation_id, campaign_hash, payload):
+    conn.execute(
+        "INSERT INTO paper_observation_standing_resume"
+        "(activation_id,campaign_hash,authority_hash,payload) VALUES(%s,%s,%s,%s)",
+        (activation_id, campaign_hash, sha256(payload.encode()).hexdigest(), payload),
+    )
+
+
+def test_standing_resume_authority_is_bound_to_its_start_row(observation_database):
+    owner = engine_for(observation_database, "auvexo_paper_owner")
+    runtime = engine_for(observation_database, "auvexo_paper")
+    config = make_config_v2(campaign_id="synthetic.standing.v2", at=datetime.now(UTC))
+    good = ObservationStandingResume(
+        campaign_hash=config.content_hash(),
+        reviewed_sha=config.git_revision,
+        start_resume_event_hash="5" * 64,
+        valid_through="2027-01-31",
+        owner="owner.founder",
+    )
+    try:
+        with owner.begin() as conn:
+            conn.execute(
+                text("INSERT INTO paper_observation_campaign(campaign_hash,payload) VALUES(:h,:p)"),
+                {"h": config.content_hash(), "p": config.canonical_bytes().decode()},
+            )
+        store = ObservationStore(runtime)
+        assert store.standing_authority(config.content_hash()) is None
+        foreign = good.model_copy(update={"reviewed_sha": "b" * 40})
+        refusals = (
+            # Payload for another reviewed commit than its START row.
+            ("bad.sha", foreign.canonical_bytes().decode(), foreign.content_hash()),
+            # A START row naming another authority than the payload.
+            ("bad.hash", good.canonical_bytes().decode(), "0" * 64),
+        )
+        for activation_id, payload, authority_hash in refusals:
+            with psycopg.connect(dbname=observation_database, **admin_args()) as conn:
+                activate(
+                    conn, activation_id, config.content_hash(), config.git_revision, authority_hash
+                )
+                with pytest.raises(psycopg.errors.RaiseException, match="BINDING_DENIED"):
+                    standing(conn, activation_id, config.content_hash(), payload)
+        with psycopg.connect(dbname=observation_database, **admin_args()) as conn:
+            activate(
+                conn, "owner.start", config.content_hash(), config.git_revision, good.content_hash()
+            )
+            standing(conn, "owner.start", config.content_hash(), good.canonical_bytes().decode())
+        record = store.standing_authority(config.content_hash())
+        assert record.activation_id == "owner.start" and record.authority == good
+        assert record.authority_hash == good.content_hash()
+        for group in PAPER_GROUPS:
+            engine = engine_for(observation_database, group)
+            try:
+                with pytest.raises(DBAPIError), engine.begin() as conn:
+                    conn.execute(
+                        text(
+                            "INSERT INTO paper_observation_standing_resume"
+                            "(activation_id,campaign_hash,authority_hash,payload) "
+                            "VALUES('owner.start',:h,repeat('0',64),'{}')"
+                        ),
+                        {"h": config.content_hash()},
+                    )
+            finally:
+                engine.dispose()
+    finally:
+        owner.dispose()
+        runtime.dispose()
+
+
+def test_kernel_standing_resume_clears_only_writer_k1_at_the_journal_tail_it_read():
+    with isolated_observation_database() as database:
+        engines = [
+            engine_for(database, g)
+            for g in ("auvexo_paper", "auvexo_paper_owner", "auvexo_paper_truth")
+        ]
+        try:
+            store = ObservationStore(*engines)
+            config = make_config_v2(campaign_id="synthetic.kernel.resume", at=datetime.now(UTC))
+            store.prepare(config, now=datetime.now(UTC))
+            paper, account = store.paper, config.account_ref
+
+            def use(tail):
+                return ObservationStandingResumeUse(
+                    authority_hash="1" * 64,
+                    activation_id="owner.start",
+                    run_id=uuid4(),
+                    local_day=datetime.now(UTC).date().isoformat(),
+                    boundary="START_RESUME",
+                    boundary_hash="2" * 64,
+                    boundary_journal_hash="3" * 64,
+                    roll_event_hash="4" * 64,
+                    examined_event_hashes=(tail,),
+                    journal_tail_hash=tail,
+                    evaluated_at=datetime.now(UTC),
+                )
+
+            paper.acquire_writer(account, now=datetime.now(UTC))
+            assert paper.reconcile(account, now=datetime.now(UTC))
+            with pytest.raises(ValueError, match="PAPER_STANDING_RESUME_SCOPE_DENIED"):
+                paper.resume(
+                    account,
+                    actor="owner.founder",
+                    now=datetime.now(UTC),
+                    standing_use=use("9" * 64),
+                )
+            tail = paper.journal(account)[-1]["content_hash"]
+            applied = use(tail)
+            paper.resume(
+                account, actor="owner.founder", now=datetime.now(UTC), standing_use=applied
+            )
+            event = paper.journal(account)[-1]
+            assert event["kind"] == "OWNER_PAPER_RESUME"
+            assert event["data"]["standing_use"] == json.loads(applied.canonical_bytes())
+            assert paper.account(account).kill == KillLevel.K0
+            # Any kill above the writer's K1 stays until the owner resumes it by hand.
+            paper.acquire_writer(account, now=datetime.now(UTC))
+            assert paper.reconcile(account, now=datetime.now(UTC))
+            paper.set_kill(account, KillLevel.K2, actor="synthetic.loss", now=datetime.now(UTC))
+            assert paper.reconcile(account, now=datetime.now(UTC))
+            tail = paper.journal(account)[-1]["content_hash"]
+            with pytest.raises(ValueError, match="PAPER_STANDING_RESUME_SCOPE_DENIED"):
+                paper.resume(
+                    account, actor="owner.founder", now=datetime.now(UTC), standing_use=use(tail)
+                )
+            assert paper.account(account).kill == KillLevel.K2
+            assert paper.ledger_replay(account).mismatch_count == 0
+        finally:
+            for engine in engines:
+                engine.dispose()
