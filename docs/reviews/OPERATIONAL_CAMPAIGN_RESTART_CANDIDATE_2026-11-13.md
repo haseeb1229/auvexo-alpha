@@ -21,13 +21,12 @@
 
 ## Target release
 
-The release to pin is the `main` merge commit of the OD-23 closure pull request, which
-contains the engineering corrections, the ADR-032 campaign v2 implementation, the
-DS-01/DS-02 renewal and the independent review in
-[the review record](OD23_INDEPENDENT_REVIEW_2026-11-15.md). A merge commit cannot name
-itself, so the follow-up change that records it in STATUS also writes its full SHA into
-the [JSON file](OPERATIONAL_CAMPAIGN_RESTART_CANDIDATE_2026-11-13.json) as
-`target_commit`. Do not re-pin to anything else.
+The release to pin is `d90e70b5e096cfd6daf83c436b6ed071d625ed14`, the `main` merge
+commit of the OD-23 closure pull request #15 (2026-11-15). It contains the engineering
+corrections, the ADR-032 campaign v2 implementation, the DS-01/DS-02 renewal and the
+independent review in [the review record](OD23_INDEPENDENT_REVIEW_2026-11-15.md). Later
+documentation-only commits on `main` do not change it. Do not re-pin to anything else
+without a new reviewed candidate.
 
 ## Owner steps, in order
 

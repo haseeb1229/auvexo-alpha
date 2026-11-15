@@ -53,11 +53,15 @@ be enabled, no withdrawal or transfer capability, and no model-to-order path.
 | #12 | DS-03 actual MT5 read-only adapter, with ADR-030 corrections | `003a3808a022af5307ac2c00413441dc3b19fde5` |
 | #13 | Independent A-to-Z rebaseline: repairs, CI, runbooks and this file | `296a3307b9803d2283121485d12a39368c83a70a` |
 | #14 | STATUS record of the #12 and #13 merges | `0617c78b2dd7fd17f8a55fe188ccc42b03d34510` |
+| #15 | OD-23 engineering closure: campaign v2, data and research integrity, OI and DS-03 corrections | `d90e70b5e096cfd6daf83c436b6ed071d625ed14` |
 
-All are normal merge commits. For #12 and #13 it was checked on 2026-11-12 that the first
-parent is the previous `main`, the second is the verified head, and the merge tree equals
-that head's tree. Later merges appear in `git log --first-parent --merges main`; the
-OD-23 closure merge is recorded by a follow-up change, as #14 did for #13.
+All are normal merge commits. For #12, #13 and #15 it was checked that the first parent is
+the previous `main`, the second is the verified head, and the merge tree equals that
+head's tree. For #15 (checked 2026-11-15): parents `0617c78` and `005d7c4`, tree
+`b4964363`; exact-head pull-request CI run 43700132670 passed both jobs (Linux full suite
+3874 passed, 42 skipped; Windows 3300 passed, 2 skipped; dependency audits clean), and
+the push run 43701693320 on the merge commit passed both jobs.
+Later merges appear in `git log --first-parent --merges main`.
 
 ## Phases
 

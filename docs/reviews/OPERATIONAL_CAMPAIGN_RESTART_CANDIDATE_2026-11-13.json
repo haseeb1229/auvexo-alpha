@@ -29,8 +29,12 @@
     "task_scheduler_history_log": "DISABLED"
   },
   "target_release": {
-    "commit": null,
-    "commit_recorded_by": "follow-up change after the OD-23 closure pull request merges",
+    "commit": "d90e70b5e096cfd6daf83c436b6ed071d625ed14",
+    "pull_request": 15,
+    "merged_at": "2026-11-15T09:57:06Z",
+    "merge_parents": ["0617c78b2dd7fd17f8a55fe188ccc42b03d34510", "005d7c4c69043a82a6810a9f440da52b87303f98"],
+    "exact_head_ci_run": 43700132670,
+    "merge_commit_ci_run": 43701693320,
     "must_contain": [
       "OD-23 engineering corrections",
       "ADR-032 PAPER campaign v2 implementation with independent review",
